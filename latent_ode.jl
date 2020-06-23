@@ -120,9 +120,10 @@ function loss_batch(encoder, decoder, λ, x, device)
     for sample in eachslice(x, dims = 3)
         loss += loss_sample(encoder, decoder, sample, device)
     end
+    loss /= size(x, 3)
     # regularization
-    reg = λ * sum(x->sum(x.^2), Flux.params(decoder.neuralODE))
-    return loss + reg
+    # loss += λ * sum(x->sum(x.^2), Flux.params(decoder.neuralODE))
+    return loss
 end
 
 
