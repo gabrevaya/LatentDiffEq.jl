@@ -1,5 +1,7 @@
 # Latent ODE
 #
+# Based on
+# https://github.com/FluxML/model-zoo/blob/master/vision/vae_mnist/vae_mnist.jl
 # https://arxiv.org/abs/1806.07366
 # https://arxiv.org/abs/2003.10775
 
@@ -68,7 +70,6 @@ function (encoder::Encoder)(x)
     reset!(encoder)
     encoder.μ(h), encoder.logσ²(h)
 end
-
 
 
 struct Decoder
@@ -175,54 +176,7 @@ function train(; kws...)
 
     # initialize encoder and decoder
     encoder = Encoder(input_dim, args.latent_dim, args.hidden_dim, args.rnn_input_dim, args.rnn_output_dim, device)
-
-    # pepe = encoder(first(loader_train))
-
-    # den = Dense(input_dim, args.hidden_dim, relu)
-    # x1 = first(loader_train)
-    # den(x1[:,:,1])
-    #
-    # z0, z0_log_var = encoder(x1[:,:,1])
-    # a = encoder.linear(x1[:,:,1])
-    # a_rev = a[:,end:-1:1]
-
-
     decoder = Decoder(input_dim, args.latent_dim, args.hidden_dim, args.hidden_dim_node, seq_len, args.t_max, device)
-    # decoder.neuralODE(z0)
-    #
-    # pepe = Flux.params(decoder.neuralODE)
-    # pepe
-    #
-    #
-    #
-    # dudt2 = Chain(Dense(args.latent_dim, args.hidden_dim_node, relu),
-    #                 Dense(args.hidden_dim_node, args.hidden_dim_node, relu),
-    #                 Dense(args.hidden_dim_node, args.latent_dim))
-    # tspan = (zero(args.t_max), args.t_max)
-    # t = range(tspan[1], tspan[2], length=time_size)
-    # n_ode = NeuralODE(dudt2, tspan, Tsit5(), saveat = t)
-    #
-    # pepe = Flux.params(decoder.neuralODE)
-    # pepe[:]
-    #
-    # pepe2 = Flux.params(dudt2)
-    #
-    # rand(4)
-    # n_ode(rand(4))
-    #
-    # length(pepe2[:][7])
-
-
-    # x1 = first(loader_train)
-    # x = x1[:,:,1]
-    #
-    # reconstruct(encoder, decoder, x, device)
-    #
-    # pepe = broadcast(x -> reconstruct(encoder, decoder, x, device), eachslice(x1, dims=3))
-    #
-    #
-    # μ, logσ², pred_x = reconstruct(encoder, decoder, x, device)
-    #
 
     # ADAM optimizer
     opt = ADAM(args.η)
@@ -232,7 +186,7 @@ function train(; kws...)
                      decoder.neuralODE, decoder.linear)
 
     # or using IterTools
-    # ps = Flux.params(collect(fieldvalues(encoder)),collect(fieldvalues(decoder)))
+    # ps = Flux.params(collect(fieldvalues(encoder)), collect(fieldvalues(decoder)))
 
     # training
     train_steps = 0
