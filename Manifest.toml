@@ -288,9 +288,7 @@ version = "0.8.1"
 
 [[Flux]]
 deps = ["AbstractTrees", "Adapt", "CodecZlib", "Colors", "CuArrays", "DelimitedFiles", "Functors", "Juno", "LinearAlgebra", "MacroTools", "NNlib", "Pkg", "Printf", "Random", "Reexport", "SHA", "Statistics", "StatsBase", "Test", "ZipFile", "Zygote"]
-git-tree-sha1 = "5a42b568a1dd904d0cd1989ae4d546141d2d949f"
-repo-rev = "master"
-repo-url = "https://github.com/FluxML/Flux.jl.git"
+path = "/Users/ger/.julia/dev/Flux"
 uuid = "587475ba-b771-5e3f-ad9e-33799f191a9c"
 version = "0.11.0-DEV"
 

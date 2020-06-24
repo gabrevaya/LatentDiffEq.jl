@@ -48,33 +48,44 @@ function Flux.Data._getobs(data::AbstractArray, i)
 end
 
 
-struct Encoder
-    linear
-    rnn
-    μ
-    logσ²
-    Encoder(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, device) = new(
-        Chain(Dense(input_dim, hidden_dim, relu),
-               Dense(hidden_dim, rnn_input_dim, relu))|> device,         # linear
-        Chain(RNN(rnn_input_dim, rnn_output_dim, relu),
-               RNN(rnn_output_dim, rnn_output_dim, relu))|> device,      # rnn
-        Dense(rnn_output_dim, latent_dim) |> device,                     # μ
-        Dense(rnn_output_dim, latent_dim) |> device,                     # logσ²
-    )
+struct Encoder{F,G,H}
+    linear::F
+    rnn::G
+    μ::H
+    logσ²::H
+
+    function Encoder(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, device)
+
+        linear = Chain(Dense(input_dim, hidden_dim, relu),
+                       Dense(hidden_dim, rnn_input_dim, relu))|> device         # linear
+        rnn = Chain(RNN(rnn_input_dim, rnn_output_dim, relu),
+                    RNN(rnn_output_dim, rnn_output_dim, relu))|> device      # rnn
+        μ = Dense(rnn_output_dim, latent_dim) |> device                 # μ
+        logσ² = Dense(rnn_output_dim, latent_dim) |> device                     # logσ²
+        F = typeof(linear)
+        G = typeof(rnn)
+        H = typeof(μ)
+        new{F,G,H}(linear, rnn, μ, logσ²)
+    end
 end
+
 
 function (encoder::Encoder)(x)
     h1 = encoder.linear(x)
-    h2 = encoder.rnn(h1[:,end:-1:1])
-    h = h2[:,end]
+
+    for time_slice in eachcol(h1[:,end:-1:1])
+        encoder.rnn(time_slice)
+    end
+
+    h = encoder.rnn.layers[2].state
     reset!(encoder)
     encoder.μ(h), encoder.logσ²(h)
 end
 
 
-struct Decoder
-    neuralODE
-    linear
+struct Decoder{F,G}
+    neuralODE::F
+    linear::G
 
     function Decoder(input_dim, latent_dim, hidden_dim, hidden_dim_node, time_size, t_max, device)
 
@@ -84,11 +95,13 @@ struct Decoder
         tspan = (zero(t_max), t_max)
         t = range(tspan[1], tspan[2], length=time_size)
 
-        new(
-            NeuralODE(dudt2, tspan, Tsit5(), saveat = t) |> device,                                # neuralODE
-            Chain(Dense(latent_dim, hidden_dim, relu),
-                   Dense(hidden_dim, input_dim)) |> device       # linear
-            )
+        node = NeuralODE(dudt2, tspan, Tsit5(), saveat = t) #|> device   # neuralODE
+        linear = Chain(Dense(latent_dim, hidden_dim, relu),
+                       Dense(hidden_dim, input_dim)) |> device          # linear
+
+        F = typeof(node)
+        G = typeof(linear)
+        new{F,G}(node, linear)
         end
 end
 
@@ -97,10 +110,9 @@ function (decoder::Decoder)(x)
     out = decoder.linear(h)
 end
 
-
 function reconstruct(encoder, decoder, x, device)
     μ, logσ² = encoder(x)
-    z = μ + device(randn(Float32, size(logσ²))) .* exp.(logσ²/2f0)
+    z = rand(MvNormal(μ, exp.(logσ²/2f0))) #|> device  # when passing through device, for some reason it looses track of the type
     μ, logσ², decoder(z)
 end
 
@@ -117,7 +129,7 @@ end
 
 function loss_batch(encoder, decoder, λ, x, device)
     loss = 0f0
-    for sample in eachslice(x, dims = 3)
+    @inbounds @fastmath for sample in eachslice(x, dims = 3)
         loss += loss_sample(encoder, decoder, sample, device)
     end
     loss /= size(x, 3)
@@ -135,7 +147,7 @@ end
     batch_size = 256            # batch size
     seq_len = 100               # sampling size for output
     epochs = 20                 # number of epochs
-    seed = 0                    # random seed
+    seed = 1                    # random seed
     cuda = true                 # use GPU
     latent_dim = 4              # latent dimension
     hidden_dim = 200            # hidden dimension
@@ -171,6 +183,7 @@ function train(; kws...)
     train_set, val_set = splitobs(train_set, 0.9)
     # const  seq_len = 100
     # seq_len = 100
+    # train_set = permutedims(train_set, [3, 1, 2]);
     # the following assumes that the data is (states, time, observations)
     loader_train = DataLoader(Array(train_set), batchsize=args.batch_size, shuffle=true)
     loader_val = DataLoader(Array(val_set), batchsize=size(val_set,3), shuffle=true)
