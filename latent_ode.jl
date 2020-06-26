@@ -48,24 +48,22 @@ function Flux.Data._getobs(data::AbstractArray, i)
     return data_
 end
 
-struct Encoder{F,G,H}
-    linear::F
-    rnn::G
-    μ::H
-    logσ²::H
+struct Encoder
+    linear
+    rnn
+    μ
+    logσ²
 
     function Encoder(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, device)
 
         linear = Chain(Dense(input_dim, hidden_dim, relu),
-                       Dense(hidden_dim, rnn_input_dim, relu))|> device         # linear
+                       Dense(hidden_dim, rnn_input_dim, relu)) |> device
         rnn = Chain(RNN(rnn_input_dim, rnn_output_dim, relu),
-                    RNN(rnn_output_dim, rnn_output_dim, relu))|> device      # rnn
-        μ = Dense(rnn_output_dim, latent_dim) |> device                 # μ
-        logσ² = Dense(rnn_output_dim, latent_dim) |> device                     # logσ²
-        F = typeof(linear)
-        G = typeof(rnn)
-        H = typeof(μ)
-        new{F,G,H}(linear, rnn, μ, logσ²)
+                    RNN(rnn_output_dim, rnn_output_dim, relu)) |> device
+        μ = Dense(rnn_output_dim, latent_dim) |> device
+        logσ² = Dense(rnn_output_dim, latent_dim) |> device
+
+        new(linear, rnn, μ, logσ²)
     end
 end
 
@@ -84,9 +82,9 @@ function (encoder::Encoder)(x)
     encoder.μ(h), encoder.logσ²(h)
 end
 
-struct Decoder{F,G}
-    neuralODE::F
-    linear::G
+struct Decoder
+    neuralODE
+    linear
 
     function Decoder(input_dim, latent_dim, hidden_dim, hidden_dim_node, time_size, t_max, device)
 
@@ -96,13 +94,11 @@ struct Decoder{F,G}
         tspan = (zero(t_max), t_max)
         t = range(tspan[1], tspan[2], length=time_size)
 
-        node = NeuralODE(dudt2, tspan, Tsit5(), saveat = t) #|> device   # neuralODE
+        node = NeuralODE(dudt2, tspan, Tsit5(), saveat = t) |> device
         linear = Chain(Dense(latent_dim, hidden_dim, relu),
-                       Dense(hidden_dim, input_dim)) |> device          # linear
+                       Dense(hidden_dim, input_dim)) |> device
 
-        F = typeof(node)
-        G = typeof(linear)
-        new{F,G}(node, linear)
+        new(node, linear)
         end
 end
 
