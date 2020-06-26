@@ -37,21 +37,26 @@ p₀_range = (1.0, 2.0)
 rand_uniform(range::Tuple, size) = rand(Uniform(range...),(size,1))
 rand_uniform(range::Array, size) = [rand(Uniform(r[1], r[2])) for r in eachrow(range)]
 
+# for samping initial condition from a uniform distribution
 function prob_func(prob,i,repeat)
       u0_new = rand_uniform(u₀_range, length(prob.u0))
-      p_new = rand_uniform(p₀_range, length(prob.p))
-      remake(prob, u0 = u0_new, p = p_new)
+      remake(prob, u0 = u0_new)
 end
 
+# for samping initial condition from a normal distribution
 function prob_func2(prob,i,repeat)
-      p_new = p₀ + 0.1*randn(length(p₀))
       u0_new  = u₀ + 0.1*randn(length(u₀))
-      remake(prob, u0 = u0_new, p = p_new)
+      remake(prob, u0 = u0_new)
 end
+
+# generate some fixed random parameters
+p_new = rand_uniform(p₀_range, length(prob.p))
+# p_new = p₀ + 0.1*randn(length(p₀))
+remake(prob, p = p_new)
 
 ensemble_prob = EnsembleProblem(prob, prob_func=prob_func, output_func = output_func)
 # ensemble_prob = EnsembleProblem(prob, prob_func=prob_func)
-sim = solve(ensemble_prob, Vern7(), saveat=0.05, trajectories=10000)
+sim = solve(ensemble_prob, Vern7(), saveat=0.05, trajectories=100)
 
 full_data = dropdims(Array(sim), dims = 2)
 
