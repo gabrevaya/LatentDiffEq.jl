@@ -24,6 +24,7 @@ using MLDataUtils
 using Statistics
 
 
+
 # overload data loader function so that it picks random start times for each
 # sample, of size seq_len
 
@@ -69,7 +70,6 @@ struct Encoder{F,G,H}
     end
 end
 
-
 function (encoder::Encoder)(x)
     h1 = encoder.linear(x)
 
@@ -110,9 +110,10 @@ function (decoder::Decoder)(x)
     out = decoder.linear(h)
 end
 
+
 function reconstruct(encoder, decoder, x, device)
     μ, logσ² = encoder(x)
-    z = rand(MvNormal(μ, exp.(logσ²/2f0))) #|> device  # when passing through device, for some reason it looses track of the type
+    z = μ + device(randn(Float32, size(logσ²))) .* exp.(logσ²/2f0)
     μ, logσ², decoder(z)
 end
 
@@ -129,7 +130,7 @@ end
 
 function loss_batch(encoder, decoder, λ, x, device)
     loss = 0f0
-    @inbounds @fastmath for sample in eachslice(x, dims = 3)
+    for sample in eachslice(x, dims = 3)
         loss += loss_sample(encoder, decoder, sample, device)
     end
     loss /= size(x, 3)
@@ -144,20 +145,20 @@ end
 @with_kw mutable struct Args
     η = 1e-3                    # learning rate
     λ = 0.01f0                  # regularization paramater
-    batch_size = 256            # batch size
+    batch_size = 5#256         # batch size
     seq_len = 100               # sampling size for output
     epochs = 20                 # number of epochs
     seed = 1                    # random seed
     cuda = true                 # use GPU
-    latent_dim = 4              # latent dimension
-    hidden_dim = 200            # hidden dimension
-    rnn_input_dim=32            # rnn input dimension
-    rnn_output_dim=32           # rnn output dimension
-    hidden_dim_node = 200       # hiddend dimension of the neuralODE
+    latent_dim = 2#4            # latent dimension
+    hidden_dim = 10#200         # hidden dimension
+    rnn_input_dim = 10#32       # rnn input dimension
+    rnn_output_dim = 10#32      # rnn output dimension
+    hidden_dim_node = 20#200    # hiddend dimension of the neuralODE
     t_max = 4.95f0              # edge of time interval for integration
     save_path = "output"        # results path
     data_name = "lv_data.bson"  # data file name
-    data_var_name = "full_data"  # data file name
+    data_var_name = "full_data" # data file name
 end
 
 
@@ -183,7 +184,6 @@ function train(; kws...)
     train_set, val_set = splitobs(train_set, 0.9)
     # const  seq_len = 100
     # seq_len = 100
-    # train_set = permutedims(train_set, [3, 1, 2]);
     # the following assumes that the data is (states, time, observations)
     loader_train = DataLoader(Array(train_set), batchsize=args.batch_size, shuffle=true)
     loader_val = DataLoader(Array(val_set), batchsize=size(val_set,3), shuffle=true)
