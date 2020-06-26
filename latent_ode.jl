@@ -48,7 +48,6 @@ function Flux.Data._getobs(data::AbstractArray, i)
     return data_
 end
 
-
 struct Encoder{F,G,H}
     linear::F
     rnn::G
@@ -71,9 +70,12 @@ struct Encoder{F,G,H}
 end
 
 function (encoder::Encoder)(x)
-    h1 = encoder.linear(x)
+    states, seq_len, samples = size(x)
+    h1 = cat([encoder.linear(x[:,:,i]) for i in 1:samples]..., dims = 3)
 
-    for time_slice in eachcol(h1[:,end:-1:1])
+    # pass all the samples of the batch,
+    # one time slice at a time, in reverse order
+    for time_slice in eachslice(h1[:,end:-1:1,:], dims = 2)
         encoder.rnn(time_slice)
     end
 
@@ -81,7 +83,6 @@ function (encoder::Encoder)(x)
     reset!(encoder)
     encoder.μ(h), encoder.logσ²(h)
 end
-
 
 struct Decoder{F,G}
     neuralODE::F
@@ -107,9 +108,9 @@ end
 
 function (decoder::Decoder)(x)
     h = Array(decoder.neuralODE(x))
-    out = decoder.linear(h)
+    samples = size(h, 2)
+    out = cat([decoder.linear(h[:,i,:]) for i in 1:samples]..., dims = 3)
 end
-
 
 function reconstruct(encoder, decoder, x, device)
     μ, logσ² = encoder(x)
@@ -121,22 +122,13 @@ KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
 # the calculation via log(var) = log(σ²) is more numerically efficient than through log(σ)
 # KL(μ, logσ) = (exp(2f0 * logσ) + μ^2)/2f0 - 0.5f0 - logσ
 
-function loss_sample(encoder, decoder, x, device)
-    μ, logσ², pred_x = reconstruct(encoder, decoder, x, device)
-    reconstruction_loss = mean((pred_x - x).^2)
-    kl = mean(KL.(μ, logσ²))
-    return reconstruction_loss + kl
-end
-
 function loss_batch(encoder, decoder, λ, x, device)
-    loss = 0f0
-    for sample in eachslice(x, dims = 3)
-        loss += loss_sample(encoder, decoder, sample, device)
-    end
-    loss /= size(x, 3)
-    # regularization
-    # loss += λ * sum(x->sum(x.^2), Flux.params(decoder.neuralODE))
-    return loss
+    μ, logσ², pred_x = reconstruct(encoder, decoder, x, device)
+    # reconstruction loss
+    reconstruction_loss = sum(mean((pred_x - x).^2, dims = (2,3)))
+    # KL loss
+    kl_loss = mean(sum(KL.(μ, logσ²), dims = 1))
+    return reconstruction_loss + kl_loss
 end
 
 
@@ -145,16 +137,16 @@ end
 @with_kw mutable struct Args
     η = 1e-3                    # learning rate
     λ = 0.01f0                  # regularization paramater
-    batch_size = 5#256         # batch size
+    batch_size = 256            # batch size
     seq_len = 100               # sampling size for output
     epochs = 20                 # number of epochs
     seed = 1                    # random seed
     cuda = true                 # use GPU
-    latent_dim = 2#4            # latent dimension
     hidden_dim = 10#200         # hidden dimension
     rnn_input_dim = 10#32       # rnn input dimension
     rnn_output_dim = 10#32      # rnn output dimension
-    hidden_dim_node = 20#200    # hiddend dimension of the neuralODE
+    latent_dim = 2#4            # latent dimension
+    hidden_dim_node = 100#200   # hiddend dimension of the neuralODE
     t_max = 4.95f0              # edge of time interval for integration
     save_path = "output"        # results path
     data_name = "lv_data.bson"  # data file name
@@ -182,11 +174,11 @@ function train(; kws...)
     input_dim, time_size, observations = size(full_data)
     train_set, test_set = splitobs(full_data, 0.9)
     train_set, val_set = splitobs(train_set, 0.9)
-    # const  seq_len = 100
-    # seq_len = 100
+
     # the following assumes that the data is (states, time, observations)
-    loader_train = DataLoader(Array(train_set), batchsize=args.batch_size, shuffle=true)
-    loader_val = DataLoader(Array(val_set), batchsize=size(val_set,3), shuffle=true)
+    # train_set = train_set[:,:,1:1000]
+    loader_train = DataLoader(Array(train_set), batchsize=args.batch_size, shuffle=true, partial=false)
+    loader_val = DataLoader(Array(val_set), batchsize=size(val_set,3), shuffle=true, partial=false)
 
     # initialize encoder and decoder
     encoder = Encoder(input_dim, args.latent_dim, args.hidden_dim, args.rnn_input_dim, args.rnn_output_dim, device)
