@@ -96,7 +96,7 @@ struct Decoder
         end
 end
 
-function (decoder::Decoder)(x)
+function (decoder::Decoder)(x, device)
     h = Array(decoder.neuralODE(x)) |> device
     h2 = permutedims(h, (1,3,2));
     out = Flux.stack(broadcast(decoder.linear, eachslice(h2, dims=3)), 3)
@@ -105,7 +105,7 @@ end
 function reconstruct(encoder, decoder, x, device)
     μ, logσ² = encoder(x)
     z = μ + device(randn(Float32, size(logσ²))) .* exp.(logσ²/2f0)
-    μ, logσ², decoder(z)
+    μ, logσ², decoder(z, device)
 end
 
 KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
