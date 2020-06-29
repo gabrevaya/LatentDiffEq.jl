@@ -56,7 +56,7 @@ remake(prob, p = p_new)
 
 ensemble_prob = EnsembleProblem(prob, prob_func=prob_func, output_func = output_func)
 # ensemble_prob = EnsembleProblem(prob, prob_func=prob_func)
-sim = solve(ensemble_prob, Vern7(), saveat=0.05, trajectories=100)
+sim = solve(ensemble_prob, Vern7(), saveat=0.05, trajectories=10000)
 
 full_data = dropdims(Array(sim), dims = 2)
 

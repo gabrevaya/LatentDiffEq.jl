@@ -68,16 +68,10 @@ struct Encoder
 end
 
 function (encoder::Encoder)(x)
-    states, seq_len, samples = size(x)
-    h1 = cat([encoder.linear(x[:,:,i]) for i in 1:samples]..., dims = 3)
-
-    # pass all the samples of the batch,
-    # one time slice at a time, in reverse order
-    for time_slice in eachslice(h1[:,end:-1:1,:], dims = 2)
-        encoder.rnn(time_slice)
-    end
-
-    h = encoder.rnn.layers[2].state
+    h1 = Flux.stack(broadcast(encoder.linear, eachslice(x, dims=3)), 3)
+    # reshape into vectors (features, sample) x time, with reversed time
+    h1_vector_reversed = Flux.unstack(h1[:,end:-1:1,:], 2)
+    h = encoder.rnn.(h1_vector_reversed)[end]
     reset!(encoder)
     encoder.μ(h), encoder.logσ²(h)
 end
@@ -90,11 +84,11 @@ struct Decoder
 
         dudt2 = Chain(Dense(latent_dim, hidden_dim_node, relu),
                         Dense(hidden_dim_node, hidden_dim_node, relu),
-                        Dense(hidden_dim_node, latent_dim))
+                        Dense(hidden_dim_node, latent_dim)) |> device
         tspan = (zero(t_max), t_max)
         t = range(tspan[1], tspan[2], length=time_size)
 
-        node = NeuralODE(dudt2, tspan, Tsit5(), saveat = t) |> device
+        node = NeuralODE(dudt2, tspan, Tsit5(), saveat = t)
         linear = Chain(Dense(latent_dim, hidden_dim, relu),
                        Dense(hidden_dim, input_dim)) |> device
 
@@ -103,9 +97,9 @@ struct Decoder
 end
 
 function (decoder::Decoder)(x)
-    h = Array(decoder.neuralODE(x))
-    samples = size(h, 2)
-    out = cat([decoder.linear(h[:,i,:]) for i in 1:samples]..., dims = 3)
+    h = Array(decoder.neuralODE(x)) |> device
+    h2 = permutedims(h, (1,3,2));
+    out = Flux.stack(broadcast(decoder.linear, eachslice(h2, dims=3)), 3)
 end
 
 function reconstruct(encoder, decoder, x, device)
@@ -189,6 +183,7 @@ function train(; kws...)
 
     # or using IterTools
     # ps = Flux.params(collect(fieldvalues(encoder)), collect(fieldvalues(decoder)))
+    mkpath(args.save_path)
 
     # training
     train_steps = 0
