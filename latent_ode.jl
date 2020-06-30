@@ -72,7 +72,7 @@ function (encoder::Encoder)(x)
     # reshape into vectors (features, sample) x time, with reversed time
     h1_vector_reversed = Flux.unstack(h1[:,end:-1:1,:], 2)
     h = encoder.rnn.(h1_vector_reversed)[end]
-    reset!(encoder)
+    reset!(encoder.rnn)
     encoder.μ(h), encoder.logσ²(h)
 end
 
@@ -186,7 +186,6 @@ function train(; kws...)
     mkpath(args.save_path)
 
     # training
-    train_steps = 0
     @info "Start Training, total $(args.epochs) epochs"
     for epoch = 1:args.epochs
         @info "Epoch $(epoch)"
@@ -200,8 +199,6 @@ function train(; kws...)
             Flux.Optimise.update!(opt, ps, grad)
             # progress meter
             next!(progress; showvalues=[(:loss, loss)])
-
-            train_steps += 1
         end
 
         model_path = joinpath(args.save_path, "model_epoch_$(epoch).bson")
