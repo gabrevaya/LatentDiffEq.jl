@@ -45,8 +45,15 @@ function Flux.Data._getobs(data::AbstractArray, i)
         data_[:,:, idx] =
         data[:, time_idxs(seq_len, time_len), batch_idx]
     end
-    return data_
+    return Flux.unstack(data_, 2)
 end
+
+# # add a method to * so that we can compute the whole batch at once using batchee_mul
+# import Base:*
+# function *(W::AbstractArray{T,2}, x::AbstractArray{T,3}) where T
+#     W_rep = repeat(W, 1, 1, size(x, 3))
+#     batched_mul(W_rep, x)
+# end
 
 struct Encoder
     linear
@@ -68,10 +75,9 @@ struct Encoder
 end
 
 function (encoder::Encoder)(x)
-    h1 = Flux.stack(broadcast(encoder.linear, eachslice(x, dims=3)), 3)
-    # reshape into vectors (features, sample) x time, with reversed time
-    h1_vector_reversed = Flux.unstack(h1[:,end:-1:1,:], 2)
-    h = encoder.rnn.(h1_vector_reversed)[end]
+    h1 = encoder.linear.(x)
+    # reverse time and pass to the rnn
+    h = encoder.rnn.(h1[end:-1:1])[end]
     reset!(encoder.rnn)
     encoder.μ(h), encoder.logσ²(h)
 end
@@ -98,8 +104,8 @@ end
 
 function (decoder::Decoder)(x, device)
     h = Array(decoder.neuralODE(x)) |> device
-    h2 = permutedims(h, (1,3,2));
-    out = Flux.stack(broadcast(decoder.linear, eachslice(h2, dims=3)), 3)
+    h2 = Flux.unstack(h, 3)
+    out = decoder.linear.(h2)
 end
 
 function reconstruct(encoder, decoder, x, device)
@@ -112,11 +118,20 @@ KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
 # the calculation via log(var) = log(σ²) is more numerically efficient than through log(σ)
 # KL(μ, logσ) = (exp(2f0 * logσ) + μ^2)/2f0 - 0.5f0 - logσ
 
+function rec_loss(x, pred_x)
+    res = Flux.stack(pred_x - x, 3)
+    sum(mean((res).^2, dims = (2, 3)))
+end
+
+# The following rec_loss is faster but Zygote has a problem with it.
+# We should write a more performant loss function
+# function rec_loss(x, pred_x)
+#     sum(mean(mean([t.^2 for t in (pred_x - x)]), dims = 2))
+# end
+
 function loss_batch(encoder, decoder, λ, x, device)
     μ, logσ², pred_x = reconstruct(encoder, decoder, x, device)
-    # reconstruction loss
-    reconstruction_loss = sum(mean((pred_x - x).^2, dims = (2,3)))
-    # KL loss
+    reconstruction_loss = rec_loss(x, pred_x)
     kl_loss = mean(sum(KL.(μ, logσ²), dims = 1))
     return reconstruction_loss + kl_loss
 end
