@@ -71,3 +71,28 @@ using BSON: @save, @load
 @save "lv_data.bson" full_data
 
 # @load "lv_data.bson" full_data
+
+function solve_prob(u0, pᵢ, tspan, tstep)
+
+      @parameters t α β δ γ
+      @variables x(t) y(t)
+      @derivatives D'~t
+
+
+      u₀ = [x => u0[1]
+            y => u0[2]]
+
+      p  = [α => pᵢ[1]
+            β => pᵢ[2]
+            δ => pᵢ[3]
+            γ => pᵢ[4]]
+
+      eqs = [D(x) ~ α*x - β*x*y,
+           D(y) ~ -δ*y + γ*x*y]
+
+      sys = ODESystem(eqs)
+      prob = ODEProblem(sys, u₀, tspan, p, jac=true, sparse=true)
+      sol = solve(prob, Vern7(), saveat = tstep)
+
+      sol
+end
