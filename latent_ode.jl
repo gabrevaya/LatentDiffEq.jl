@@ -5,6 +5,8 @@
 # https://arxiv.org/abs/1806.07366
 # https://arxiv.org/abs/2003.10775
 
+include("create_data.jl")
+
 using OrdinaryDiffEq
 using Base.Iterators: partition
 using BSON:@save, @load
@@ -22,8 +24,8 @@ using ProgressMeter: Progress, next!
 using Random
 using MLDataUtils
 using Statistics
-
-
+using Zygote
+using Plots
 
 # overload data loader function so that it picks random start times for each
 # sample, of size seq_len
@@ -143,7 +145,7 @@ end
     η = 1e-3                    # learning rate
     λ = 0.01f0                  # regularization paramater
     batch_size = 256            # batch size
-    seq_len = 100               # sampling size for output
+    seq_len = 201               # sampling size for output
     epochs = 20                 # number of epochs
     seed = 1                    # random seed
     cuda = true                 # use GPU
@@ -152,7 +154,7 @@ end
     rnn_output_dim = 10#32      # rnn output dimension
     latent_dim = 2#4            # latent dimension
     hidden_dim_node = 100#200   # hiddend dimension of the neuralODE
-    t_max = 4.95f0              # edge of time interval for integration
+    t_max = 19.95f0              # edge of time interval for integration
     save_path = "output"        # results path
     data_name = "lv_data.bson"  # data file name
     data_var_name = "full_data" # data file name
@@ -217,20 +219,69 @@ function train(; kws...)
         end
 
         model_path = joinpath(args.save_path, "model_epoch_$(epoch).bson")
-        let encoder = cpu(encoder), decoder = cpu(decoder), args=struct2dict(args)
-            BSON.@save model_path encoder decoder args
+        let encoder_θ = cpu(Flux.params(encoder)), decoder_θ = cpu(Flux.params(decoder)), args=struct2dict(args)
+            BSON.@save model_path encoder_θ decoder_θ args
             @info "Model saved: $(model_path)"
         end
     end
 
     model_path = joinpath(args.save_path, "model.bson")
-    let encoder = cpu(encoder), decoder = cpu(decoder), args=struct2dict(args)
-        BSON.@save model_path encoder decoder args
+    let encoder_θ = cpu(Flux.params(encoder)), decoder_θ = cpu(Flux.params(decoder)), args=struct2dict(args)
+        BSON.@save model_path encoder_θ decoder_θ args
         @info "Model saved: $(model_path)"
     end
 end
 
-const seq_len = 100
+## Function comparing solution generated from latentODE structure with true solution within the time span
+function predict_within()
+
+    u0 = [1.0, 1.0] # [x, y]
+
+    pᵢ  = [1.5, 1.0, 3.0, 1.0] # [α, β, δ, γ]
+
+    tspan = (0.0,19.95)
+    tstep = 0.1
+
+    sol = Array(solve_prob(u0, pᵢ, tspan, tstep))
+
+    # Load model
+    input_dim = size(sol, 1)
+    @load "output/model_epoch_1.bson" encoder_θ decoder_θ args
+
+    #
+    # # GPU config
+    # if args[:cuda] && has_cuda_gpu()
+    #     device = gpu
+    #     @info "Evaluating on GPU"
+    # else
+    device = cpu
+    @info "Evaluating on CPU"
+    # end
+
+    encoder = Encoder(input_dim, args[:latent_dim], args[:hidden_dim], args[:rnn_input_dim], args[:rnn_output_dim],device)
+    decoder = Decoder(input_dim, args[:latent_dim], args[:hidden_dim], args[:hidden_dim_node], args[:seq_len], args[:t_max], device)
+
+    Flux.loadparams!(encoder, encoder_θ)
+    Flux.loadparams!(decoder, decoder_θ)
+
+    # Predict within time interval given
+    x = Flux.unstack(reshape(sol, (size(sol, 1),size(sol, 2), 1)), 2)
+    μ, logσ², z = reconstruct(encoder, decoder, x, device)
+
+    # Data dimensions manipulation
+    x = dropdims(Flux.stack(x, 2), dims=3)
+    z = dropdims(Flux.stack(z, 2), dims=3)
+
+    # Showing in plot panel
+    plt = plot(x[1,:], color="blue", label="True x")
+    plt = plot!(x[2,:], color="red", label="True y")
+    plt = plot!(z[1,:], color="blue", linestyle=:dot, label="Model x")
+    plt = plot!(z[2,:], color="red", linestyle=:dot, label="Model y")
+    display(plt)
+
+end
+
+const seq_len = 201
 
 if abspath(PROGRAM_FILE) == @__FILE__
     train()
