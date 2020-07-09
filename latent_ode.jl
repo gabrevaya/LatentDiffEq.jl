@@ -5,7 +5,7 @@
 # https://arxiv.org/abs/1806.07366
 # https://arxiv.org/abs/2003.10775
 
-# include("create_data.jl")
+include("create_data.jl")
 
 using OrdinaryDiffEq
 using Base.Iterators: partition
@@ -232,8 +232,8 @@ function train(; kws...)
         end
 
         model_path = joinpath(args.save_path, "model_epoch_$(epoch).bson")
-        let encoder = cpu(deepcopy(encoder)),
-            decoder = cpu(deepcopy(decoder)),
+        let encoder = cpu(encoder),
+            decoder = cpu(decoder),
             args=struct2dict(args)
 
             BSON.@save model_path encoder decoder args
@@ -242,8 +242,8 @@ function train(; kws...)
     end
 
     model_path = joinpath(args.save_path, "model.bson")
-    let encoder = cpu(deepcopy(encoder)),
-        decoder = cpu(deepcopy(decoder)),
+    let encoder = cpu(encoder),
+        decoder = cpu(decoder),
         args=struct2dict(args)
 
         BSON.@save model_path encoder decoder args
@@ -265,6 +265,23 @@ function visualize_training(encoder, decoder, x, device)
     png(plt, "Training_sample.png")
 end
 
+function import_model(model_path, input_dim, device)
+
+    @load model_path encoder decoder args
+
+    encoder_new = Encoder(input_dim, args[:latent_dim], args[:hidden_dim], args[:rnn_input_dim], args[:rnn_output_dim], device)
+    decoder_new = Decoder(input_dim, args[:latent_dim], args[:hidden_dim], args[:hidden_dim_node], args[:seq_len], args[:t_max], device)
+
+    Flux.loadparams!(encoder_new.linear, Flux.params(encoder.linear))
+    Flux.loadparams!(encoder_new.rnn, Flux.params(encoder.rnn))
+    Flux.loadparams!(encoder_new.μ, Flux.params(encoder.μ))
+    Flux.loadparams!(encoder_new.logσ², Flux.params(encoder.logσ²))
+    Flux.loadparams!(decoder_new.neuralODE, Flux.params(decoder.neuralODE))
+    Flux.loadparams!(decoder_new.linear, Flux.params(decoder.linear))
+
+    encoder_new, decoder_new
+end
+
 function predict_from_train()
 
     #GPU config
@@ -284,17 +301,11 @@ function predict_from_train()
 
     # Load model
     input_dim = size(sol, 1)
-    # @load "output/model_epoch_1.bson" encoder decoder_nODE decoder_linear args
-    @load "output/model_epoch_1.bson" encoder decoder
-
-    decoder_new = Decoder(input_dim, args[:latent_dim], args[:hidden_dim], args[:hidden_dim_node], args[:seq_len], args[:t_max], device)
-
-    Flux.loadparams!(decoder_new.neuralODE, Flux.params(decoder.neuralODE))
-    Flux.loadparams!(decoder_new.linear, Flux.params(decoder.linear))
+    encoder, decoder = import_model("output/model_epoch_1.bson", input_dim, device)
 
     # Predict within time interval given
     x = Flux.unstack(reshape(sol, (size(sol, 1),size(sol, 2), 1)), 2)
-    μ, logσ², z = reconstruct(encoder, decoder_new, x |> device, device)
+    μ, logσ², z = reconstruct(encoder |> device, decoder, x |> device, device)
 
     # Data dimensions manipulation
     x = dropdims(Flux.stack(x, 2), dims=3)
@@ -321,16 +332,8 @@ end
 ## Function comparing solution generated from latentODE structure with true solution within the time span
 function predict_within()
 
-    u0 = rand(Uniform(1.5, 3.0), 2, 1) # [x, y]
-
-    tspan = (0.0, 9.95)
-    tstep = 0.1
-
-    sol = Array(solve_prob(u0, pᵢ, tspan, tstep))
-
     # Load model
-    input_dim = size(sol, 1)
-    @load "output/model_epoch_16.bson" encoder decoder args
+    @load "output/model_epoch_7.bson" args
 
     if args[:cuda] && has_cuda_gpu()
         device = gpu
@@ -340,14 +343,23 @@ function predict_within()
         @info "Evaluating on CPU"
     end
 
-    decoder_new = Decoder(input_dim, args[:latent_dim], args[:hidden_dim], args[:hidden_dim_node], args[:seq_len], args[:t_max], device)
+    @load args[:data_name] p
 
-    Flux.loadparams!(decoder_new.neuralODE, decoder.neuralODE)
-    Flux.loadparams!(decoder_new.linear, decoder.linear)
+    u0 = rand(Uniform(1.5, 3.0), 2, 1) # [x, y]
+    tspan = (0.0, 9.95)
+    tstep = 0.1
+
+    sol = Array(solve_prob(u0, p, tspan, tstep))
+
+    @load "output/model_epoch_7.bson" encoder decoder
+
+    input_dim = size(sol, 1)
+    encoder, decoder = import_model("output/model_epoch_1.bson", input_dim, device)
+
 
     # Predict within time interval given
     x = Flux.unstack(reshape(sol, (size(sol, 1),size(sol, 2), 1)), 2)
-    μ, logσ², z = reconstruct(encoder, decoder, x, device)
+    μ, logσ², z = reconstruct(encoder, decoder, x |> device, device)
 
     # Data dimensions manipulation
     x = dropdims(Flux.stack(x, 2), dims=3)
