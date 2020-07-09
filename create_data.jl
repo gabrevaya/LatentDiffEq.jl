@@ -4,23 +4,6 @@ using Random
 using Distributions
 using BSON: @save, @load
 
-
-# for samping initial condition from a uniform distribution
-function prob_func(prob,i,repeat)
-      u0_new = rand_uniform(u₀_range, length(prob.u0))
-      remake(prob, u0 = u0_new)
-end
-
-# for samping initial condition from a normal distribution
-function prob_func2(prob,i,repeat)
-      u0_new  = u₀ + 0.1*randn(length(u₀))
-      remake(prob, u0 = u0_new)
-end
-
-output_func(sol,i) = (Array(sol),false)
-rand_uniform(range::Tuple, size) = rand(Uniform(range...),(size,1))
-rand_uniform(range::Array, size) = [rand(Uniform(r[1], r[2])) for r in eachrow(range)]
-
 function generate_dataset()
 
       @parameters t α β δ γ
@@ -40,7 +23,7 @@ function generate_dataset()
             δ => 3.0
             γ => 1.0]
 
-      tspan = (0.0,19.95)
+      tspan = (0.0, 9.95)
       prob = ODEProblem(sys,u0, tspan, p, jac=true, sparse=true)
       sol = solve(prob, Vern7(), saveat = 0.1)
 
@@ -52,10 +35,27 @@ function generate_dataset()
       u₀_range = (1.5, 3.0)
       p₀_range = (1.0, 2.0)
 
+      # for samping initial condition from a uniform distribution
+      function prob_func(prob,i,repeat)
+            u0_new = rand_uniform(u₀_range, length(prob.u0))
+            remake(prob, u0 = u0_new)
+      end
+
+      # for samping initial condition from a normal distribution
+      function prob_func2(prob,i,repeat)
+            u0_new  = u₀ + 0.1*randn(length(u₀))
+            remake(prob, u0 = u0_new)
+      end
+
+      output_func(sol,i) = (Array(sol),false)
+      rand_uniform(range::Tuple, size) = rand(Uniform(range...),(size,1))
+      rand_uniform(range::Array, size) = [rand(Uniform(r[1], r[2])) for r in eachrow(range)]
+
+
       # generate some fixed random parameters
-      #p_new = rand_uniform(p₀_range, length(prob.p))
+      p_new = rand_uniform(p₀_range, length(prob.p))
       # p_new = p₀ + 0.1*randn(length(p₀))
-      #remake(prob, p = p_new)
+      remake(prob, p = p_new)
 
       ensemble_prob = EnsembleProblem(prob, prob_func=prob_func, output_func = output_func)
       # ensemble_prob = EnsembleProblem(prob, prob_func=prob_func)
@@ -68,7 +68,7 @@ function generate_dataset()
       # plot(sim,linealpha=0.2, color=:blue, vars=(1))
       # plot!(sim,linealpha=0.2, color=:red, vars=(2))
 
-      @save "lv_data.bson" full_data
+      @save "lv_data.bson" full_data p
 end
 
 
