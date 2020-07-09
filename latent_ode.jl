@@ -285,7 +285,8 @@ end
 function predict_from_train()
 
     #GPU config
-    @load "output/model_epoch_1.bson" args
+    model_pth = "output/model_epoch_10.bson"
+    @load model_pth args
     if args[:cuda] && has_cuda_gpu()
         device = gpu
         @info "Evaluating on GPU"
@@ -301,11 +302,11 @@ function predict_from_train()
 
     # Load model
     input_dim = size(sol, 1)
-    encoder, decoder = import_model("output/model_epoch_1.bson", input_dim, device)
+    encoder, decoder = import_model(model_pth, input_dim, device)
 
     # Predict within time interval given
     x = Flux.unstack(reshape(sol, (size(sol, 1),size(sol, 2), 1)), 2)
-    μ, logσ², z = reconstruct(encoder |> device, decoder, x |> device, device)
+    μ, logσ², z = reconstruct(encoder, decoder, x |> device, device)
 
     # Data dimensions manipulation
     x = dropdims(Flux.stack(x, 2), dims=3)
@@ -333,7 +334,8 @@ end
 function predict_within()
 
     # Load model
-    @load "output/model_epoch_7.bson" args
+    model_pth = "output/model_epoch_10.bson"
+    @load model_pth args
 
     if args[:cuda] && has_cuda_gpu()
         device = gpu
@@ -351,11 +353,8 @@ function predict_within()
 
     sol = Array(solve_prob(u0, p, tspan, tstep))
 
-    @load "output/model_epoch_7.bson" encoder decoder
-
     input_dim = size(sol, 1)
-    encoder, decoder = import_model("output/model_epoch_1.bson", input_dim, device)
-
+    encoder, decoder = import_model(model_pth, input_dim, device)
 
     # Predict within time interval given
     x = Flux.unstack(reshape(sol, (size(sol, 1),size(sol, 2), 1)), 2)
