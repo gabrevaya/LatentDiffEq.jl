@@ -36,29 +36,13 @@ using CUDAdrv
 # Flux needs to be in v0.11.0 (currently master, which is not compatible with
 # DiffEqFlux compatibility, that's why I didn't include it in the Project.toml)
 
-function time_idxs(seq_len, time_len)
-    start_time = rand(1:time_len - seq_len)
-    idxs = start_time:start_time+seq_len-1
-end
+################################################################################
+## Problem Definition
 
-function Flux.Data._getobs(data::AbstractArray, i)
-    features, time_len, obs = size(data)
-    seq_len::Int
-    data_ = Array{Float32, 3}(undef, (features, seq_len, length(i)))
 
-    for (idx, batch_idx) in enumerate(i)
-        data_[:,:, idx] =
-        data[:, time_idxs(seq_len, time_len), batch_idx]
-    end
-    return Flux.unstack(data_, 2)
-end
 
-# # add a method to * so that we can compute the whole batch at once using batchee_mul
-# import Base:*
-# function *(W::AbstractArray{T,2}, x::AbstractArray{T,3}) where T
-#     W_rep = repeat(W, 1, 1, size(x, 3))
-#     batched_mul(W_rep, x)
-# end
+################################################################################
+## Model definition
 
 struct Encoder
     linear
@@ -113,6 +97,9 @@ function (decoder::Decoder)(x, device)
     out = decoder.linear.(h2)
 end
 
+################################################################################
+## Training Utils
+
 function reconstruct(encoder, decoder, x, device)
     μ, logσ² = encoder(x)
     z = μ + device(randn(Float32, size(logσ²))) .* exp.(logσ²/2f0)
@@ -122,11 +109,6 @@ end
 KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
 # the calculation via log(var) = log(σ²) is more numerically efficient than through log(σ)
 # KL(μ, logσ) = (exp(2f0 * logσ) + μ^2)/2f0 - 0.5f0 - logσ
-
-# function rec_loss(x, pred_x)
-#     res = Flux.stack(pred_x - x, 3)
-#     sum(mean((res).^2, dims = (2, 3)))
-# end
 
 function rec_loss(x, pred_x)
     pred_x_stacked = Flux.stack(pred_x, 3)
@@ -138,18 +120,15 @@ function rec_loss(x, pred_x)
     return res_average + 1000*res_diff_average
 end
 
-# The following rec_loss is faster but Zygote has a problem with it.
-# We should write a more performant loss function
-# function rec_loss(x, pred_x)
-#     sum(mean(mean([t.^2 for t in (pred_x - x)]), dims = 2))
-# end
-
 function loss_batch(encoder, decoder, λ, x, device)
     μ, logσ², pred_x = reconstruct(encoder, decoder, x, device)
     reconstruction_loss = rec_loss(x, pred_x)
     kl_loss = mean(sum(KL.(μ, logσ²), dims = 1))
     return reconstruction_loss + kl_loss
 end
+
+################################################################################
+## Train
 
 # arguments for the `train` function
 @with_kw mutable struct Args
@@ -251,6 +230,9 @@ function train(; kws...)
         @info "Model saved: $(model_path)"
     end
 end
+
+################################################################################
+## Forward passing and visualization of results
 
 function visualize_training(encoder, decoder, x, device)
 
@@ -371,6 +353,29 @@ function predict_within()
     png(plt, "prediction_outside_train.png")
 
 end
+
+################################################################################
+## Training help function
+
+function time_idxs(seq_len, time_len)
+    start_time = rand(1:time_len - seq_len)
+    idxs = start_time:start_time+seq_len-1
+end
+
+function Flux.Data._getobs(data::AbstractArray, i)
+    features, time_len, obs = size(data)
+    seq_len::Int
+    data_ = Array{Float32, 3}(undef, (features, seq_len, length(i)))
+
+    for (idx, batch_idx) in enumerate(i)
+        data_[:,:, idx] =
+        data[:, time_idxs(seq_len, time_len), batch_idx]
+    end
+    return Flux.unstack(data_, 2)
+end
+
+################################################################################
+## Other
 
 const seq_len = 100
 
