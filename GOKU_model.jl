@@ -1,4 +1,4 @@
-# Latent ODE
+# GOKU-NET MODEL
 #
 # Based on
 # https://github.com/FluxML/model-zoo/blob/master/vision/vae_mnist/vae_mnist.jl
@@ -29,6 +29,7 @@ using Plots
 using CuArrays
 using Distributions
 using CUDAdrv
+using ModelingToolkit
 
 # overload data loader function so that it picks random start times for each
 # sample, of size seq_len
@@ -37,12 +38,73 @@ using CUDAdrv
 # DiffEqFlux compatibility, that's why I didn't include it in the Project.toml)
 
 ################################################################################
-## Model Definition
+## Problem Definition
+
+struct ODE_lv
+
+    sys
+
+    function ODE_lv()
+
+        @parameters t α β δ γ
+        @variables x(t) y(t)
+        @derivatives D'~t
+
+        eqs = [D(x) ~ α*x - β*x*y,
+               D(y) ~ -δ*y + γ*x*y]
+
+        sys = ODESystem(eqs)
+
+        new(sys)
+
+    end
+
+end
+
+################################################################################
+## Model definition
+
+struct Goku
+
+    encoder::Encoder
+    decoder::Decoder
+
+    device
+
+    function Goku(input_dim, latent_dim, rnn_input_dim, rnn_output_dim, hidden_dim, ode_dim, p_dim, ode_sys, solver, device)
+
+        encoder = Encoder(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, device)
+        decoder = Decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_sys, solver, device)
+
+        new(encoder, decoder, device)
+
+    end
+end
+
+function (goku::GOKU)(x, t) # Possible to input a "Variationnal" boolean in order to determine whether the net takes the location latent variables or it samples from the generated distribution
+
+    latent_z₀_μ, latent_z₀_logσ², latent_p_μ, latent_p_logσ² = encoder(x)
+
+    latent_z₀ = rand(MvNormal(latent_z₀_μ, latent_z₀_logσ²)) |> goku.device
+    latent_p = rand(MvNormal(latent_p_μ, latent_p_logσ²)) |> goku.device
+
+    x_pred, z_pred, p_pred = decoder(latent_z₀, latent_p, t)
+
+    return x_pred, z_pred, p_pred
+
+end
+
 struct Encoder
+
+    device
+
     linear
     rnn
-    μ
-    logσ²
+    rnn_μ
+    rnn_logσ²
+    lstm
+    lstm_μ
+    lstm_logσ²
 
     function Encoder(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, device)
 
@@ -50,55 +112,68 @@ struct Encoder
                        Dense(hidden_dim, rnn_input_dim, relu)) |> device
         rnn = Chain(RNN(rnn_input_dim, rnn_output_dim, relu),
                     RNN(rnn_output_dim, rnn_output_dim, relu)) |> device
-        μ = Dense(rnn_output_dim, latent_dim) |> device
-        logσ² = Dense(rnn_output_dim, latent_dim) |> device
 
-        new(linear, rnn, μ, logσ²)
+        rnn_μ = Dense(rnn_output_dim, latent_dim) |> device
+        rnn_logσ² = Dense(rnn_output_dim, latent_dim) |> device
+
+        lstm = Chain(LSTM(rnn_input_dim, rnn_output_dim, relu),
+                     LSTM(rnn_output_dim, rnn_output_dim, relu)) |> device
+
+        lstm_μ = Dense(rnn_output_dim, latent_dim) |> device
+        lstm_logσ² = Dense(rnn_output_dim, latent_dim) |> device
+
+        new(device, linear, rnn, rnn_μ, rnn_logσ², lstm, lstm_μ, lstm_logσ²)
     end
 end
 
 function (encoder::Encoder)(x)
-    h1 = encoder.linear.(x)
-    # reverse time and pass to the rnn
-    h = encoder.rnn.(h1[end:-1:1])[end]
-    reset!(encoder.rnn)
-    encoder.μ(h), encoder.logσ²(h)
+    h_rev = encoder.linear.(x)[end:-1:1] # Pass through linear layer and reverse
+    rnn_out = encoder.rnn.(h_rev)[end]
+    lstm_out = encoder.lstm(h_rev)[end]
+    reset!(encoder.rnn, encoder.lstm)
+    encoder.rnn_μ(rnn_out), encoder.rnn_logσ²(rnn_out), encoder.lstm_μ(lstm_out), encoder.lstm_logσ²(lstm_out)
 end
 
 struct Decoder
-    neuralODE
-    linear
 
-    function Decoder(input_dim, latent_dim, hidden_dim, hidden_dim_node, time_size, t_max, device)
+    solver
+    ode
+    device
 
-        dudt2 = Chain(Dense(latent_dim, hidden_dim_node, relu),
-                        Dense(hidden_dim_node, hidden_dim_node, relu),
-                        Dense(hidden_dim_node, latent_dim)) |> device
-        tspan = (zero(t_max), t_max)
-        t = range(tspan[1], tspan[2], length=time_size)
+    z₀_linear
+    p_linear
+    gen_linear
 
-        node = NeuralODE(dudt2, tspan, Tsit5(), saveat = t)
-        linear = Chain(Dense(latent_dim, hidden_dim, relu),
-                       Dense(hidden_dim, input_dim)) |> device
+    function Decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_sys, solver, device)
 
-        new(node, linear)
-        end
+        z₀_linear = Chain(Dense(latent_dim, hidden_dim, relu),
+                          Dense(hidden_dim, ode_dim)) |> device
+        p_linear = Chain(Dense(latent_dim, hidden_dim, relu),
+                         Dense(hiden_dim, p_dim)) |> device
+        gen_linear = Chain(Dense(ode_dim, hidden_dim, relu),
+                           Dense(hidden_dim, input_dim)) |> device
+
+        new(solver, ode, device, z₀_linear, p_linear, gen_linear)
+
+    end
 end
 
-function (decoder::Decoder)(x, device)
-    h = Array(decoder.neuralODE(x)) |> device
-    h2 = Flux.unstack(h, 3)
-    out = decoder.linear.(h2)
+function (decoder::Decoder)(latent_z₀, latent_p, t)
+
+    z₀ = decoder.z₀_linear(latent_z₀)
+    p = decoder.p_linear(latent_p)
+
+    pred_problem = ODEProblem(decoder.ode.sys, z₀, t, p) |> decoder.device
+    pred_z = solve(prob, decoder.solver, saveat=0.1) |> decoder.device
+
+    pred_x = decoder.gen_linear(pred_z)
+
+    return pred_x, pred_z, p
+
 end
 
 ################################################################################
 ## Training Utils
-
-function reconstruct(encoder, decoder, x, device)
-    μ, logσ² = encoder(x)
-    z = μ + device(randn(Float32, size(logσ²))) .* exp.(logσ²/2f0)
-    μ, logσ², decoder(z, device)
-end
 
 KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
 # the calculation via log(var) = log(σ²) is more numerically efficient than through log(σ)
@@ -114,8 +189,8 @@ function rec_loss(x, pred_x)
     return res_average + 1000*res_diff_average
 end
 
-function loss_batch(encoder, decoder, λ, x, device)
-    μ, logσ², pred_x = reconstruct(encoder, decoder, x, device)
+function loss_batch(goku::Goku, λ, x, t)
+    x_pred, z_pred, p_pred = goku(x, t)
     reconstruction_loss = rec_loss(x, pred_x)
     kl_loss = mean(sum(KL.(μ, logσ²), dims = 1))
     return reconstruction_loss + kl_loss

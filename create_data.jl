@@ -63,11 +63,6 @@ function generate_dataset()
 
       full_data = dropdims(Array(sim), dims = 2)
 
-      # when not passing the output_func, we can plot it like this
-      # using Plots
-      # plot(sim,linealpha=0.2, color=:blue, vars=(1))
-      # plot!(sim,linealpha=0.2, color=:red, vars=(2))
-
       @save "lv_data.bson" full_data p
 end
 
@@ -77,7 +72,6 @@ function solve_prob(u0, p, tspan, tstep)
       @parameters t α β δ γ
       @variables x(t) y(t)
       @derivatives D'~t
-
 
       u₀ = [x => u0[1]
             y => u0[2]]
