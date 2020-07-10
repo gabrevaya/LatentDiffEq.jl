@@ -28,6 +28,7 @@ using Zygote
 using Plots
 using CuArrays
 using Distributions
+using CUDAdrv
 
 # overload data loader function so that it picks random start times for each
 # sample, of size seq_len
@@ -285,7 +286,7 @@ end
 function predict_from_train()
 
     #GPU config
-    model_pth = "output/model_epoch_10.bson"
+    model_pth = "output/model_epoch_100.bson"
     @load model_pth args
     if args[:cuda] && has_cuda_gpu()
         device = gpu
@@ -334,7 +335,7 @@ end
 function predict_within()
 
     # Load model
-    model_pth = "output/model_epoch_10.bson"
+    model_pth = "output/model_epoch_100.bson"
     @load model_pth args
 
     if args[:cuda] && has_cuda_gpu()
