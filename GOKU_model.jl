@@ -30,6 +30,7 @@ using CuArrays
 using Distributions
 using CUDAdrv
 using ModelingToolkit
+using DiffEqGPU
 
 # overload data loader function so that it picks random start times for each
 # sample, of size seq_len
@@ -40,29 +41,155 @@ using ModelingToolkit
 ################################################################################
 ## Problem Definition
 
-struct ODE_lv
 
-    sys
+# @parameters t α β δ γ
+# @variables x(t) y(t)
+# @derivatives D'~t
+#
+# struct ODE_lv
+#
+#     sys
+#     solver
+#
+#     function ODE_lv(solver)
+#
+#         eqs = [D(x) ~ α*x - β*x*y,
+#                D(y) ~ -δ*y + γ*x*y]
+#
+#         sys = ODESystem(eqs)
+#
+#         sys = generate_function(sys, [x, y], [α, β, δ, γ], expression=Val{false})[2]
+#
+#         new(sys, solver)
+#
+#     end
+#
+# end
+#
+# function (ode_lv::ODE_lv)(z₀, t, p)
+#
+#     for i in 1:size(z₀,2)
+#
+#         var_z₀ = [x, y] => z₀[:,i]
+#         var_p = [α, β, δ, γ] => p[:,i]
+#
+#         prob = ODEProblem(ode_lv.sys, var_z₀, t, var_p)
+#         pred_z = solve(prob, ode_lv.solver, saveat=0.1)
+#         print(size(pred_z))
+#     end
+# end
 
-    function ODE_lv()
+## Function parameters:
+# z -> [1] : x(t)
+#      [2] : y(t)
+# p -> [1] : α
+#      [2] : β
+#      [3] : δ
+#      [4] : γ
+function lv_func(dz, z, p, t)
+    @inbounds begin
+        dz[1] = p[1]*z[1] - p[2]*z[1]*z[2]
+        dz[2] = -p[3]*z[2] + p[4]*z[1]*z[2]
+    end
+    nothing
+end
 
-        @parameters t α β δ γ
-        @variables x(t) y(t)
-        @derivatives D'~t
+################################################################################
+## Model definition
 
-        eqs = [D(x) ~ α*x - β*x*y,
-               D(y) ~ -δ*y + γ*x*y]
+struct Encoder
 
-        sys = ODESystem(eqs)
+    linear
+    rnn
+    rnn_μ
+    rnn_logσ²
+    lstm
+    lstm_μ
+    lstm_logσ²
 
-        new(sys)
+    device
+
+    function Encoder(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, device)
+
+        linear = Chain(Dense(input_dim, hidden_dim, relu),
+                       Dense(hidden_dim, rnn_input_dim, relu)) |> device
+        rnn = Chain(RNN(rnn_input_dim, rnn_output_dim, relu),
+                    RNN(rnn_output_dim, rnn_output_dim, relu)) |> device
+
+        rnn_μ = Dense(rnn_output_dim, latent_dim) |> device
+        rnn_logσ² = Dense(rnn_output_dim, latent_dim) |> device
+
+        lstm = Chain(LSTM(rnn_input_dim, rnn_output_dim),
+                     LSTM(rnn_output_dim, rnn_output_dim)) |> device
+
+        lstm_μ = Dense(rnn_output_dim, latent_dim) |> device
+        lstm_logσ² = Dense(rnn_output_dim, latent_dim) |> device
+
+        new(linear, rnn, rnn_μ, rnn_logσ², lstm, lstm_μ, lstm_logσ², device)
+    end
+end
+
+function (encoder::Encoder)(x)
+    h_rev = encoder.linear.(x)[end:-1:1] # Pass through linear layer and reverse
+    rnn_out = encoder.rnn.(h_rev)[end]
+    lstm_out = encoder.lstm.(h_rev)[end]
+    reset!(encoder.rnn)
+    reset!(encoder.lstm)
+    encoder.rnn_μ(rnn_out), encoder.rnn_logσ²(rnn_out), encoder.lstm_μ(lstm_out), encoder.lstm_logσ²(lstm_out)
+end
+
+struct Decoder
+
+    solver
+    ode_func
+
+    z₀_linear
+    p_linear
+    gen_linear
+
+    device
+
+    function Decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_func, solver, device)
+
+        z₀_linear = Chain(Dense(latent_dim, hidden_dim, relu),
+                          Dense(hidden_dim, ode_dim)) |> device
+        p_linear = Chain(Dense(latent_dim, hidden_dim, relu),
+                         Dense(hidden_dim, p_dim)) |> device
+        gen_linear = Chain(Dense(ode_dim, hidden_dim, relu),
+                           Dense(hidden_dim, input_dim)) |> device
+
+        new(solver, ode_func, z₀_linear, p_linear, gen_linear, device)
 
     end
 
 end
 
-################################################################################
-## Model definition
+function (decoder::Decoder)(latent_z₀, latent_p, t)
+
+    z₀ = decoder.z₀_linear(latent_z₀)
+    p = decoder.p_linear(latent_p)
+
+    prob = ODEProblem(lv_func, z₀[:,1], t, p[:,1])
+
+    output_func = (sol,i) -> (Array(sol),false)
+    # function output_func(sol, i)
+    #     return (Array(sol), false)
+    # end
+    prob_func = (prob,i,repeat) -> remake(prob, u0=z₀[:,i], p = p[:,i]) ## TODO: verify if the remake really changes the problem parameters, prints seems to say the parameters are not changed
+    # function prob_func(prob, i, repeat)
+    #     println(z₀[:,i])
+    #     println(i)
+    #     prob_new = remake(prob; u0=z₀[:,i], p=p[:,i])
+    #     println(prob)
+    # end
+
+    ens_prob = EnsembleProblem(prob, prob_func = prob_func, output_func = output_func)
+    pred_z = solve(ens_prob, decoder.solver, EnsembleGPUArray(), trajectories=size(p, 2), saveat=0.1f0) |> decoder.device
+    pred_x = decoder.gen_linear.( Flux.unstack(pred_z, 2) )
+
+    return pred_x, pred_z, p
+
+end
 
 struct Goku
 
@@ -81,94 +208,19 @@ struct Goku
     end
 end
 
-function (goku::GOKU)(x, t) # Possible to input a "Variationnal" boolean in order to determine whether the net takes the location latent variables or it samples from the generated distribution
+function (goku::Goku)(x, t) # Possible to input a "Variationnal" boolean in order to determine whether the net takes the location latent variables or it samples from the generated distribution
 
-    latent_z₀_μ, latent_z₀_logσ², latent_p_μ, latent_p_logσ² = encoder(x)
+    latent_z₀_μ, latent_z₀_logσ², latent_p_μ, latent_p_logσ² = goku.encoder(x)
 
-    latent_z₀ = rand(MvNormal(latent_z₀_μ, latent_z₀_logσ²)) |> goku.device
-    latent_p = rand(MvNormal(latent_p_μ, latent_p_logσ²)) |> goku.device
+    # latent_z₀ = rand(MvNormal(latent_z₀_μ, latent_z₀_logσ²)) |> goku.device
+    # latent_p = rand(MvNormal(latent_p_μ, latent_p_logσ²)) |> goku.device
 
-    x_pred, z_pred, p_pred = decoder(latent_z₀, latent_p, t)
+    latent_z₀ = latent_z₀_μ + goku.device(randn(Float32, size(latent_z₀_logσ²))) .* exp.(latent_z₀_logσ²/2f0)
+    latent_p = latent_p_μ + goku.device(randn(Float32, size(latent_p_logσ²))) .* exp.(latent_p_logσ²/2f0)
 
-    return x_pred, z_pred, p_pred
+    pred_x, pred_z, pred_p = goku.decoder(latent_z₀, latent_p, t)
 
-end
-
-struct Encoder
-
-    device
-
-    linear
-    rnn
-    rnn_μ
-    rnn_logσ²
-    lstm
-    lstm_μ
-    lstm_logσ²
-
-    function Encoder(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, device)
-
-        linear = Chain(Dense(input_dim, hidden_dim, relu),
-                       Dense(hidden_dim, rnn_input_dim, relu)) |> device
-        rnn = Chain(RNN(rnn_input_dim, rnn_output_dim, relu),
-                    RNN(rnn_output_dim, rnn_output_dim, relu)) |> device
-
-        rnn_μ = Dense(rnn_output_dim, latent_dim) |> device
-        rnn_logσ² = Dense(rnn_output_dim, latent_dim) |> device
-
-        lstm = Chain(LSTM(rnn_input_dim, rnn_output_dim, relu),
-                     LSTM(rnn_output_dim, rnn_output_dim, relu)) |> device
-
-        lstm_μ = Dense(rnn_output_dim, latent_dim) |> device
-        lstm_logσ² = Dense(rnn_output_dim, latent_dim) |> device
-
-        new(device, linear, rnn, rnn_μ, rnn_logσ², lstm, lstm_μ, lstm_logσ²)
-    end
-end
-
-function (encoder::Encoder)(x)
-    h_rev = encoder.linear.(x)[end:-1:1] # Pass through linear layer and reverse
-    rnn_out = encoder.rnn.(h_rev)[end]
-    lstm_out = encoder.lstm(h_rev)[end]
-    reset!(encoder.rnn, encoder.lstm)
-    encoder.rnn_μ(rnn_out), encoder.rnn_logσ²(rnn_out), encoder.lstm_μ(lstm_out), encoder.lstm_logσ²(lstm_out)
-end
-
-struct Decoder
-
-    solver
-    ode
-    device
-
-    z₀_linear
-    p_linear
-    gen_linear
-
-    function Decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_sys, solver, device)
-
-        z₀_linear = Chain(Dense(latent_dim, hidden_dim, relu),
-                          Dense(hidden_dim, ode_dim)) |> device
-        p_linear = Chain(Dense(latent_dim, hidden_dim, relu),
-                         Dense(hiden_dim, p_dim)) |> device
-        gen_linear = Chain(Dense(ode_dim, hidden_dim, relu),
-                           Dense(hidden_dim, input_dim)) |> device
-
-        new(solver, ode, device, z₀_linear, p_linear, gen_linear)
-
-    end
-end
-
-function (decoder::Decoder)(latent_z₀, latent_p, t)
-
-    z₀ = decoder.z₀_linear(latent_z₀)
-    p = decoder.p_linear(latent_p)
-
-    pred_problem = ODEProblem(decoder.ode.sys, z₀, t, p) |> decoder.device
-    pred_z = solve(prob, decoder.solver, saveat=0.1) |> decoder.device
-
-    pred_x = decoder.gen_linear(pred_z)
-
-    return pred_x, pred_z, p
+    return pred_x, pred_z, pred_p
 
 end
 
@@ -190,10 +242,10 @@ function rec_loss(x, pred_x)
 end
 
 function loss_batch(goku::Goku, λ, x, t)
-    x_pred, z_pred, p_pred = goku(x, t)
+    pred_x, pred_z, pred_p = goku(x, t)
     reconstruction_loss = rec_loss(x, pred_x)
-    kl_loss = mean(sum(KL.(μ, logσ²), dims = 1))
-    return reconstruction_loss + kl_loss
+    # kl_loss = mean(sum(KL.(μ, logσ²), dims = 1)) ## TODO: what to do with KL?
+    return reconstruction_loss# + kl_loss
 end
 
 ################################################################################
@@ -207,7 +259,10 @@ end
     seq_len = 100               # sampling size for output
     epochs = 100                 # number of epochs
     seed = 1                    # random seed
-    cuda = true                 # use GPU
+    cuda = true                 # use GPUDecoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_sys, solver, device)
+    input_dim = 2
+    ode_dim = 2
+    p_dim = 4
     hidden_dim = 120         # hidden dimension
     rnn_input_dim = 32       # rnn input dimension
     rnn_output_dim = 32      # rnn output dimension
@@ -246,19 +301,18 @@ function train(; kws...)
     loader_train = DataLoader(Array(train_set), batchsize=args.batch_size, shuffle=true, partial=false)
     loader_val = DataLoader(Array(val_set), batchsize=size(val_set,3), shuffle=true, partial=false)
 
-    # initialize encoder and decoder
-    encoder = Encoder(input_dim, args.latent_dim, args.hidden_dim, args.rnn_input_dim, args.rnn_output_dim, device)
-    decoder = Decoder(input_dim, args.latent_dim, args.hidden_dim, args.hidden_dim_node, seq_len, args.t_max, device)
+    # Initialize ODE problem
+    t_span = (0., 10.)
+
+    # initialize Goku-net object
+    goku = Goku(args.input_dim, args.latent_dim, args.rnn_input_dim, args.rnn_output_dim, args.hidden_dim, args.ode_dim, args.p_dim, lv_func, Vern7(), device)
 
     # ADAM optimizer
     opt = ADAM(args.η)
 
     # parameters
-    ps = Flux.params(encoder.linear, encoder.rnn, encoder.μ, encoder.logσ²,
-                     decoder.neuralODE, decoder.linear)
+    ps = Flux.params(goku.encoder.linear, goku.encoder.rnn, goku.encoder.rnn_μ, goku.encoder.rnn_logσ², goku.encoder.lstm, goku.encoder.lstm_μ, goku.encoder.lstm_logσ², goku.decoder.z₀_linear, goku.decoder.p_linear, goku.decoder.gen_linear)
 
-    # or using IterTools
-    # ps = Flux.params(collect(fieldvalues(encoder)), collect(fieldvalues(decoder)))
     mkpath(args.save_path)
 
     # training
@@ -269,20 +323,20 @@ function train(; kws...)
 
         for x in loader_train
             loss, back = Flux.pullback(ps) do
-                loss_batch(encoder, decoder, args.λ, x |> device, device)
+                loss_batch(goku, args.λ, x |> device, t_span)
             end
             grad = back(1f0)
             Flux.Optimise.update!(opt, ps, grad)
             # progress meter
             next!(progress; showvalues=[(:loss, loss)])
 
-            visualize_training(encoder, decoder, x, device)
+            visualize_training(goku, x, device)
 
         end
 
         model_path = joinpath(args.save_path, "model_epoch_$(epoch).bson")
-        let encoder = cpu(encoder),
-            decoder = cpu(decoder),
+        let encoder = cpu(goku.encoder),
+            decoder = cpu(goku.decoder),
             args=struct2dict(args)
 
             BSON.@save model_path encoder decoder args
@@ -291,8 +345,8 @@ function train(; kws...)
     end
 
     model_path = joinpath(args.save_path, "model.bson")
-    let encoder = cpu(encoder),
-        decoder = cpu(decoder),
+    let encoder = cpu(goku.encoder),
+        decoder = cpu(goku.decoder),
         args=struct2dict(args)
 
         BSON.@save model_path encoder decoder args
@@ -303,12 +357,12 @@ end
 ################################################################################
 ## Forward passing and visualization of results
 
-function visualize_training(encoder, decoder, x, device)
+function visualize_training(goku, x, device)
 
     j = rand(1:size(x[1],2))
     xᵢ = [ x[i][:,j] for i in 1:size(x, 1)]
 
-    μ, logσ², z = reconstruct(encoder, decoder, xᵢ |> device, device)
+    μ, logσ², z = reconstruct(goku, xᵢ |> device, device)
     xₐ = Flux.stack(cpu(xᵢ), 2)
     zₐ = z[1]
 

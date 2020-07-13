@@ -24,7 +24,7 @@ function generate_dataset()
             γ => 1.0]
 
       tspan = (0.0, 9.95)
-      prob = ODEProblem(sys,u0, tspan, p, jac=true, sparse=true)
+      prob = ODEProblem(sys, u0, tspan, p, jac=true, sparse=true)
       sol = solve(prob, Vern7(), saveat = 0.1)
 
       p₀ = [pᵢ[2] for pᵢ ∈ p]
