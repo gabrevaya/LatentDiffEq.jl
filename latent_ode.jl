@@ -29,6 +29,7 @@ using Plots
 using CuArrays
 using Distributions
 using CUDAdrv
+CuArrays.allowscalar(false)
 
 # overload data loader function so that it picks random start times for each
 # sample, of size seq_len
@@ -120,6 +121,9 @@ function reconstruct(encoder, decoder, x, device)
 end
 
 KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
+#the following works better for gpu
+CuArrays.@cufunc KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
+
 # the calculation via log(var) = log(σ²) is more numerically efficient than through log(σ)
 # KL(μ, logσ) = (exp(2f0 * logσ) + μ^2)/2f0 - 0.5f0 - logσ
 
@@ -157,15 +161,15 @@ end
     λ = 0.05f0                  # regularization paramater
     batch_size = 256            # batch size
     seq_len = 100               # sampling size for output
-    epochs = 100                 # number of epochs
+    epochs = 100                # number of epochs
     seed = 1                    # random seed
     cuda = true                 # use GPU
-    hidden_dim = 120         # hidden dimension
-    rnn_input_dim = 32       # rnn input dimension
-    rnn_output_dim = 32      # rnn output dimension
-    latent_dim = 4            # latent dimension
-    hidden_dim_node = 200   # hiddend dimension of the neuralODE
-    t_max = 9.95f0              # edge of time interval for integration
+    hidden_dim = 200            # hidden dimension
+    rnn_input_dim = 32          # rnn input dimension
+    rnn_output_dim = 32         # rnn output dimension
+    latent_dim = 4              # latent dimension
+    hidden_dim_node = 200       # hiddend dimension of the neuralODE
+    t_max = 4.95f0              # edge of time interval for integration
     save_path = "output"        # results path
     data_name = "lv_data.bson"  # data file name
     data_var_name = "full_data" # data file name
@@ -258,11 +262,13 @@ function visualize_training(encoder, decoder, x, device)
     xᵢ = [ x[i][:,j] for i in 1:size(x, 1)]
 
     μ, logσ², z = reconstruct(encoder, decoder, xᵢ |> device, device)
-    xₐ = Flux.stack(cpu(xᵢ), 2)
+    xₐ = Flux.stack(xᵢ, 2)
     zₐ = z[1]
 
-    plt = compare_sol(xₐ, zₐ)
-
+    plt = compare_sol(xₐ, cpu(zₐ));
+    # display(plt) # when displaying in Atom, it prints Plot{Plots.GRBackend() n=4}
+    # TODO disable the printing of Plot{Plots.GRBackend() n=4}
+    # maybe we could also plot after each epoch
     png(plt, "Training_sample.png")
 end
 
