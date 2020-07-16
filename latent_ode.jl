@@ -116,6 +116,7 @@ end
 
 function loss_batch(encoder, decoder, λ, x, device)
     μ, logσ², pred_x = reconstruct(encoder, decoder, x, device)
+    print(size(pred_x))
     reconstruction_loss = rec_loss(x, pred_x)
     kl_loss = mean(sum(KL.(μ, logσ²), dims = 1))
     return reconstruction_loss + kl_loss

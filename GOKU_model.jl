@@ -11,7 +11,7 @@ using OrdinaryDiffEq
 using Base.Iterators: partition
 using BSON:@save, @load
 using BSON
-using CUDAapi: has_cuda_gpu
+using CUDAapi: has_cuda_gpu ## TODO: use CUDA package instead (device()s)
 using DrWatson: struct2dict
 using DiffEqFlux
 using Flux
@@ -171,10 +171,14 @@ function (decoder::Decoder)(latent_z₀, latent_p, t)
 
     prob = ODEProblem(lv_func, z₀[:,1], t, p[:,1])
 
-    output_func = (sol,i) -> (Array(sol),false)
-    # function output_func(sol, i)
-    #     return (Array(sol), false)
-    # end
+    # output_func = (sol,i) -> (Array(sol),false)
+    function output_func(sol, i)
+        if size(Array(sol), 2) != 100
+            return (zeros(Float32, 2, 100), false)
+        else
+            return (Array(sol), false)
+        end
+    end
     prob_func = (prob,i,repeat) -> remake(prob, u0=z₀[:,i], p = p[:,i]) ## TODO: verify if the remake really changes the problem parameters, prints seems to say the parameters are not changed
     # function prob_func(prob, i, repeat)
     #     println(z₀[:,i])
@@ -184,12 +188,36 @@ function (decoder::Decoder)(latent_z₀, latent_p, t)
     # end
 
     ens_prob = EnsembleProblem(prob, prob_func = prob_func, output_func = output_func)
-    pred_z = solve(ens_prob, decoder.solver, EnsembleGPUArray(), trajectories=size(p, 2), saveat=0.1f0) |> decoder.device
+    pred_z = solve(ens_prob, decoder.solver,  EnsembleSerial(), trajectories=size(p, 2), saveat=0.1f0) |> decoder.device ## TODO: fix solve instances that passes maxiters. Currently I cheaply fixed the problem by filling the solution with zeros when solving fails (i.e. output)func
+
     pred_x = decoder.gen_linear.( Flux.unstack(pred_z, 2) )
 
     return pred_x, pred_z, p
 
 end
+
+# ## Broadcasting
+# function (decoder::Decoder)(latent_z₀, latent_p, t)
+#
+#     z₀ = decoder.z₀_linear(latent_z₀)
+#     p = decoder.p_linear(latent_p)
+#
+#     z₀ = Flux.unstack(z₀, 2)
+#     p = Flux.unstack(p, 2)
+#     t_cat = cat((t for i in 1:256)...,dims=1)
+#
+#     prob = ODEProblem.(lv_func, z₀, t_cat, p)
+#
+#     solver_cat = cat((decoder.solver for i in 1:256)...,dims=1)
+#
+#     pred_z = solve.(prob, solver_cat, abstol=1e-3, reltol=1e-3, saveat=0.1f0) |> decoder.device
+#     print("bonjour")
+#     pred_x = decoder.gen_linear.( Flux.unstack(pred_z, 2) )
+#
+#     return pred_x, pred_z, p
+#
+# end
+
 
 struct Goku
 
@@ -231,7 +259,7 @@ KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
 # the calculation via log(var) = log(σ²) is more numerically efficient than through log(σ)
 # KL(μ, logσ) = (exp(2f0 * logσ) + μ^2)/2f0 - 0.5f0 - logσ
 
-function rec_loss(x, pred_x)
+function rec_loss(x, pred_x) ## TODO: add grounding loss
     pred_x_stacked = Flux.stack(pred_x, 3)
     x_stacked = Flux.stack(x, 3)
     res = pred_x_stacked - x_stacked
@@ -259,7 +287,7 @@ end
     seq_len = 100               # sampling size for output
     epochs = 100                 # number of epochs
     seed = 1                    # random seed
-    cuda = true                 # use GPUDecoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_sys, solver, device)
+    cuda = false                 # use GPUDecoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_sys, solver, device)
     input_dim = 2
     ode_dim = 2
     p_dim = 4
@@ -273,7 +301,6 @@ end
     data_name = "lv_data.bson"  # data file name
     data_var_name = "full_data" # data file name
 end
-
 
 function train(; kws...)
     # load hyperparamters
@@ -302,10 +329,10 @@ function train(; kws...)
     loader_val = DataLoader(Array(val_set), batchsize=size(val_set,3), shuffle=true, partial=false)
 
     # Initialize ODE problem
-    t_span = (0., 10.)
+    t_span = (0., 9.95)
 
     # initialize Goku-net object
-    goku = Goku(args.input_dim, args.latent_dim, args.rnn_input_dim, args.rnn_output_dim, args.hidden_dim, args.ode_dim, args.p_dim, lv_func, Vern7(), device)
+    goku = Goku(args.input_dim, args.latent_dim, args.rnn_input_dim, args.rnn_output_dim, args.hidden_dim, args.ode_dim, args.p_dim, lv_func, RK4(), device)
 
     # ADAM optimizer
     opt = ADAM(args.η)
@@ -504,4 +531,53 @@ const seq_len = 100
 
 if abspath(PROGRAM_FILE) == @__FILE__
     train()
+end
+
+
+
+
+
+
+###########################
+## Test
+
+function alt_train(; kws...)
+    # load hyperparamters
+    args = Args(; kws...)
+    args.seed > 0 && Random.seed!(args.seed)
+
+    # GPU config
+    if args.cuda && has_cuda_gpu()
+        device = gpu
+        @info "Training on GPU"
+    else
+        device = cpu
+        @info "Training on CPU"
+    end
+
+    # load data
+    @load args.data_name full_data
+    full_data = Float32.(full_data)
+    input_dim, time_size, observations = size(full_data)
+    train_set, test_set = splitobs(full_data, 0.9)
+    train_set, val_set = splitobs(train_set, 0.9)
+
+    # the following assumes that the data is (states, time, observations)
+    # train_set = train_set[:,:,1:1000]
+    loader_train = DataLoader(Array(train_set), batchsize=args.batch_size, shuffle=true, partial=false)
+    loader_val = DataLoader(Array(val_set), batchsize=size(val_set,3), shuffle=true, partial=false)
+
+    # Initialize ODE problem
+    t_span = (0., 9.95)
+
+    # initialize Goku-net object
+    goku = Goku(args.input_dim, args.latent_dim, args.rnn_input_dim, args.rnn_output_dim, args.hidden_dim, args.ode_dim, args.p_dim, lv_func, RK4(), device)
+
+    # ADAM optimizer
+    opt = ADAM(args.η)
+
+    # parameters
+    ps = Flux.params(goku.encoder.linear, goku.encoder.rnn, goku.encoder.rnn_μ, goku.encoder.rnn_logσ², goku.encoder.lstm, goku.encoder.lstm_μ, goku.encoder.lstm_logσ², goku.decoder.z₀_linear, goku.decoder.p_linear, goku.decoder.gen_linear)
+
+
 end
