@@ -163,60 +163,61 @@ struct Decoder
     end
 
 end
-
-function (decoder::Decoder)(latent_z₀, latent_p, t)
-
-    z₀ = decoder.z₀_linear(latent_z₀)
-    p = decoder.p_linear(latent_p)
-
-    prob = ODEProblem(lv_func, z₀[:,1], t, p[:,1])
-
-    # output_func = (sol,i) -> (Array(sol),false)
-    function output_func(sol, i)
-        if size(Array(sol), 2) != 100
-            return (zeros(Float32, 2, 100), false)
-        else
-            return (Array(sol), false)
-        end
-    end
-    prob_func = (prob,i,repeat) -> remake(prob, u0=z₀[:,i], p = p[:,i]) ## TODO: verify if the remake really changes the problem parameters, prints seems to say the parameters are not changed
-    # function prob_func(prob, i, repeat)
-    #     println(z₀[:,i])
-    #     println(i)
-    #     prob_new = remake(prob; u0=z₀[:,i], p=p[:,i])
-    #     println(prob)
-    # end
-
-    ens_prob = EnsembleProblem(prob, prob_func = prob_func, output_func = output_func)
-    pred_z = solve(ens_prob, decoder.solver,  EnsembleSerial(), trajectories=size(p, 2), saveat=0.1f0) |> decoder.device ## TODO: fix solve instances that passes maxiters. Currently I cheaply fixed the problem by filling the solution with zeros when solving fails (i.e. output)func
-
-    pred_x = decoder.gen_linear.( Flux.unstack(pred_z, 2) )
-
-    return pred_x, pred_z, p
-
-end
-
-# ## Broadcasting
+#
 # function (decoder::Decoder)(latent_z₀, latent_p, t)
 #
 #     z₀ = decoder.z₀_linear(latent_z₀)
 #     p = decoder.p_linear(latent_p)
 #
-#     z₀ = Flux.unstack(z₀, 2)
-#     p = Flux.unstack(p, 2)
-#     t_cat = cat((t for i in 1:256)...,dims=1)
+#     prob = ODEProblem(lv_func, z₀[:,1], t, p[:,1])
 #
-#     prob = ODEProblem.(lv_func, z₀, t_cat, p)
+#     # output_func = (sol,i) -> (Array(sol),false)
+#     function output_func(sol, i)
+#         if size(Array(sol), 2) != 100
+#             return (zeros(Float32, 2, 100), false)
+#         else
+#             return (Array(sol), false)
+#         end
+#     end
+#     prob_func = (prob,i,repeat) -> remake(prob, u0=z₀[:,i], p = p[:,i]) ## TODO: verify if the remake really changes the problem parameters, prints seems to say the parameters are not changed
+#     # function prob_func(prob, i, repeat)
+#     #     println(z₀[:,i])
+#     #     println(i)
+#     #     prob_new = remake(prob; u0=z₀[:,i], p=p[:,i])
+#     #     println(prob)
+#     # end
 #
-#     solver_cat = cat((decoder.solver for i in 1:256)...,dims=1)
+#     ens_prob = EnsembleProblem(prob, prob_func = prob_func, output_func = output_func)
+#     pred_z = solve(ens_prob, decoder.solver,  EnsembleSerial(), trajectories=size(p, 2), saveat=0.1f0) |> decoder.device ## TODO: fix solve instances that passes maxiters. Currently I cheaply fixed the problem by filling the solution with zeros when solving fails (i.e. output_func)
 #
-#     pred_z = solve.(prob, solver_cat, abstol=1e-3, reltol=1e-3, saveat=0.1f0) |> decoder.device
-#     print("bonjour")
 #     pred_x = decoder.gen_linear.( Flux.unstack(pred_z, 2) )
 #
 #     return pred_x, pred_z, p
 #
 # end
+
+## Broadcasting
+function (decoder::Decoder)(latent_z₀, latent_p, t)
+
+    z₀ = decoder.z₀_linear(latent_z₀)
+    p = decoder.p_linear(latent_p)
+
+    z₀ = Flux.unstack(z₀, 2)
+    p = Flux.unstack(p, 2)
+
+    prob = ODEProblem(lv_func, [0., 0.], t, [0., 0., 0., 0.])
+
+    pred_z = Array{Float32,2}(undef, size(z₀[1], 1), 100)
+    for i in 1:size(p,1)
+        prob = remake(prob; u0=z₀[i], p=p[i])
+        pred_z = cat(pred_z, Array(solve(prob, decoder.solver, saveat=0.1f0)), dims=3)
+    end
+
+    pred_x = decoder.gen_linear.( Flux.unstack(pred_z[:,:,2:end], 2) )
+
+    return pred_x, pred_z, p
+
+end
 
 
 struct Goku
@@ -272,7 +273,7 @@ end
 function loss_batch(goku::Goku, λ, x, t)
     pred_x, pred_z, pred_p = goku(x, t)
     reconstruction_loss = rec_loss(x, pred_x)
-    # kl_loss = mean(sum(KL.(μ, logσ²), dims = 1)) ## TODO: what to do with KL?
+    # kl_loss = mean(sum(KL.(μ, logσ²), dims = 1)) ## TODO: what to do with KL? TODO : add anheling
     return reconstruction_loss# + kl_loss
 end
 
@@ -357,7 +358,7 @@ function train(; kws...)
             # progress meter
             next!(progress; showvalues=[(:loss, loss)])
 
-            visualize_training(goku, x, device)
+            # visualize_training(goku, x, device)
 
         end
 
