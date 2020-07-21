@@ -1,19 +1,42 @@
 
-include("GOKU_train.jl")
+include("prob_def.jl")
+include("utils.jl")
 
-function lv_func(du, u, p, t)
-      x, y = u
-      α, β, δ, γ = p
-      @inbounds begin
-            du[1] = α*x - β*x*y
-            du[2] = -δ*y + γ*x*y
-      end
-      nothing
+using OrdinaryDiffEq
+using BSON:@save, @load
+using BSON
+using DrWatson: struct2dict
+using Logging: with_logger
+using Parameters: @with_kw
+using Random
+using Statistics
+using Plots
+using Distributions
+using ModelingToolkit
+using Flux
+
+
+## ARGUMENTS IN THIS STRUCT MUSH BE THE SAME AS THE ONE IN GOKU_TRAIN.JL
+@with_kw mutable struct Args_gen
+
+    ## Model dimensions
+    input_dim = 2               # model input size
+    ode_dim = 2                 # ode solve size
+    hidden_dim_gen = 10         # hidden dimension of the g function
+
+    ## time and parameter ranges
+    full_t_span = (0.0, 19.95)  # full time span of training exemple (un-sequenced)
+    dt = 0.05                   # timestep for ode solve
+    u₀_range = (1.5, 3.0)       # initial value range
+    p₀_range = (1.0, 2.0)       # parameter value range
+
+    ## Save paths and keys
+    data_file_name = "lv_data.bson"  # data file name
 end
 
 function generate_dataset(; kws...)
 
-      args = Args(; kws...)
+      args = Args_gen(; kws...)
 
       ##########################################################################
       ## Problem definition
@@ -47,7 +70,7 @@ function generate_dataset(; kws...)
       sim = solve(ensemble_prob, Tsit5(), saveat=args.dt, trajectories=10000)
 
       raw_data = dropdims(Array(sim), dims = 2)
-      
+
       # Probably works but requieres alot of RAM for some reason
       # norm_data = zeros(Float32, size(raw_data))
       # norm_data = normalize_Z(raw_data)
@@ -79,29 +102,4 @@ function solve_prob(u0, p, tspan, tstep)
       sol = solve(prob, Vern7(), saveat = tstep)
 
       sol
-end
-
-
-################################################################################
-## Data pre-processing
-
-# normalize raw data passed as a 3D array (input_dim, time, trajectories)
-function normalize_Z(data)
-
-      data = Flux.unstack(data, 3)
-
-      μ = 0.
-      σ = 0.
-      for i in 1:size(data,1)
-            for j in 1:size(data[1],1)
-                  μ = mean(data[i][j,:])
-                  σ = std(data[i][j,:])
-                  data[i][j,:] = ( data[i][j,:] .- μ ) ./ σ
-            end
-      end
-
-      data = Flux.stack(data, 3)
-
-      return norm_data
-
 end

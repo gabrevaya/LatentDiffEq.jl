@@ -44,7 +44,7 @@ end
 
 function loss_batch(goku::Goku, λ, x, t, af)
 
-    # Make predictino
+    # Make prediction
     z₀_μ, z₀_logσ², p_μ, p_logσ², pred_x, pred_z₀, pred_p = goku(x, t)
 
     # Compute reconstruction (and differential) loss
@@ -57,23 +57,49 @@ function loss_batch(goku::Goku, λ, x, t, af)
     return reconstruction_loss + af*(kl_loss_z₀ + kl_loss_p)
 end
 
+
+################################################################################
+## Data pre-processing
+
+# normalize raw data passed as a 3D array (input_dim, time, trajectories)
+function normalize_Z(data)
+
+      data = Flux.unstack(data, 3)
+
+      μ = 0.
+      σ = 0.
+      for i in 1:size(data,1)
+            for j in 1:size(data[1],1)
+                  μ = mean(data[i][j,:])
+                  σ = std(data[i][j,:])
+                  data[i][j,:] = ( data[i][j,:] .- μ ) ./ σ
+            end
+      end
+
+      data = Flux.stack(data, 3)
+
+      return norm_data
+
+end
+
+
 ################################################################################
 ## Training help function
-
-# overload data loader function so that it picks random start times for each sample, of size seq_len
-function time_idxs(seq_len, time_len)
-    start_time = rand(1:time_len - seq_len)
-    idxs = start_time:start_time+seq_len-1
-end
-
-function Flux.Data._getobs(data::AbstractArray, i)
-    features, time_len, obs = size(data)
-    seq_len::Int
-    data_ = Array{Float32, 3}(undef, (features, seq_len, length(i)))
-
-    for (idx, batch_idx) in enumerate(i)
-        data_[:,:, idx] =
-        data[:, time_idxs(seq_len, time_len), batch_idx]
-    end
-    return Flux.unstack(data_, 2)
-end
+#
+# # overload data loader function so that it picks random start times for each sample, of size seq_len
+# function time_idxs(seq_len, time_len)
+#     start_time = rand(1:time_len - seq_len)
+#     idxs = start_time:start_time+seq_len-1
+# end
+#
+# function Flux.Data._getobs(data::AbstractArray, i)
+#     features, time_len, obs = size(data)
+#     seq_len::Int
+#     data_ = Array{Float32, 3}(undef, (features, seq_len, length(i)))
+#
+#     for (idx, batch_idx) in enumerate(i)
+#         data_[:,:, idx] =
+#         data[:, time_idxs(seq_len, time_len), batch_idx]
+#     end
+#     return Flux.unstack(data_, 2)
+# end

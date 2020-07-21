@@ -13,14 +13,12 @@ function visualize_training(goku, x, t)
     x = Flux.stack(xᵢ, 2)
     pred_x = Flux.stack(pred_x, 2)
 
-    println("Predicted parameters : ", pred_p)
-
     plt = compare_sol(x, pred_x)
 
     png(plt, "Training_sample.png")
 end
 
-function import_model(model_path, input_dim, device)
+function import_model_ode(model_path, input_dim, device)
 
     @load model_path encoder decoder args
 
@@ -35,6 +33,24 @@ function import_model(model_path, input_dim, device)
     Flux.loadparams!(decoder_new.linear, Flux.params(decoder.linear))
 
     encoder_new, decoder_new
+end
+
+function import_model_goku(model_path, ode_func, device)
+
+    @load model_path encoder decoder args
+
+    goku = Goku(args[:input_dim], args[:latent_dim], args[:rnn_input_dim], args[:rnn_output_dim], args[:hidden_dim], args[:ode_dim], args[:p_dim], ode_func, Tsit5(), device)
+
+    Flux.loadparams!(goku.encoder.linear, Flux.params(encoder.linear))
+    Flux.loadparams!(goku.encoder.rnn, Flux.params(encoder.rnn))
+    Flux.loadparams!(goku.encoder.rnn_μ, Flux.params(encoder.rnn_μ))
+    Flux.loadparams!(goku.encoder.rnn_logσ², Flux.params(encoder.rnn_logσ²))
+    Flux.loadparams!(goku.encoder.lstm, Flux.params(encoder.lstm))
+    Flux.loadparams!(goku.encoder.lstm_μ, Flux.params(encoder.lstm_μ))
+    Flux.loadparams!(goku.encoder.lstm_logσ², Flux.params(encoder.lstm_logσ²))
+    Flux.loadparams!(goku.decoder.z₀_linear, Flux.params(decoder.z₀_linear))
+    Flux.loadparams!(goku.decoder.p_linear, Flux.params(decoder.p_linear))
+    Flux.loadparams!(goku.decoder.gen_linear, Flux.params(decoder.gen_linear))
 end
 
 function predict_from_train()
