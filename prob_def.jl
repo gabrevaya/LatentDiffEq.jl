@@ -14,19 +14,6 @@ function lv_func(du, u, p, t)
     nothing
 end
 
-# Deterministic neural-net used to get from state to imput sample for the GOKU architecture (input_dim =/= ode_dim)
-struct lv_gen
-
-      linear
-
-      function lv_gen(ode_dim, hidden_dim_gen, input_dim)
-            linear = Chain(Dense(ode_dim, hidden_dim_gen, relu),
-                           Dense(hidden_dim_gen, input_dim, relu))
-            new(linear)
-      end
-end
-
-function (gen::lv_gen)(z)
-
-      return gen.linear.(z)
-end
+# Deterministic neural-net used to get from state to imput sample for the GOKU architecture (input_dim ≂̸ ode_dim)
+lv_gen(ode_dim, hidden_dim_gen, input_dim) = Chain(Dense(ode_dim, hidden_dim_gen, relu),
+                                                   Dense(hidden_dim_gen, input_dim, relu))

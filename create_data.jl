@@ -1,6 +1,5 @@
 
 include("prob_def.jl")
-include("utils.jl")
 
 using OrdinaryDiffEq
 using BSON:@save, @load
@@ -32,11 +31,13 @@ using Flux
 
     ## Save paths and keys
     data_file_name = "lv_data.bson"  # data file name
+    seed = 1                         # random seed
 end
 
 function generate_dataset(; kws...)
 
       args = Args_gen(; kws...)
+      Random.seed!(args.seed)
 
       ##########################################################################
       ## Problem definition
@@ -72,10 +73,11 @@ function generate_dataset(; kws...)
       raw_data = dropdims(Array(sim), dims = 2)
 
       # Probably works but requieres alot of RAM for some reason
+      # When solving this issue, add include("utils.jl")
       # norm_data = zeros(Float32, size(raw_data))
       # norm_data = normalize_Z(raw_data)
 
-      gen_data = gen.linear.(Flux.unstack(raw_data, 2))
+      gen_data = gen.(Flux.unstack(raw_data, 2))
       gen_data = Flux.stack(gen_data, 2)
 
       @save args.data_file_name raw_data gen_data p gen
