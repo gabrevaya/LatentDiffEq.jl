@@ -5,8 +5,6 @@
 # https://arxiv.org/abs/1806.07366
 # https://arxiv.org/abs/2003.10775
 
-include("prob_def.jl")
-
 using OrdinaryDiffEq
 using Base.Iterators: partition
 using BSON:@save, @load
@@ -33,7 +31,7 @@ using ModelingToolkit
 # DiffEqFlux compatibility, that's why I didn't include it in the Project.toml)
 
 ################################################################################
-## Model definition
+## Encoder definition
 
 struct Encoder
 
@@ -42,7 +40,7 @@ struct Encoder
     rnn_μ
     rnn_logσ²
     lstm        # TODO: Implement bidirectional LSTM : https://github.com/maetshju/flux-blstm-implementation/blob/master/01-blstm.jl
-    lstm_μ                                            #https://github.com/AzamatB/Tacotron2.jl
+    lstm_μ                                           # https://github.com/AzamatB/Tacotron2.jl
     lstm_logσ²
 
     device
@@ -76,6 +74,9 @@ function (encoder::Encoder)(x)
     reset!(encoder.lstm)
     encoder.rnn_μ(rnn_out), encoder.rnn_logσ²(rnn_out), encoder.lstm_μ(lstm_out), encoder.lstm_logσ²(lstm_out)
 end
+
+################################################################################
+## Decoder definition
 
 struct Decoder
 
@@ -147,6 +148,9 @@ function (decoder::Decoder)(latent_z₀, latent_p, t)
     # pred_z = solve(ens_prob, decoder.solver,  EnsembleSerial(), trajectories=size(p, 2), saveat=0.1f0) |> decoder.device ## TODO: fix solve instances that passes maxiters. Currently I cheaply fixed the problem by filling the solution with zeros when solving fails (i.e. output_func)
 
 end
+
+################################################################################
+## Goku definition (Encoder/decoder container)
 
 struct Goku
 

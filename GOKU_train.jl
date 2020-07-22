@@ -1,7 +1,8 @@
 
-include("GOKU_model.jl")
-include("utils.jl")
-include("visualize.jl")
+include("model/GOKU_model.jl")
+include("utils/utils.jl")
+include("utils/visualize.jl")
+include("system/problem_definition.jl")
 
 # arguments for the `train` function
 @with_kw mutable struct Args
@@ -11,7 +12,7 @@ include("visualize.jl")
     λ = 0.01f0                  # regularization paramater
     batch_size = 256            # minibatch size
     seq_len = 100               # sampling size for output
-    epochs = 100                # number of epochs for training
+    epochs = 200                # number of epochs for training
     seed = 1                    # random seed
     cuda = false                # GPU usage
     t_span = (0.f0, 4.95f0)     # span of time interval for training
@@ -20,8 +21,8 @@ include("visualize.jl")
     ae = 200                    # Annealing factor epoch end
 
     ## Progressive observation training
-    progressive_training = true # progressive training usage
-    obs_seg_num = 4             # number of step to progressive training
+    progressive_training = false    # progressive training usage
+    obs_seg_num = 6             # number of step to progressive training
     start_seq_len = 100         # training sequence length at first step
     full_seq_len = 400          # training sequence length at last step
 
@@ -96,7 +97,7 @@ function train(; kws...)
 
     mkpath(args.save_path)
     seq_step = (args.full_seq_len - args.start_seq_len) / args.obs_seg_num
-    loss = zeros(Float32, args.epochs # TODO : implement loss memorization
+    loss = zeros(Float32, args.epochs) # TODO : implement loss memorization
 
     ############################################################################
     ## Main train loop
@@ -110,7 +111,7 @@ function train(; kws...)
             seq_len = args.seq_len
         end
 
-        ## Select a random sequence of length seq_len for training
+        ## Select a random sequence of length seq_len for training # TODO : find a way to redefine the const seq_len and use the overload of _getobs()
         start_time = rand(1:args.full_seq_len - seq_len)
         idxs = start_time:start_time+seq_len-1
         t = range(args.t_span[1], step=args.dt, length=seq_len)
@@ -140,10 +141,11 @@ function train(; kws...)
             # progress meter
             next!(progress; showvalues=[(:loss, loss)])
 
-            # Plot a random sample
-            visualize_training(goku, x, t)
-
         end
+
+
+        # # Plot a random sample
+        # visualize_training(goku, x, t)
 
         model_path = joinpath(args.save_path, "model_epoch_$(epoch).bson")
         let encoder = cpu(goku.encoder),

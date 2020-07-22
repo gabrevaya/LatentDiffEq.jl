@@ -1,5 +1,4 @@
 
-
 ################################################################################
 ## Forward passing and visualization of results
 
@@ -15,7 +14,7 @@ function visualize_training(goku, x, t)
 
     plt = compare_sol(x, pred_x)
 
-    png(plt, "Training_sample.png")
+    png(plt, "figure/Training_sample.png")
 end
 
 function import_model_ode(model_path, input_dim, device)
@@ -51,42 +50,42 @@ function import_model_goku(model_path, ode_func, device)
     Flux.loadparams!(goku.decoder.z₀_linear, Flux.params(decoder.z₀_linear))
     Flux.loadparams!(goku.decoder.p_linear, Flux.params(decoder.p_linear))
     Flux.loadparams!(goku.decoder.gen_linear, Flux.params(decoder.gen_linear))
+
+    return goku
+
 end
 
 function predict_from_train()
 
     #GPU config
-    model_pth = "output/model_epoch_100.bson"
-    @load model_pth args
-    if args[:cuda] && has_cuda_gpu()
-        device = gpu
-        @info "Evaluating on GPU"
-    else
-        device = cpu
-        @info "Evaluating on CPU"
-    end
+    model_pth = "output/model_epoch_129.bson"
 
     # Load a random sample from training set
-    @load "lv_data.bson" full_data
+    @load "lv_data.bson" raw_data
 
-    sol = full_data[:,:,rand(1:10000)]
+    sol = raw_data[:,:,rand(1:10000)]
 
     # Load model
     input_dim = size(sol, 1)
-    encoder, decoder = import_model(model_pth, input_dim, device)
+    goku = import_model_goku(model_pth, lv_func, cpu)
+
+    # define time
+    t = range(0., step = 0.05, length = 400)
+
 
     # Predict within time interval given
     x = Flux.unstack(reshape(sol, (size(sol, 1),size(sol, 2), 1)), 2)
-    μ, logσ², z = reconstruct(encoder, decoder, x |> device, device)
+
+    z₀_μ, z₀_logσ², p_μ, p_logσ², pred_x, pred_z₀, pred_p = goku(x, t)
 
     # Data dimensions manipulation
     x = dropdims(Flux.stack(x, 2), dims=3)
-    z = dropdims(Flux.stack(z, 2), dims=3)
+    pred_x = dropdims(Flux.stack(pred_x, 2), dims=3)
 
     # Showing in plot panel
-    plt = compare_sol(x,z)
+    plt = compare_sol(x,pred_x)
 
-    png(plt, "prediction_from_train.png")
+    png(plt, "figure/prediction_from_train.png")
 end
 
 function compare_sol(x, z)
@@ -138,6 +137,6 @@ function predict_within()
     # Showing in plot panel
     plt = compare_sol(x, z)
 
-    png(plt, "prediction_outside_train.png")
+    png(plt, "figure/prediction_outside_train.png")
 
 end

@@ -1,6 +1,6 @@
 
-include("prob_def.jl")
-include("utils.jl")
+include("../system/prob_def.jl")
+include("../utils/utils.jl")
 
 using OrdinaryDiffEq
 using BSON:@save, @load
@@ -31,7 +31,7 @@ using Flux
     p₀_range = (1.0, 2.0)       # parameter value range
 
     ## Save paths and keys
-    data_file_name = "lv_data.bson"  # data file name
+    data_file_name = "../lv_data.bson"  # data file name
 end
 
 function generate_dataset(; kws...)
@@ -53,17 +53,14 @@ function generate_dataset(; kws...)
       # for samping initial condition from a uniform distribution
       function prob_func(prob,i,repeat)
             u0_new = rand_uniform(args.u₀_range, length(prob.u0))
-            prob = remake(prob, u0 = u0_new)
+            p_new = rand_uniform(args.p₀_range, length(prob.p))
+            prob = remake(prob; u0 = u0_new, p = p_new)
       end
 
       gen = lv_gen(args.ode_dim, args.hidden_dim_gen, args.input_dim)
 
       ##########################################################################
       ## Create data
-
-      # generate some fixed random parameters
-      p = rand_uniform(args.p₀_range, length(prob.p))
-      prob = remake(prob, p = p)
 
       # Solve for X trajectories
       ensemble_prob = EnsembleProblem(prob, prob_func=prob_func, output_func = output_func)
@@ -78,7 +75,7 @@ function generate_dataset(; kws...)
       gen_data = gen.linear.(Flux.unstack(raw_data, 2))
       gen_data = Flux.stack(gen_data, 2)
 
-      @save args.data_file_name raw_data gen_data p gen
+      @save args.data_file_name raw_data gen_data gen
 end
 
 function solve_prob(u0, p, tspan, tstep)
