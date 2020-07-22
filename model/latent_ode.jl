@@ -29,6 +29,7 @@ using Plots
 using CuArrays
 using Distributions
 using CUDAdrv
+CuArrays.allowscalar(false)
 
 # overload data loader function so that it picks random start times for each
 # sample, of size seq_len
@@ -101,6 +102,9 @@ function reconstruct(encoder, decoder, x, device)
 end
 
 KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
+#the following works better for gpu
+CuArrays.@cufunc KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
+
 # the calculation via log(var) = log(σ²) is more numerically efficient than through log(σ)
 # KL(μ, logσ) = (exp(2f0 * logσ) + μ^2)/2f0 - 0.5f0 - logσ
 
@@ -131,15 +135,15 @@ end
     λ = 0.05f0                  # regularization paramater
     batch_size = 256            # batch size
     seq_len = 100               # sampling size for output
-    epochs = 100                 # number of epochs
+    epochs = 100                # number of epochs
     seed = 1                    # random seed
     cuda = true                 # use GPU
-    hidden_dim = 120         # hidden dimension
-    rnn_input_dim = 32       # rnn input dimension
-    rnn_output_dim = 32      # rnn output dimension
-    latent_dim = 4            # latent dimension
-    hidden_dim_node = 200   # hiddend dimension of the neuralODE
-    t_max = 9.95f0              # edge of time interval for integration
+    hidden_dim = 200            # hidden dimension
+    rnn_input_dim = 32          # rnn input dimension
+    rnn_output_dim = 32         # rnn output dimension
+    latent_dim = 4              # latent dimension
+    hidden_dim_node = 200       # hiddend dimension of the neuralODE
+    t_max = 4.95f0              # edge of time interval for integration
     save_path = "output"        # results path
     data_name = "lv_data.bson"  # data file name
     data_var_name = "full_data" # data file name
@@ -168,13 +172,16 @@ function train(; kws...)
     train_set, val_set = splitobs(train_set, 0.9)
 
     # the following assumes that the data is (states, time, observations)
-    # train_set = train_set[:,:,1:1000]
     loader_train = DataLoader(Array(train_set), batchsize=args.batch_size, shuffle=true, partial=false)
     loader_val = DataLoader(Array(val_set), batchsize=size(val_set,3), shuffle=true, partial=false)
 
     # initialize encoder and decoder
     encoder = Encoder(input_dim, args.latent_dim, args.hidden_dim, args.rnn_input_dim, args.rnn_output_dim, device)
     decoder = Decoder(input_dim, args.latent_dim, args.hidden_dim, args.hidden_dim_node, seq_len, args.t_max, device)
+
+    # visualize a random sample from evaluation
+    # and its reconstruction from the untrained model
+    visualize_training(encoder, decoder, first(loader_val), device)
 
     # ADAM optimizer
     opt = ADAM(args.η)
@@ -186,6 +193,9 @@ function train(; kws...)
     # or using IterTools
     # ps = Flux.params(collect(fieldvalues(encoder)), collect(fieldvalues(decoder)))
     mkpath(args.save_path)
+
+    best_val_loss::Float32 = Inf32
+    val_loss::Float32 = 0
 
     # training
     @info "Start Training, total $(args.epochs) epochs"
@@ -199,30 +209,26 @@ function train(; kws...)
             end
             grad = back(1f0)
             Flux.Optimise.update!(opt, ps, grad)
+            val_loss = loss_batch(encoder, decoder, args.λ, first(loader_val) |> device, device)
+
             # progress meter
-            next!(progress; showvalues=[(:loss, loss)])
-
-            visualize_training(encoder, decoder, x, device)
-
+            next!(progress; showvalues=[(:loss, loss),(:val_loss, val_loss)])
         end
 
-        model_path = joinpath(args.save_path, "model_epoch_$(epoch).bson")
-        let encoder = cpu(encoder),
-            decoder = cpu(decoder),
-            args=struct2dict(args)
+        visualize_training(encoder, decoder, first(loader_val), device)
 
-            BSON.@save model_path encoder decoder args
-            @info "Model saved: $(model_path)"
+        if val_loss < best_val_loss
+            best_val_loss = deepcopy(val_loss)
+
+            model_path = joinpath(args.save_path, "best_model.bson")
+            let encoder = cpu(encoder),
+                decoder = cpu(decoder),
+                args=struct2dict(args)
+
+                BSON.@save model_path encoder decoder args
+                @info "Model saved: $(model_path)"
+            end
         end
-    end
-
-    model_path = joinpath(args.save_path, "model.bson")
-    let encoder = cpu(encoder),
-        decoder = cpu(decoder),
-        args=struct2dict(args)
-
-        BSON.@save model_path encoder decoder args
-        @info "Model saved: $(model_path)"
     end
 end
 
@@ -235,12 +241,15 @@ function visualize_training(encoder, decoder, x, device)
     xᵢ = [ x[i][:,j] for i in 1:size(x, 1)]
 
     μ, logσ², z = reconstruct(encoder, decoder, xᵢ |> device, device)
-    xₐ = Flux.stack(cpu(xᵢ), 2)
+    xₐ = Flux.stack(xᵢ, 2)
     zₐ = z[1]
 
-    plt = compare_sol(xₐ, zₐ)
+    plt = compare_sol(xₐ, cpu(zₐ));
+    display(plt) # when displaying in Atom, it prints Plot{Plots.GRBackend() n=4}
+    # TODO disable the printing of Plot{Plots.GRBackend() n=4}
+    # maybe we could also plot after each epoch
 
-    png(plt, "Training_sample.png")
+    # png(plt, "Training_sample.png")
 end
 
 function import_model(model_path, input_dim, device)
