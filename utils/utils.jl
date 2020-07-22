@@ -1,8 +1,11 @@
 
 
 KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
+#the following works better for gpu
+# CuArrays.@cufunc KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
 # the calculation via log(var) = log(σ²) is more numerically efficient than through log(σ)
 # KL(μ, logσ) = (exp(2f0 * logσ) + μ^2)/2f0 - 0.5f0 - logσ
+
 
 function rec_loss(x, pred_x)
 
@@ -41,22 +44,6 @@ function annealing_factor(start_af, end_af, ae, epoch, mb_id, mb_amount)
     end
 
 end
-
-function loss_batch(goku::Goku, λ, x, t, af)
-
-    # Make prediction
-    z₀_μ, z₀_logσ², p_μ, p_logσ², pred_x, pred_z₀, pred_p = goku(x, t)
-
-    # Compute reconstruction (and differential) loss
-    reconstruction_loss = rec_loss(x, pred_x)
-
-    # Compute KL losses from parameter and initial value estimation
-    kl_loss_z₀ = mean(sum(KL.(z₀_μ, z₀_logσ²), dims = 1))
-    kl_loss_p = mean(sum(KL.(p_μ, p_logσ²), dims = 1))
-
-    return reconstruction_loss + af*(kl_loss_z₀ + kl_loss_p)
-end
-
 
 ################################################################################
 ## Data pre-processing

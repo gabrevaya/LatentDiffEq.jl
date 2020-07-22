@@ -5,30 +5,15 @@
 # https://arxiv.org/abs/1806.07366
 # https://arxiv.org/abs/2003.10775
 
-using OrdinaryDiffEq
-using Base.Iterators: partition
-using BSON:@save, @load
-using BSON
-using CUDAapi: has_cuda_gpu ## TODO: use CUDA package instead (device()s)
-using DrWatson: struct2dict
-using DiffEqFlux
-using Flux
-using Flux.Data: DataLoader
-import Flux.Data: _getobs
-using Flux: reset!
-using Logging: with_logger
-using Parameters: @with_kw
-using ProgressMeter: Progress, next!
-using Random
-using MLDataUtils
-using Statistics
-using Zygote
-using Plots
-using Distributions
-using ModelingToolkit
+module GOKU_model
 
-# Flux needs to be in v0.11.0 (currently master, which is not compatible with
-# DiffEqFlux compatibility, that's why I didn't include it in the Project.toml)
+export Goku
+
+include("../utils/utils.jl")
+using OrdinaryDiffEq
+using Flux
+using Flux: reset!
+using Statistics
 
 ################################################################################
 ## Encoder definition
@@ -112,7 +97,7 @@ function (decoder::Decoder)(latent_z₀, latent_p, t)
     z₀ = Flux.unstack(z₀, 2)
     p = Flux.unstack(p, 2)
 
-    prob = ODEProblem(lv_func, [0., 0.], (t[1], t[end]), [0., 0., 0., 0.])
+    prob = ODEProblem(decoder.ode_func, [0., 0.], (t[1], t[end]), [0., 0., 0., 0.])
 
     pred_z = Array{Float32,2}(undef, size(z₀[1], 1), size(t, 1))
     for i in 1:size(p,1)
@@ -157,6 +142,8 @@ struct Goku
     encoder::Encoder
     decoder::Decoder
 
+    loss_batch::Function
+
     device
 
     function Goku(input_dim, latent_dim, rnn_input_dim, rnn_output_dim, hidden_dim, ode_dim, p_dim, ode_sys, solver, device)
@@ -164,9 +151,25 @@ struct Goku
         encoder = Encoder(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, device)
         decoder = Decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_sys, solver, device)
 
-        new(encoder, decoder, device)
+        loss_batch = function loss_batch(goku::Goku, λ, x, t, af)
+
+            # Make prediction
+            z₀_μ, z₀_logσ², p_μ, p_logσ², pred_x, pred_z₀, pred_p = goku(x, t)
+
+            # Compute reconstruction (and differential) loss
+            reconstruction_loss = rec_loss(x, pred_x)
+
+            # Compute KL losses from parameter and initial value estimation
+            kl_loss_z₀ = mean(sum(KL.(z₀_μ, z₀_logσ²), dims = 1))
+            kl_loss_p = mean(sum(KL.(p_μ, p_logσ²), dims = 1))
+
+            return reconstruction_loss + af*(kl_loss_z₀ + kl_loss_p)
+        end
+
+        new(encoder, decoder, loss_batch, device)
 
     end
+
 end
 
 function (goku::Goku)(x, t)
@@ -181,3 +184,5 @@ function (goku::Goku)(x, t)
     return latent_z₀_μ, latent_z₀_logσ², latent_p_μ, latent_p_logσ², pred_x, pred_z₀, pred_p
 
 end
+
+end # Module GOKU_model
