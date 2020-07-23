@@ -328,9 +328,6 @@ git-tree-sha1 = "202335fd24c2776493e198d6c66a6d910400a895"
 uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 version = "1.3.0"
 
-[[FileWatching]]
-uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
-
 [[FillArrays]]
 deps = ["LinearAlgebra", "Random", "SparseArrays"]
 git-tree-sha1 = "be4180bdb27a11188d694ee3773122f4921f1a62"
@@ -499,12 +496,6 @@ git-tree-sha1 = "b34d7cef7b337321e97d22242c3c2b91f476748e"
 uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 version = "0.21.0"
 
-[[JuliaInterpreter]]
-deps = ["CodeTracking", "InteractiveUtils", "Random", "UUIDs"]
-git-tree-sha1 = "79e4496b79e8af45198f8c291f26d4514d6b06d6"
-uuid = "aa1ae85d-cabe-5617-a682-6adf51b2e16a"
-version = "0.7.24"
-
 [[JuliaVariables]]
 deps = ["MLStyle", "NameResolution"]
 git-tree-sha1 = "8868479ff35ab98588ed0a529a9c2a4f8bda3bd6"
@@ -601,12 +592,6 @@ deps = ["DocStringExtensions", "LinearAlgebra", "OffsetArrays", "SIMDPirates", "
 git-tree-sha1 = "c130c0ec960fa489dc87041d60834c459b307d0c"
 uuid = "bdcacae8-1622-11e9-2a5c-532679323890"
 version = "0.8.18"
-
-[[LoweredCodeUtils]]
-deps = ["JuliaInterpreter"]
-git-tree-sha1 = "1b632dc108106101a9909db7be8f8b32ed8d02f7"
-uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
-version = "0.4.6"
 
 [[MLDataPattern]]
 deps = ["LearnBase", "MLLabelUtils", "Random", "SparseArrays", "StatsBase"]
@@ -895,12 +880,6 @@ deps = ["UUIDs"]
 git-tree-sha1 = "d37400976e98018ee840e0ca4f9d20baa231dc6b"
 uuid = "ae029012-a4dd-5104-9daa-d747884805df"
 version = "1.0.1"
-
-[[Revise]]
-deps = ["CodeTracking", "Distributed", "FileWatching", "JuliaInterpreter", "LibGit2", "LoweredCodeUtils", "OrderedCollections", "Pkg", "REPL", "UUIDs", "Unicode"]
-git-tree-sha1 = "54ed37cdd109404edc02507409078f6d922fd279"
-uuid = "295af30f-e4ad-537b-8983-00126c2a3abe"
-version = "2.7.2"
 
 [[Rmath]]
 deps = ["Random", "Rmath_jll"]

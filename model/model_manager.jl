@@ -1,9 +1,4 @@
 
-include("GOKU_model.jl")
-include("latent_ode_model.jl")
-
-using .GOKU_model
-using .Latent_ODE_model
 
 function initialize_model(args, device)
 

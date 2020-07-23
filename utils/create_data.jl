@@ -43,7 +43,9 @@ function generate_dataset(; kws...)
       ##########################################################################
       ## Problem definition
 
-      prob = ODEProblem(lv_func, [0., 0.], args.full_t_span, [0., 0., 0., 0.], jac=true, sparse=true)
+      p = [ 1.25, 1.5, 1.75, 2]
+
+      prob = ODEProblem(lv_func, [0., 0.], args.full_t_span, p, jac=true, sparse=true)
 
       ##########################################################################
       ## Function definition
@@ -59,13 +61,18 @@ function generate_dataset(; kws...)
             prob = remake(prob; u0 = u0_new, p = p_new)
       end
 
+      function prob_func_2(prob,i,repeat)
+            u0_new = rand_uniform(args.u₀_range, length(prob.u0))
+            prob = remake(prob; u0 = u0_new)
+      end
+
       gen = lv_gen(args.ode_dim, args.hidden_dim_gen, args.input_dim)
 
       ##########################################################################
       ## Create data
 
       # Solve for X trajectories
-      ensemble_prob = EnsembleProblem(prob, prob_func=prob_func, output_func = output_func)
+      ensemble_prob = EnsembleProblem(prob, prob_func=prob_func_2, output_func = output_func)
       sim = solve(ensemble_prob, Tsit5(), saveat=args.dt, trajectories=10000)
 
       raw_data = dropdims(Array(sim), dims = 2)
