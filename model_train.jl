@@ -41,7 +41,7 @@ include("system/lv_problem.jl")
 @with_kw mutable struct Args
 
     ## Model and problem definition
-    model_name = "latent_ode"
+    model_name = "GOKU"
     problem = "lv"
 
     ## Training params
@@ -149,6 +149,7 @@ function train(; kws...)
         start_time = rand(1:args.full_seq_len - seq_len)
         idxs = start_time:start_time+seq_len-1
         t = range(args.t_span[1], step=args.dt, length=seq_len)
+        t_eval = range(args.t_span[1], step=args.dt, length=args.full_seq_len)
 
         af = 0.     # Annealing factor
         mb_id = 1   # Minibatch id
@@ -179,7 +180,7 @@ function train(; kws...)
 
         end
 
-        visualize_training(model, first(loader_val), device)
+        visualize_training(model, Flux.unstack(first(loader_val), 2), t_eval)
 
         if val_loss < best_val_loss
             best_val_loss = deepcopy(val_loss)

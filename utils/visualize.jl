@@ -13,8 +13,8 @@ function visualize_training(goku, x, t)
     pred_x = Flux.stack(pred_x, 2)
 
     plt = compare_sol(x, pred_x)
-
-    png(plt, "figure/Training_sample.png")
+    display(plt)
+    # png(plt, "figure/Training_sample.png")
 end
 
 function import_model_ode(model_path, input_dim, device)
