@@ -2,17 +2,17 @@
 ################################################################################
 ## Forward passing and visualization of results
 
-function visualize_training(goku, x, t)
+function visualize_training(model::AbstractModel, x, t)
 
     j = rand(1:size(x[1],2))
     xᵢ = [ x[i][:,j] for i in 1:size(x, 1)]
 
-    z₀_μ, z₀_logσ², p_μ, p_logσ², pred_x, pred_z₀, pred_p = goku(xᵢ, t)
+    lat_var, pred_x, pred = model(xᵢ, t)
 
     x = Flux.stack(xᵢ, 2)
     pred_x = Flux.stack(pred_x, 2)
 
-    plt = compare_sol(x, pred_x)
+    plt = compare_sol(x, dropdims(pred_x, dims = tuple(findall(size(pred_x) .== 1)...)))
     display(plt)
     # png(plt, "figure/Training_sample.png")
 end

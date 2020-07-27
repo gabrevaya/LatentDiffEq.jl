@@ -1,9 +1,11 @@
 
-using Flux
+################################################################################
+## Loss definitions
 
 KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
+
 #the following works better for gpu
-# CuArrays.@cufunc KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
+CuArrays.@cufunc KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
 # the calculation via log(var) = log(σ²) is more numerically efficient than through log(σ)
 # KL(μ, logσ) = (exp(2f0 * logσ) + μ^2)/2f0 - 0.5f0 - logσ
 
@@ -23,6 +25,27 @@ function rec_loss(x, pred_x)
     res_diff_average = sum(mean((res_diff).^2, dims = (2, 3)))
 
     return res_average + 1000*res_diff_average
+end
+
+function loss_batch(model::AbstractModel, λ, x, t, af)
+
+    # Make prediction
+    lat_var, pred_x, pred = model(x, t)
+
+    # Compute reconstruction (and differential) loss
+    reconstruction_loss = rec_loss(x, pred_x)
+
+    # Compute KL losses from parameter and initial value estimation
+    # kl_loss = 0
+    # for i in 1:length(lat_var)
+    #     μ, logσ² = lat_var[i]
+    #     kl_loss += mean(sum(KL.(μ, logσ²), dims=1))
+    # end
+
+    # Filthy one liner that does the for loop above # lit
+    kl_loss = sum( [ mean(sum(KL.(lat_var[i][1], lat_var[i][1]), dims=1)) for i in 1:length(lat_var) ] )
+
+    return reconstruction_loss + af*(kl_loss)
 end
 
 ## annealing factor parameters

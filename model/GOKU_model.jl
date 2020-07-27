@@ -5,20 +5,10 @@
 # https://arxiv.org/abs/1806.07366
 # https://arxiv.org/abs/2003.10775
 
-module GOKU_model
-
-export Goku
-
-include("../utils/utils.jl")
-using OrdinaryDiffEq
-using Flux
-using Flux: reset!
-using Statistics
-
 ################################################################################
 ## Encoder definition
 
-struct Encoder
+struct GOKU_encoder <: AbstractEncoder
 
     linear
     rnn
@@ -30,7 +20,7 @@ struct Encoder
 
     device
 
-    function Encoder(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, device)
+    function GOKU_encoder(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, device)
 
         linear = Chain(Dense(input_dim, hidden_dim, relu),
                        Dense(hidden_dim, rnn_input_dim, relu)) |> device
@@ -50,7 +40,7 @@ struct Encoder
     end
 end
 
-function (encoder::Encoder)(x)
+function (encoder::GOKU_encoder)(x)
     h = encoder.linear.(x)
     h_rev = reverse(h)
     rnn_out = encoder.rnn.(h_rev)[end]
@@ -63,7 +53,7 @@ end
 ################################################################################
 ## Decoder definition
 
-struct Decoder
+struct GOKU_decoder <: AbstractDecoder
 
     solver
     ode_func
@@ -74,7 +64,7 @@ struct Decoder
 
     device
 
-    function Decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_func, solver, device)
+    function GOKU_decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_func, solver, device)
 
         z₀_linear = Chain(Dense(latent_dim, hidden_dim, relu),
                           Dense(hidden_dim, ode_dim, softplus)) |> device
@@ -89,7 +79,7 @@ struct Decoder
 
 end
 
-function (decoder::Decoder)(latent_z₀, latent_p, t)
+function (decoder::GOKU_decoder)(latent_z₀, latent_p, t)
 
     z₀ = decoder.z₀_linear(latent_z₀)
     p = decoder.p_linear(latent_p)
@@ -137,36 +127,19 @@ end
 ################################################################################
 ## Goku definition (Encoder/decoder container)
 
-struct Goku
+struct Goku <: AbstractModel
 
-    encoder::Encoder
-    decoder::Decoder
-
-    loss_batch::Function
+    encoder::GOKU_encoder
+    decoder::GOKU_decoder
 
     device
 
     function Goku(input_dim, latent_dim, rnn_input_dim, rnn_output_dim, hidden_dim, ode_dim, p_dim, ode_sys, solver, device)
 
-        encoder = Encoder(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, device)
-        decoder = Decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_sys, solver, device)
+        encoder = GOKU_encoder(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, device)
+        decoder = GOKU_decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_sys, solver, device)
 
-        loss_batch = function loss_batch(goku::Goku, λ, x, t, af)
-
-            # Make prediction
-            z₀_μ, z₀_logσ², p_μ, p_logσ², pred_x, pred_z₀, pred_p = goku(x, t)
-
-            # Compute reconstruction (and differential) loss
-            reconstruction_loss = rec_loss(x, pred_x)
-
-            # Compute KL losses from parameter and initial value estimation
-            kl_loss_z₀ = mean(sum(KL.(z₀_μ, z₀_logσ²), dims = 1))
-            kl_loss_p = mean(sum(KL.(p_μ, p_logσ²), dims = 1))
-
-            return reconstruction_loss + af*(kl_loss_z₀ + kl_loss_p)
-        end
-
-        new(encoder, decoder, loss_batch, device)
+        new(encoder, decoder, device)
 
     end
 
@@ -181,8 +154,6 @@ function (goku::Goku)(x, t)
 
     pred_x, pred_z₀, pred_p = goku.decoder(latent_z₀, latent_p, t)
 
-    return latent_z₀_μ, latent_z₀_logσ², latent_p_μ, latent_p_logσ², pred_x, pred_z₀, pred_p
+    return ((latent_z₀_μ, latent_z₀_logσ²), (latent_p_μ, latent_p_logσ²)), pred_x, (pred_z₀, pred_p)
 
 end
-
-end # Module GOKU_model

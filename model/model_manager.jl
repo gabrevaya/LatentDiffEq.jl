@@ -1,5 +1,6 @@
 
-
+################################################################################
+## Model manager in order to create right model from those available and assign it the right physical system definition
 function initialize_model(args, device)
 
     input_dim = Int(0)      # model input size
@@ -32,7 +33,7 @@ function initialize_model(args, device)
 
         # Get parameters
         ps = Flux.params(model.encoder.linear, model.encoder.rnn, model.encoder.μ, model.encoder.logσ²,
-                         model.decoder.neuralODE, model.decoder.linear)
+                         model.decoder.dudt, model.decoder.linear)
 
     end
 
