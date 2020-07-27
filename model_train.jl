@@ -5,7 +5,7 @@
 @with_kw mutable struct Args
 
     ## Model and problem definition
-    model_name = "latent_ode"   # Available : "latent_ode", "GOKU"
+    model_name = "GOKU"         # Available : "latent_ode", "GOKU"
     problem = "lv"              # Available : "lv"
 
     ## Training params
@@ -93,7 +93,6 @@ function train(; kws...)
     mkpath(args.save_path)
 
     seq_step = (args.full_seq_len - args.start_seq_len) / args.obs_seg_num
-    t_eval = range(args.t_span[1], step=args.dt, length=args.full_seq_len)
     loss_mem = zeros(Float32, args.epochs)  # TODO : implement loss memorization
 
     best_val_loss::Float32 = Inf32
@@ -141,9 +140,6 @@ function train(; kws...)
             # Use validation set to get loss and visualisation
             val_set = time_loader(first(loader_val), args.full_seq_len, seq_len)
             val_loss = loss_batch(model, args.λ, val_set |> device, t, af)
-            if device != gpu
-                visualize_training(model, val_set |> device, t_eval)
-            end
 
             # progress meter
             next!(progress; showvalues=[(:loss, loss),(:val_loss, val_loss)])
@@ -151,6 +147,10 @@ function train(; kws...)
         end
 
         loss_mem[epoch] = val_loss
+        if device != gpu
+            val_set = time_loader(first(loader_val), args.full_seq_len, seq_len)
+            visualize_training(model, val_set |> device, t)
+        end
 
         if val_loss < best_val_loss
             best_val_loss = deepcopy(val_loss)
