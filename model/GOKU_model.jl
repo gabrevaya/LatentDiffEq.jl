@@ -84,8 +84,9 @@ function (decoder::GOKU_decoder)(latent_z₀, latent_p, t)
     z₀ = decoder.z₀_linear(latent_z₀)
     p = decoder.p_linear(latent_p)
 
-    z₀ = Flux.unstack(z₀, 2)
-    p = Flux.unstack(p, 2)
+    # Prepare data for soving using CPU
+    z₀ = Flux.unstack(z₀, 2) |> cpu
+    p = Flux.unstack(p, 2) |> cpu
 
     prob = ODEProblem(decoder.ode_func, [0., 0.], (t[1], t[end]), [0., 0., 0., 0.])
 

@@ -5,7 +5,7 @@
 @with_kw mutable struct Args
 
     ## Model and problem definition
-    model_name = "GOKU"   # Available : "latent_ode", "GOKU"
+    model_name = "latent_ode"   # Available : "latent_ode", "GOKU"
     problem = "lv"              # Available : "lv"
 
     ## Training params
