@@ -1,9 +1,6 @@
 [deps]
 BSON = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
-CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 CUDAapi = "3895d2a7-ec45-59b8-82bb-cfc6a382f9b3"
-CUDAdrv = "c5f51814-7f29-56b8-a69c-e4d8f6be1fde"
-CuArrays = "3a865a2d-5b23-5a0f-bc46-62713ec82fae"
 DiffEqGPU = "071ae1c0-96b5-11e9-1965-c90190d839ea"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 DrWatson = "634d3b9d-ee7a-5ddf-bec9-22491ea816e1"

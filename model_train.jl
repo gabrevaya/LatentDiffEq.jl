@@ -15,7 +15,7 @@
     seq_len = 100               # sampling size for output
     epochs = 200                # number of epochs for training
     seed = 1                    # random seed
-    cuda = true                 # GPU usage
+    cuda = false                 # GPU usage
     dt = 0.05                   # timestep for ode solve
     t_span = (0.f0, 4.95f0)     # span of time interval for training
     start_af = 0.00001          # Annealing factor start value
@@ -125,9 +125,10 @@ function train(; kws...)
             af = annealing_factor(start_af, end_af, ae, epoch, mb_id, length(loader_train))
 
             loss, back = Flux.pullback(ps) do
-
+                
                 # Compute loss
                 loss_batch(model, λ, x |> device, t, af)
+
 
             end
 
