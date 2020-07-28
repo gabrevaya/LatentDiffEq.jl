@@ -40,11 +40,11 @@ abstract type AbstractModel end
 ################################################################################
 ## Home files and modules
 
+include("model_train.jl")
 include("utils/utils.jl")
 include("utils/visualize.jl")
 include("model/model_manager.jl")
 include("system/lv_problem.jl")
-include("model_train.jl")
 
 ################################################################################
 ## Model definitions

@@ -57,6 +57,7 @@ struct GOKU_decoder <: AbstractDecoder
 
     solver
     ode_func
+    ode_prob
 
     z₀_linear
     p_linear
@@ -73,7 +74,9 @@ struct GOKU_decoder <: AbstractDecoder
         gen_linear = Chain(Dense(ode_dim, hidden_dim, relu),
                            Dense(hidden_dim, input_dim)) |> device
 
-        new(solver, ode_func, z₀_linear, p_linear, gen_linear, device)
+        ode_prob = ODEProblem(ode_func, [0., 0.], (0., 1.), [0., 0., 0., 0.])
+
+        new(solver, ode_func, ode_prob, z₀_linear, p_linear, gen_linear, device)
 
     end
 
@@ -88,12 +91,10 @@ function (decoder::GOKU_decoder)(latent_z₀, latent_p, t)
     z₀ = Flux.unstack(z₀, 2) |> cpu
     p = Flux.unstack(p, 2) |> cpu
 
-    prob = ODEProblem(decoder.ode_func, [0., 0.], (t[1], t[end]), [0., 0., 0., 0.])
-
     pred_z = Array{Float32,2}(undef, size(z₀[1], 1), size(t, 1))
     for i in 1:size(p,1)
 
-        prob = remake(prob; u0=z₀[i], p=p[i])
+        prob = remake(decoder.ode_prob; u0=z₀[i], p=p[i], tspan = (t[1], t[end]))
         solᵢ = solve(prob, decoder.solver, saveat=t)    # Possible to supress warnings with Suppressor (@suppress), but creates problems with zygote
 
         # Check if solve was successful, if not fill z_pred with zeros to avoid problems with dimensions matches
