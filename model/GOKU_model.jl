@@ -87,44 +87,22 @@ function (decoder::GOKU_decoder)(latent_z₀, latent_p, t)
     z₀ = decoder.z₀_linear(latent_z₀)
     p = decoder.p_linear(latent_p)
 
-    # Prepare data for soving using CPU
-    z₀ = Flux.unstack(z₀, 2) |> cpu
-    p = Flux.unstack(p, 2) |> cpu
-
     function output_func(sol, i)
         # Check if solve was successful, if not fill z_pred with zeros to avoid problems with dimensions matches
         if sol.retcode != :Success
-            return (zeros(Float32, size(z₀[1], 1), size(t, 1)), false)
+            return (zeros(Float32, size(z₀, 1), size(t)), false)
         else
             return (Array(sol), false)
         end
     end
-    prob_func = (prob,i,repeat) -> remake(prob, u0=z₀[i], p = p[i])
-    reduction = (u,data,I) -> (cat(u, data, dims=1),false)
+    prob_func = (prob,i,repeat) -> remake(prob, u0=z₀[:,i], p = p[:,i])
 
     prob = remake(decoder.ode_prob; tspan = (t[1],t[end]))
-    # pred_z = Array{Float32,2}(undef, size(z₀[1], 1), size(t, 1))
 
-    ens_prob = EnsembleProblem(prob, prob_func = prob_func, output_func = output_func, reduction = reduction)
-    pred_z = solve(ens_prob, decoder.solver,  EnsembleSerial(), trajectories=size(p, 1), saveat=0.05f0) |> decoder.device
+    ens_prob = EnsembleProblem(prob, prob_func = prob_func, output_func = output_func)#, reduction = reduction)
+    pred_z = solve(ens_prob, decoder.solver,  EnsembleThreads(), trajectories=size(p, 2), saveat = t) |> decoder.device
 
     # pred_x = decoder.gen_linear. (pred_z) # TODO : create new dataset from a trained generation function
-
-    # pred_z = Array{Float32,2}(undef, size(z₀[1], 1), size(t, 1))
-    # for i in 1:size(p,1)
-    #
-    #     prob = remake(decoder.ode_prob; u0=z₀[i], p=p[i], tspan = (t[1], t[end]))
-    #     solᵢ = solve(prob, decoder.solver, saveat=t)    # Possible to supress warnings with Suppressor (@suppress), but creates problems with zygote
-    #
-    #     # Check if solve was successful, if not fill z_pred with zeros to avoid problems with dimensions matches
-    #     if solᵢ.retcode != :Success
-    #         pred_z = cat(pred_z, zeros(Float32, size(z₀[1], 1), size(t,1)), dims=3)
-    #     else
-    #         pred_z = cat(pred_z, Array(solᵢ), dims=3)
-    #     end
-    #
-    # end
-    # pred_z = Flux.unstack( pred_z[:,:,2:end], 2)
 
     return Flux.unstack(pred_z, 2), z₀, p
 

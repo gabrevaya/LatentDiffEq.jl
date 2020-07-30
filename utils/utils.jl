@@ -32,8 +32,6 @@ function loss_batch(model::AbstractModel, λ, x, t, af)
     # Make prediction
     lat_var, pred_x, pred = model(x, t)
 
-    println(size(x))
-
     # Compute reconstruction (and differential) loss
     reconstruction_loss = rec_loss(x, pred_x)
 

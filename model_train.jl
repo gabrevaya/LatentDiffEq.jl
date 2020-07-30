@@ -125,7 +125,7 @@ function train(; kws...)
             af = annealing_factor(start_af, end_af, ae, epoch, mb_id, length(loader_train))
 
             loss, back = Flux.pullback(ps) do
-                
+
                 # Compute loss
                 loss_batch(model, λ, x |> device, t, af)
 

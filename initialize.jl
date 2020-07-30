@@ -27,6 +27,7 @@ using Distributions
 using ModelingToolkit
 using CuArrays
 CuArrays.allowscalar(false)
+using DiffEqGPU
 
 # Flux needs to be in v0.11.0 (currently master, which is not compatible with DiffEqFlux compatibility, that's why I didn't include it in the Project.toml)
 
