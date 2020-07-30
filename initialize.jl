@@ -42,13 +42,14 @@ abstract type AbstractModel end
 ## Home files and modules
 
 include("model_train.jl")
+include("model_alt_train.jl")
 include("utils/utils.jl")
 include("utils/visualize.jl")
-include("model/model_manager.jl")
 include("system/lv_problem.jl")
 
 ################################################################################
 ## Model definitions
 
+include("model/model_manager.jl")
 include("model/GOKU_model.jl")
 include("model/latent_ode_model.jl")

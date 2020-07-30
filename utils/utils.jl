@@ -114,22 +114,3 @@ function time_loader(x, full_seq_len, seq_len)
     return Flux.unstack(x_, 2)
 
 end
-
-#
-# overload data loader function so that it picks random start times for each sample, of size seq_len
-# function time_idxs(seq_len, time_len)
-#     start_time = rand(1:time_len - seq_len)
-#     idxs = start_time:start_time+seq_len-1
-# end
-#
-# function Flux.Data._getobs(data::AbstractArray, i)
-#     features, time_len, obs = size(data)
-#     seq_len::Int
-#     data_ = Array{Float32, 3}(undef, (features, seq_len, length(i)))
-#
-#     for (idx, batch_idx) in enumerate(i)
-#         data_[:,:, idx] =
-#         data[:, time_idxs(seq_len, time_len), batch_idx]
-#     end
-#     return Flux.unstack(data_, 2)
-# end
