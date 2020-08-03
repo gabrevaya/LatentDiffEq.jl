@@ -16,7 +16,9 @@ function initialize_model(args, device)
         p_dim = 4
 
         ## ODE function
-        func = lv_func
+        # func = lv_func    # No jacobian definition
+        func = ODEFunction(lv_func, jac = lv_jac, tgrad = lv_tgrad)
+
     end
 
     if model_name == "GOKU"

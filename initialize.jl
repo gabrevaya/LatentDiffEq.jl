@@ -25,9 +25,8 @@ using Zygote
 using Plots
 using Distributions
 using ModelingToolkit
-#using CuArrays
-CUDA.allowscalar(false)
 using DiffEqGPU
+CUDA.allowscalar(false)
 
 ################################################################################
 ## Defining types
