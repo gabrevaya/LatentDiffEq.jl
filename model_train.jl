@@ -23,7 +23,7 @@
     ae = 200                    # Annealing factor epoch end
 
     ## Progressive observation training
-    progressive_training = true    # progressive training usage
+    progressive_training = false    # progressive training usage
     obs_seg_num = 200             # number of step to progressive training
     start_seq_len = 20         # training sequence length at first step
     full_seq_len = 400          # training sequence length at last step
@@ -58,7 +58,7 @@ function train(; kws...)
 
     seed > 0 && Random.seed!(seed)
 
-    if cuda && has_cuda_gpu()
+    if cuda && CUDA.has_cuda_gpu()
         device = gpu
         @info "Training on GPU"
     else

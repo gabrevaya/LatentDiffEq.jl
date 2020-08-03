@@ -8,7 +8,7 @@ using OrdinaryDiffEq
 using Base.Iterators: partition
 using BSON:@save, @load
 using BSON
-using CUDAapi: has_cuda_gpu ## TODO: use CUDA package instead (device()s)
+using CUDA
 using DrWatson: struct2dict
 using DiffEqFlux
 using Flux
@@ -25,11 +25,9 @@ using Zygote
 using Plots
 using Distributions
 using ModelingToolkit
-using CuArrays
-CuArrays.allowscalar(false)
+#using CuArrays
+CUDA.allowscalar(false)
 using DiffEqGPU
-
-# Flux needs to be in v0.11.0 (currently master, which is not compatible with DiffEqFlux compatibility, that's why I didn't include it in the Project.toml)
 
 ################################################################################
 ## Defining types
