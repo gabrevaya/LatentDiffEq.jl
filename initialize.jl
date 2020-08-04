@@ -9,6 +9,7 @@ using Base.Iterators: partition
 using BSON:@save, @load
 using BSON
 using CUDA
+using CUDA:has_cuda_gpu
 using DrWatson: struct2dict
 using DiffEqFlux
 using Flux

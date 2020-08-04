@@ -58,7 +58,7 @@ function train(; kws...)
 
     seed > 0 && Random.seed!(seed)
 
-    if cuda && CUDA.has_cuda_gpu()
+    if cuda && has_cuda_gpu()
         device = gpu
         @info "Training on GPU"
     else
