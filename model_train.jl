@@ -6,7 +6,7 @@
 
     ## Model and problem definition
     model_name = "GOKU"         # Available : "latent_ode", "GOKU"
-    problem = "lv"              # Available : "lv"
+    system = LV()                  # Available : "LV()"
 
     ## Training params
     η = 1e-3                    # learning rate
@@ -29,6 +29,7 @@
     full_seq_len = 400          # training sequence length at last step
 
     ## Model dimensions
+    input_dim = 2               # input dimension
     rnn_input_dim = 32          # rnn input dimension
     rnn_output_dim = 32         # rnn output dimension
     latent_dim = 4              # latent dimension

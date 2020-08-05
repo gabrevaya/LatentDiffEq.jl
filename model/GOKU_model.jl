@@ -80,7 +80,7 @@ struct GOKU_decoder <: AbstractDecoder
         gen_linear = Chain(Dense(ode_dim, hidden_dim, relu),
                            Dense(hidden_dim, input_dim)) |> device
 
-        ode_prob = ODEProblem(ode_func, [0., 0.], (0., 1.), [0., 0., 0., 0.])
+        ode_prob = ODEProblem(ode_func, zeros(Float32, ode_dim), (0.f0, 1.f0), zeros(Float32, p_dim))
 
         new(solver, ode_func, ode_prob, z₀_linear, p_linear, gen_linear, device)
 

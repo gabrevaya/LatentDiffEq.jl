@@ -34,6 +34,7 @@ CUDA.allowscalar(false)
 abstract type AbstractEncoder end
 abstract type AbstractDecoder end
 abstract type AbstractModel end
+abstract type AbstractSystem end
 
 ################################################################################
 ## Home files and modules

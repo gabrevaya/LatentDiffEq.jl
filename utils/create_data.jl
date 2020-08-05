@@ -1,4 +1,5 @@
 
+abstract type AbstractSystem end
 include("../system/lv_problem.jl")
 
 using OrdinaryDiffEq
@@ -18,9 +19,11 @@ using Flux
 ## ARGUMENTS IN THIS STRUCT MUSH BE THE SAME AS THE ONE IN GOKU_TRAIN.JL
 @with_kw mutable struct Args_gen
 
-    ## Model dimensions
+    ## Dynamical system
+    system = LV()
+
+    ## Mask dimensions
     input_dim = 2               # model input size
-    ode_dim = 2                 # ode solve size
     hidden_dim_gen = 10         # hidden dimension of the g function
 
     ## time and parameter ranges
@@ -43,9 +46,7 @@ function generate_dataset(; kws...)
       ##########################################################################
       ## Problem definition
 
-      p = [ 1.25, 1.5, 1.75, 2]
-
-      prob = ODEProblem(lv_func, [0., 0.], args.full_t_span, p, jac=true, sparse=true)
+      prob = ODEProblem(args.system.f!, args.system.u₀, args.full_t_span, args.system.p, jac=true, sparse=true)
 
       ##########################################################################
       ## Function definition
@@ -66,8 +67,6 @@ function generate_dataset(; kws...)
             prob = remake(prob; u0 = u0_new)
       end
 
-      gen = lv_gen(args.ode_dim, args.hidden_dim_gen, args.input_dim)
-
       ##########################################################################
       ## Create data
 
@@ -82,10 +81,11 @@ function generate_dataset(; kws...)
       # norm_data = zeros(Float32, size(raw_data))
       # norm_data = normalize_Z(raw_data)
 
-      gen_data = gen.(Flux.unstack(raw_data, 2))
-      gen_data = Flux.stack(gen_data, 2)
+      mask = gen(args.system, args.hidden_dim_gen, args.input_dim)
+      data_masked = mask.(Flux.unstack(raw_data, 2))
+      data_masked = Flux.stack(data_masked, 2)
 
-      @save args.data_file_name raw_data gen_data
+      @save args.data_file_name raw_data data_masked
 end
 
 function solve_prob(u0, p, tspan, tstep)
