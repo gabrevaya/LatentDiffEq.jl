@@ -1,29 +1,29 @@
 
-abstract type AbstractSystem end
-include("../system/lv_problem.jl")
 
 using OrdinaryDiffEq
 using BSON:@save, @load
 using BSON
-using DrWatson: struct2dict
-using Logging: with_logger
 using Parameters: @with_kw
 using Random
 using Statistics
-using Plots
 using Distributions
 using ModelingToolkit
 using Flux
+using LinearAlgebra
+
+abstract type AbstractSystem end
+include("../system/lv_problem.jl")
+include("../system/full_vdP.jl")
 
 
 ## ARGUMENTS IN THIS STRUCT MUSH BE THE SAME AS THE ONE IN GOKU_TRAIN.JL
 @with_kw mutable struct Args_gen
 
     ## Dynamical system
-    system = LV()
+    system = vdP(5)               # Available : "LV(), vdP(k)"
 
     ## Mask dimensions
-    input_dim = 2               # model input size
+    input_dim = 10               # model input size
     hidden_dim_gen = 10         # hidden dimension of the g function
 
     ## time and parameter ranges
@@ -33,7 +33,7 @@ using Flux
     p₀_range = (1.0, 2.0)       # parameter value range
 
     ## Save paths and keys
-    data_file_name = "lv_data.bson"  # data file name
+    data_file_name = "vdP_data.bson"  # data file name
     seed = 1                         # random seed
 
 end
