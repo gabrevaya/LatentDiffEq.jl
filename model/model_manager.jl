@@ -5,13 +5,11 @@ function initialize_model(args, device)
 
     @unpack_Args args       # unpack all arguments
 
-    ## ODE function
-    func = generate_func(system)
 
     if model_name == "GOKU"
 
         # Create model
-        model = Goku(input_dim, latent_dim, rnn_input_dim, rnn_output_dim, hidden_dim, length(system.u₀), length(system.p), func, Tsit5(), device)
+        model = Goku(input_dim, latent_dim, rnn_input_dim, rnn_output_dim, hidden_dim, length(system.u₀), length(system.p), system.prob, Tsit5(), device)
 
         # Get parameters
         ps = Flux.params(model.encoder.linear, model.encoder.rnn, model.encoder.rnn_μ, model.encoder.rnn_logσ², model.encoder.lstm, model.encoder.lstm_μ, model.encoder.lstm_logσ², model.decoder.z₀_linear, model.decoder.p_linear, model.decoder.gen_linear)

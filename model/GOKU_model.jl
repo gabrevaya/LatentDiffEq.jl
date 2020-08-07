@@ -62,7 +62,6 @@ end
 struct GOKU_decoder <: AbstractDecoder
 
     solver
-    ode_func
     ode_prob
 
     z₀_linear
@@ -71,7 +70,7 @@ struct GOKU_decoder <: AbstractDecoder
 
     device
 
-    function GOKU_decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_func, solver, device)
+    function GOKU_decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_prob, solver, device)
 
         z₀_linear = Chain(Dense(latent_dim, hidden_dim, relu),
                           Dense(hidden_dim, ode_dim, softplus)) |> device
@@ -80,10 +79,10 @@ struct GOKU_decoder <: AbstractDecoder
         gen_linear = Chain(Dense(ode_dim, hidden_dim, relu),
                            Dense(hidden_dim, input_dim)) |> device
 
-        _ode_prob = ODEProblem(ode_func, zeros(Float32, ode_dim), (0.f0, 1.f0), zeros(Float32, p_dim))
+        # _ode_prob = ODEProblem(ode_func, zeros(Float32, ode_dim), (0.f0, 1.f0), zeros(Float32, p_dim))
         # ode_prob,_ = auto_optimize(_ode_prob, verbose = false, static = false);
 
-        new(solver, ode_func, _ode_prob, z₀_linear, p_linear, gen_linear, device)
+        new(solver, ode_prob, z₀_linear, p_linear, gen_linear, device)
 
     end
 

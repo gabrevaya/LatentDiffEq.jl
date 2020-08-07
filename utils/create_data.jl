@@ -9,8 +9,6 @@ using Statistics
 using Distributions
 using ModelingToolkit
 using Flux
-using LinearAlgebra
-using AutoOptimize
 
 abstract type AbstractSystem end
 include("../system/lv_problem.jl")
@@ -28,13 +26,13 @@ include("../system/full_vdP.jl")
     hidden_dim_gen = 10         # hidden dimension of the g function
 
     ## time and parameter ranges
-    full_t_span = (0.0, 19.95)  # full time span of training exemple (un-sequenced)
+    full_t_span = (0.0f0, 19.95f0)  # full time span of training exemple (un-sequenced)
     dt = 0.05                   # timestep for ode solve
     u₀_range = (1.5, 3.0)       # initial value range
     p₀_range = (1.0, 2.0)       # parameter value range
 
     ## Save paths and keys
-    data_file_name = "lv_data.bson"  # data file name
+    data_file_name = "vdP_data.bson"  # data file name
     seed = 1                         # random seed
 
 end
@@ -46,11 +44,8 @@ function generate_dataset(; kws...)
 
       ##########################################################################
       ## Problem definition
-      f = generate_func(args.system)
-      _prob = ODEProblem(f, args.system.u₀, args.full_t_span, args.system.p)
-      @info "Optimizing ODE Problem"
-      prob,_ = auto_optimize(_prob, verbose = false, static = false);
 
+      prob = remake(args.system.prob, tspan = args.full_t_span)
 
       ##########################################################################
       ## Function definition

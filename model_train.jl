@@ -6,7 +6,7 @@
 
     ## Model and problem definition
     model_name = "GOKU"         # Available : "latent_ode", "GOKU"
-    system = LV()                  # Available : "LV()", "vdP(k)"
+    system = LV()               # Available : "LV()", "vdP(k)"
 
     ## Training params
     η = 1e-3                    # learning rate
@@ -24,12 +24,12 @@
 
     ## Progressive observation training
     progressive_training = false    # progressive training usage
-    obs_seg_num = 200             # number of step to progressive training
-    start_seq_len = 20         # training sequence length at first step
+    obs_seg_num = 200           # number of step to progressive training
+    start_seq_len = 20          # training sequence length at first step
     full_seq_len = 400          # training sequence length at last step
 
     ## Model dimensions
-    input_dim = 2              # input dimension
+    input_dim = 2               # input dimension
     rnn_input_dim = 32          # rnn input dimension
     rnn_output_dim = 32         # rnn output dimension
     latent_dim = 4              # latent dimension

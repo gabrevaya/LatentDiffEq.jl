@@ -42,14 +42,6 @@ git-tree-sha1 = "951c3fc1ff93497c88fb1dfa893f4de55d0b38e3"
 uuid = "4c555306-a7a7-4459-81d9-ec55ddd5c99a"
 version = "0.3.8"
 
-[[AutoOptimize]]
-deps = ["CUDA", "DiffEqBase", "LinearAlgebra", "Logging", "ModelingToolkit", "OrdinaryDiffEq", "SparseArrays", "SparseDiffTools", "SparsityDetection", "StaticArrays"]
-git-tree-sha1 = "cc53168cc1bc0bab8c1bd91606189ce666ce167b"
-repo-rev = "master"
-repo-url = "https://github.com/SciML/AutoOptimize.jl.git"
-uuid = "ff3c4d4f-bb3e-4d8b-9ad2-cd8aaafb4e41"
-version = "0.1.0"
-
 [[BSON]]
 git-tree-sha1 = "dd36d7cf3d185eeaaf64db902c15174b22f5dafb"
 uuid = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
@@ -1036,12 +1028,6 @@ deps = ["Adapt", "ArrayInterface", "Compat", "DataStructures", "FiniteDiff", "Fo
 git-tree-sha1 = "93666e93899d995ec37abddde4811f533e49c074"
 uuid = "47a9eef4-7e08-11e9-0b38-333d64bd3804"
 version = "1.9.1"
-
-[[SparsityDetection]]
-deps = ["Cassette", "LinearAlgebra", "SparseArrays", "SpecialFunctions"]
-git-tree-sha1 = "2224dcfb3a66f9f37f6bef9c29af4061e6c63255"
-uuid = "684fba80-ace3-11e9-3d08-3bc7ed6f96df"
-version = "0.3.3"
 
 [[SpatialIndexing]]
 deps = ["Printf", "Random", "Test"]

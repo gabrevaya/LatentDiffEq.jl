@@ -3,38 +3,40 @@
 ################################################################################
 ## Problem Definition -- Lotka-Volterra
 
-struct LV{T<: AbstractArray} <: AbstractSystem
+struct LV{T,P} <: AbstractSystem
     u₀::T
     p::T
+    prob::P
 
     function LV()
         # Default parameters and initial conditions
         u₀ = Float32[1.0, 1.0]
         p = Float32[1.25, 1.5, 1.75, 2]
+
+
+        # Define differential equations
+        function f!(du, u, p, t)
+                x, y = u
+                α, β, δ, γ = p
+                du[1] = α*x - β*x*y
+                du[2] = -δ*y + γ*x*y
+        end
+
+
+        # Build ODE Problem
+        _prob = ODEProblem(f!, u₀, (0.f0, 1.f0), p)
+
+        @info "Optimizing ODE Problem"
+        # prob,_ = auto_optimize(_prob, verbose = false, static = false)
+        sys = modelingtoolkitize(_prob)
+        prob = ODEProblem(sys,_prob.u0,_prob.tspan,_prob.p,
+                               jac = true, tgrad = true, simplify = true,
+                               sparse = false,
+                               parallel = ModelingToolkit.SerialForm(),
+                               eval_expression = false)
+
         T = typeof(u₀)
-        new{T}(u₀, p)
+        P = typeof(prob)
+        new{T,P}(u₀, p, prob)
     end
-end
-
-
-function generate_func(system::LV)
-
-   # ODE function for solving in the GOKU-net architecture (decoder)
-   function f!(du, u, p, t)
-       # @inbounds begin
-       #     x = u[1]
-       #     y = u[2]
-       #     α = p[1]
-       #     β = p[2]
-       #     δ = p[3]
-       #     γ = p[4]
-           x, y = u
-           α, β, δ, γ = p
-           du[1] = α*x - β*x*y
-           du[2] = -δ*y + γ*x*y
-       # end
-       # nothing
-   end
-
-   func = ODEFunction(f!)
 end
