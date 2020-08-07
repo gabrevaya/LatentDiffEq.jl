@@ -11,8 +11,8 @@ using ModelingToolkit
 using Flux
 
 abstract type AbstractSystem end
-include("../system/lv_problem.jl")
-include("../system/full_vdP.jl")
+include("../system/Lotka-Volterra.jl")
+include("../system/van_der_Pol.jl")
 
 
 ## ARGUMENTS IN THIS STRUCT MUSH BE THE SAME AS THE ONE IN GOKU_TRAIN.JL

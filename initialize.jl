@@ -43,8 +43,8 @@ include("model_train.jl")
 include("model_alt_train.jl")
 include("utils/utils.jl")
 include("utils/visualize.jl")
-include("system/lv_problem.jl")
-include("system/full_vdP.jl")
+include("system/Lotka-Volterra.jl")
+include("system/van_der_Pol.jl")
 
 ################################################################################
 ## Model definitions
