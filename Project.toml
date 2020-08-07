@@ -1,4 +1,5 @@
 [deps]
+AutoOptimize = "ff3c4d4f-bb3e-4d8b-9ad2-cd8aaafb4e41"
 BSON = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 DiffEqFlux = "aae7a2af-3d4f-5e19-a356-7da93b79d9d0"

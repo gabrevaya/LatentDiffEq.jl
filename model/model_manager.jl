@@ -6,7 +6,7 @@ function initialize_model(args, device)
     @unpack_Args args       # unpack all arguments
 
     ## ODE function
-    func = ODEFunction(system.f!, jac = system.jac!, tgrad = system.tgrad)
+    func = generate_func(system)
 
     if model_name == "GOKU"
 

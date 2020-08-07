@@ -10,6 +10,7 @@ using Distributions
 using ModelingToolkit
 using Flux
 using LinearAlgebra
+using AutoOptimize
 
 abstract type AbstractSystem end
 include("../system/lv_problem.jl")
@@ -20,10 +21,10 @@ include("../system/full_vdP.jl")
 @with_kw mutable struct Args_gen
 
     ## Dynamical system
-    system = vdP(5)               # Available : "LV(), vdP(k)"
+    system = LV()               # Available : "LV(), vdP(k)". k -> num of oscillators
 
     ## Mask dimensions
-    input_dim = 10               # model input size
+    input_dim = 2               # model input size
     hidden_dim_gen = 10         # hidden dimension of the g function
 
     ## time and parameter ranges
@@ -33,7 +34,7 @@ include("../system/full_vdP.jl")
     p₀_range = (1.0, 2.0)       # parameter value range
 
     ## Save paths and keys
-    data_file_name = "vdP_data.bson"  # data file name
+    data_file_name = "lv_data.bson"  # data file name
     seed = 1                         # random seed
 
 end
@@ -45,14 +46,17 @@ function generate_dataset(; kws...)
 
       ##########################################################################
       ## Problem definition
+      f = generate_func(args.system)
+      _prob = ODEProblem(f, args.system.u₀, args.full_t_span, args.system.p)
+      @info "Optimizing ODE Problem"
+      prob,_ = auto_optimize(_prob, verbose = false, static = false);
 
-      prob = ODEProblem(args.system.f!, args.system.u₀, args.full_t_span, args.system.p, jac=true, sparse=true)
 
       ##########################################################################
       ## Function definition
 
       output_func(sol, i) = (Array(sol), false)
-      rand_uniform(range::Tuple, size) = rand(Uniform(range...),(size,1))
+      rand_uniform(range::Tuple, size) = rand(Uniform(range...),(size,1)) # TODO make it preserve the type
       rand_uniform(range::Array, size) = [rand(Uniform(r[1], r[2])) for r in eachrow(range)]
 
       # for samping initial condition from a uniform distribution
@@ -65,15 +69,16 @@ function generate_dataset(; kws...)
       function prob_func_2(prob,i,repeat)
             u0_new = rand_uniform(args.u₀_range, length(prob.u0))
             prob = remake(prob; u0 = u0_new)
+            # prob = remake(prob; u0 = SArray{Tuple{size(prob.u0)...}}(u0_new))
       end
 
       ##########################################################################
       ## Create data
 
+      @info "Creating data"
       # Solve for X trajectories
       ensemble_prob = EnsembleProblem(prob, prob_func=prob_func_2, output_func = output_func)
       sim = solve(ensemble_prob, Tsit5(), saveat=args.dt, trajectories=10000)
-
       raw_data = dropdims(Array(sim), dims = 2)
 
       # Probably works but requieres alot of RAM for some reason
@@ -81,32 +86,16 @@ function generate_dataset(; kws...)
       # norm_data = zeros(Float32, size(raw_data))
       # norm_data = normalize_Z(raw_data)
 
-      mask = gen(args.system, args.hidden_dim_gen, args.input_dim)
+      @info "Applying mask"
+      mask = gen(length(args.system.u₀), args.hidden_dim_gen, args.input_dim)
       data_masked = mask.(Flux.unstack(raw_data, 2))
       data_masked = Flux.stack(data_masked, 2)
 
+      @info "Saving data"
       @save args.data_file_name raw_data data_masked
 end
 
-function solve_prob(u0, p, tspan, tstep)
 
-      @parameters t α β δ γ
-      @variables x(t) y(t)
-      @derivatives D'~t
-
-      u₀ = [x => u0[1]
-            y => u0[2]]
-      p = [ α => p[1]
-            β => p[2]
-            δ => p[3]
-            γ => p[4]]
-
-      eqs = [D(x) ~ α*x - β*x*y,
-           D(y) ~ -δ*y + γ*x*y]
-
-      sys = ODESystem(eqs)
-      prob = ODEProblem(sys, u₀, tspan, p, jac=true, sparse=true)
-      sol = solve(prob, Vern7(), saveat = tstep)
-
-      sol
-end
+# Deterministic neural-net used to get from state to imput sample for the GOKU architecture (input_dim ≂̸ ode_dim)
+gen(raw_in, hidden_dim_gen, input_dim) = Chain(Dense(raw_in, hidden_dim_gen, relu),
+                                                   Dense(hidden_dim_gen, input_dim, relu))
