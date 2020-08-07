@@ -12,6 +12,7 @@ using CUDA
 using CUDA:has_cuda_gpu
 using DrWatson: struct2dict
 using DiffEqFlux
+using Distances: colwise, Euclidean, Mahalanobis, euclidean, mahalanobis
 using Flux
 using Flux.Data: DataLoader
 import Flux.Data: _getobs

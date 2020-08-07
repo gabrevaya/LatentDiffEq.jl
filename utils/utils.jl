@@ -28,13 +28,51 @@ function rec_loss(x, pred_x)
     return res_average + 1000*res_diff_average
 end
 
-function loss_batch(model::AbstractModel, λ, x, t, af)
+function rec_loss_mahalanobis(x, pred_x)
+
+    # Data prep
+    pred_x_stacked = permutedims(Flux.stack(pred_x, 3), [1,3,2])
+    x_stacked = permutedims(Flux.stack(x, 3), [1,3,2])
+    pred_x_stacked_diff = permutedims(diff(pred_x_stacked, dims = 3), [1,3,2])
+    x_stacked_diff = permutedims(diff(x_stacked, dims = 3), [1,3,2])
+    # now the size is (minibatch_size, num_vars, seq_len)
+
+    pred_x_stacked = reshape(pred_x_stacked, (size(pred_x_stacked)[1], size(pred_x_stacked)[2]*size(pred_x_stacked)[3]))
+    x_stacked = reshape(x_stacked, (size(x_stacked)[1], size(x_stacked)[2]*size(x_stacked)[3]))
+    pred_x_stacked_diff = reshape(pred_x_stacked_diff, (size(pred_x_stacked_diff)[1], size(pred_x_stacked_diff)[2]*size(pred_x_stacked_diff)[3]))
+    x_stacked_diff = reshape(x_stacked_diff, (size(x_stacked_diff)[1], size(x_stacked_diff)[2]*size(x_stacked_diff)[3]))
+
+    Q = inv(Statistics.cov(x_stacked, dims = 2))
+    # dist_array = colwise(Mahalanobis(Q), pred_x_stacked, x_stacked) #can't differentiate loopinfo
+    # dist = sum(dist_array)
+    dist = 0
+    for i in range(1,size(x_stacked)[2]; step=1)
+        dist += mahalanobis(pred_x_stacked[:,i], x_stacked[:,i], Q)
+    end
+    print(dist)
+    Q_diff = inv(Statistics.cov(x_stacked_diff, dims = 2))
+    # dist_diff_array = colwise(Mahalanobis(Q), pred_x_stacked_diff, x_stacked_diff) #can't differentiate loopinfo
+    # dist_diff = sum(dist_diff_array)
+    dist_diff = 0
+    for i in range(1,size(x_stacked_diff)[2]; step=1)
+        dist_diff += mahalanobis(pred_x_stacked_diff[:,i], x_stacked_diff[:,i], Q)
+    end
+    print(dist_diff)
+    return dist + 1000*dist_diff
+end
+
+function loss_batch(model::AbstractModel, λ, x, t, af, rec_loss_type="L2")
 
     # Make prediction
     lat_var, pred_x, pred = model(x, t)
 
     # Compute reconstruction (and differential) loss
-    reconstruction_loss = rec_loss(x, pred_x)
+    if rec_loss_type == "mahalanobis"
+        reconstruction_loss = rec_loss_mahalanobis(x, pred_x)
+    else
+        reconstruction_loss = rec_loss(x, pred_x)
+    end
+
 
     # Compute KL losses from parameter and initial value estimation
     # kl_loss = 0
