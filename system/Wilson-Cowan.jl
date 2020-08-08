@@ -72,7 +72,7 @@ struct WC{T, P} <: AbstractSystem
         α₃ = randn(Float32,k)
         W = rand(Float32, k^2)
         u₀ = rand(Float32,2*k)
-        p = [α₁; α₂; α₃; α₄; W]
+        p = [α₁; α₂; α₃; W]
 
 
         # Define differential equations
@@ -126,7 +126,7 @@ struct WC_identical_local{T, P} <: AbstractSystem
         α₃ = randn(Float32)
         W = rand(Float32, k^2)
         u₀ = rand(Float32,2*k)
-        p = [α₁; α₂; α₃; α₄; W]
+        p = [α₁; α₂; α₃; W]
 
 
         # Define differential equations
