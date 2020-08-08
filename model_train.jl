@@ -6,7 +6,11 @@
 
     ## Model and problem definition
     model_name = "GOKU"         # Available : "latent_ode", "GOKU"
-    system = LV()               # Available : "LV()", "vdP(k)"
+    system = LV()               # Available : LV(), vdP_full(k),
+                                #             vdP_identical_local(k)
+                                #             WC_full(k), WC(k),
+                                #             WC_identical_local(k)
+                                #             (k → number of oscillators)
 
     ## Training params
     η = 1e-3                    # learning rate

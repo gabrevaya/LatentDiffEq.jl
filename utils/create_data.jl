@@ -13,13 +13,19 @@ using Flux
 abstract type AbstractSystem end
 include("../system/Lotka-Volterra.jl")
 include("../system/van_der_Pol.jl")
+include("../system/Wilson-Cowan.jl")
+
 
 
 ## ARGUMENTS IN THIS STRUCT MUSH BE THE SAME AS THE ONE IN GOKU_TRAIN.JL
 @with_kw mutable struct Args_gen
 
     ## Dynamical system
-    system = LV()               # Available : "LV(), vdP(k)". k -> num of oscillators
+    system = LV()               # Available : LV(), vdP_full(k),
+                                #             vdP_identical_local(k)
+                                #             WC_full(k), WC(k),
+                                #             WC_identical_local(k)
+                                #             (k → number of oscillators)
 
     ## Mask dimensions
     input_dim = 2               # model input size
@@ -32,7 +38,7 @@ include("../system/van_der_Pol.jl")
     p₀_range = (1.0, 2.0)       # parameter value range
 
     ## Save paths and keys
-    data_file_name = "vdP_data.bson"  # data file name
+    data_file_name = "lv_data.bson"  # data file name
     seed = 1                         # random seed
 
 end
