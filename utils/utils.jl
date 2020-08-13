@@ -98,12 +98,12 @@ function annealing_factor(start_af, end_af, ae, epoch, mb_id, mb_amount)
 
     if ae > 0
         if epoch < ae
-            return start_af + (end_af - start_af) * (Float32(mb_id + epoch * mb_amount) / Float32(ae * mb_amount))
+            return Float32(start_af + (end_af - start_af) * (mb_id + epoch * mb_amount) / (ae * mb_amount))
         else
-            return end_af
+            return Float32(end_af)
         end
     else
-        return 1.0
+        return 1.0f0
     end
 
 end

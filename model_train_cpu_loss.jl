@@ -115,7 +115,6 @@ function train(; kws...)
         # Model evaluation length
         t = range(t_span[1], step=dt, length=seq_len)
 
-        af = 0.     # Annealing factor
         mb_id = 1   # Minibatch id
         @info "Epoch $(epoch) .. (Sequence training length $(seq_len))"
         progress = Progress(length(loader_train))
