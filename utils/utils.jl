@@ -41,8 +41,13 @@ function rec_loss_mahalanobis(x, pred_x)
     x_stacked = reshape(x_stacked, (size(x_stacked)[1], size(x_stacked)[2]*size(x_stacked)[3]))
     pred_x_stacked_diff = reshape(pred_x_stacked_diff, (size(pred_x_stacked_diff)[1], size(pred_x_stacked_diff)[2]*size(pred_x_stacked_diff)[3]))
     x_stacked_diff = reshape(x_stacked_diff, (size(x_stacked_diff)[1], size(x_stacked_diff)[2]*size(x_stacked_diff)[3]))
+    # now the size is (num_vars, seq_len*minibatch_size)
 
-    Q = inv(Statistics.cov(x_stacked, dims = 2))
+    ss = DistributionsAD.suffstats(MvNormal, convert(Array{Float64}, x_stacked)) #conversion because DistributionsAD only works with Float64
+    d = DistributionsAD.fit_mle(MvNormal, ss)
+    cov_mat = d.C
+    Q = deepcopy(inv(cov_mat))
+    print(Q)
     # dist_array = colwise(Mahalanobis(Q), pred_x_stacked, x_stacked) #can't differentiate loopinfo
     # dist = sum(dist_array)
     dist = 0
@@ -50,7 +55,13 @@ function rec_loss_mahalanobis(x, pred_x)
         dist += mahalanobis(pred_x_stacked[:,i], x_stacked[:,i], Q)
     end
     print(dist)
-    Q_diff = inv(Statistics.cov(x_stacked_diff, dims = 2))
+
+    ss_diff = DistributionsAD.suffstats(MvNormal, convert(Array{Float64}, x_stacked_diff)) #conversion because DistributionsAD only works with Float64
+    d_diff = DistributionsAD.fit_mle(MvNormal, ss_diff)
+    cov_mat_diff = d_diff.C
+    Q_diff = deepcopy(inv(cov_mat_diff))
+    print(Q_diff)
+
     # dist_diff_array = colwise(Mahalanobis(Q), pred_x_stacked_diff, x_stacked_diff) #can't differentiate loopinfo
     # dist_diff = sum(dist_diff_array)
     dist_diff = 0

@@ -26,6 +26,7 @@ using Statistics
 using Zygote
 using Plots
 using Distributions
+using DistributionsAD
 using ModelingToolkit
 using DiffEqGPU
 CUDA.allowscalar(false)
