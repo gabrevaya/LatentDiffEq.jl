@@ -19,6 +19,7 @@ struct Hopf{T, P} <: AbstractSystem
         C = 0.1rand(Float32,k^2)
         u₀ = rand(Float32,2*k)
         p = [a; ω; G; C]
+        tspan = (0.f0, 1.f0)
 
 
         # Define differential equations
@@ -54,19 +55,20 @@ struct Hopf{T, P} <: AbstractSystem
 
 
         # Build ODE Problem
-       _prob = ODEProblem(f!, u₀, (0.f0, 100.f0), p)
+       _prob = ODEProblem(f!, u₀, tspan, p)
 
        @info "Optimizing ODE Problem"
        # prob,_ = auto_optimize(_prob, verbose = false, static = false)
        sys = modelingtoolkitize(_prob)
-       prob = ODEProblem(sys,_prob.u0,_prob.tspan,_prob.p,
-                              jac = true, tgrad = true, simplify = true,
-                              sparse = true,
-                              parallel = ModelingToolkit.SerialForm(),
-                              eval_expression = false)
-
-        T = typeof(u₀)
-        P = typeof(prob)
-        new{T,P}(u₀, p, prob)
+       #prob = ODEProblem(sys,_prob.u0,_prob.tspan,_prob.p,
+       #                       jac = true, tgrad = true, simplify = true,
+       #                       sparse = true,
+       #                       parallel = ModelingToolkit.SerialForm(),
+       #                       eval_expression = false)
+       prob = create_prob(sys, u₀, tspan, p)
+       
+       T = typeof(u₀)
+       P = typeof(prob)
+       new{T,P}(u₀, p, prob)
     end
 end

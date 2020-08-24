@@ -40,9 +40,9 @@ struct Kuramoto_basic{T,P} <: AbstractSystem
                                parallel = ModelingToolkit.SerialForm(),
                                eval_expression = false)
 
-        T = typeof(u₀)
+        T = typeof(θ₀)
         P = typeof(prob)
-        new{T,P}(u₀, p, prob)
+        new{T,P}(θ₀, p, prob)
     end
 end
 
@@ -87,8 +87,8 @@ struct Kuramoto{T,P} <: AbstractSystem
                                parallel = ModelingToolkit.SerialForm(),
                                eval_expression = false)
 
-        T = typeof(u₀)
+        T = typeof(θ₀)
         P = typeof(prob)
-        new{T,P}(u₀, p, prob)
+        new{T,P}(θ₀, p, prob)
     end
 end

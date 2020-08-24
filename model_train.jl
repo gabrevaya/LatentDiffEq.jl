@@ -22,8 +22,8 @@
     cuda = true                 # GPU usage
     dt = 0.05                   # timestep for ode solve
     t_span = (0.f0, 4.95f0)     # span of time interval for training
-    start_af = 0.00001          # Annealing factor start value
-    end_af = 0.00001            # Annealing factor end value
+    start_af = 0.00001f0        # Annealing factor start value
+    end_af = 0.00001f0          # Annealing factor end value
     ae = 200                    # Annealing factor epoch end
 
     ## Progressive observation training

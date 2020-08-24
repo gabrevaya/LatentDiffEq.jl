@@ -14,21 +14,24 @@ abstract type AbstractSystem end
 include("../system/Lotka-Volterra.jl")
 include("../system/van_der_Pol.jl")
 include("../system/Wilson-Cowan.jl")
-
+include("../system/Kuramoto.jl")
+include("../system/Hopf.jl")
 
 
 ## ARGUMENTS IN THIS STRUCT MUSH BE THE SAME AS THE ONE IN GOKU_TRAIN.JL
 @with_kw mutable struct Args_gen
 
     ## Dynamical system
-    system = LV()               # Available : LV(), vdP_full(k),
+    system = Hopf(2)             # Available : LV(), vdP_full(k),
                                 #             vdP_identical_local(k)
                                 #             WC_full(k), WC(k),
                                 #             WC_identical_local(k)
+                                #             Kuramoto_basic(k), Kuramoto(k)
+                                #             Hopf(k)
                                 #             (k → number of oscillators)
 
     ## Mask dimensions
-    input_dim = 2               # model input size
+    input_dim = 4              # model input size
     hidden_dim_gen = 10         # hidden dimension of the g function
 
     ## time and parameter ranges
@@ -38,7 +41,7 @@ include("../system/Wilson-Cowan.jl")
     p₀_range = (1.0, 2.0)       # parameter value range
 
     ## Save paths and keys
-    data_file_name = "lv_data.bson"  # data file name
+    data_file_name = "Hopf_data.bson"  # data file name
     seed = 1                         # random seed
 
 end

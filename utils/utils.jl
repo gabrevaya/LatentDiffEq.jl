@@ -115,3 +115,35 @@ function time_loader(x, full_seq_len, seq_len)
     return Flux.unstack(x_, 2)
 
 end
+
+function create_prob(sys, u₀, tspan, p)
+
+    generate_functions = ~(isfile("generated_f.jl") && isfile("generated_jac.jl") && isfile("generated_tgrad.jl"))
+
+    if generate_functions
+        computed_f = generate_function(sys, sparse = true)[2]
+        computed_jac = generate_jacobian(sys, sparse = true)[2]
+        computed_tgrad = generate_tgrad(sys, sparse = true)[2]
+
+        open("generated_f.jl", "w") do io
+         write(io, "f = $computed_f")
+        end
+        open("generated_jac.jl", "w") do io
+         write(io, "jac = $computed_jac")
+        end
+        open("generated_tgrad.jl", "w") do io
+         write(io, "tgrad = $computed_tgrad")
+        end
+
+        f = eval(computed_f)
+        jac = eval(computed_jac)
+        tgrad = eval(computed_tgrad)
+    else
+        include("generated_f.jl")
+        include("generated_jac.jl")
+        include("generated_tgrad.jl")
+    end
+
+    prob = ODEProblem(f, u₀, tspan, p, jac = jac, tgrad = tgrad)
+    return prob
+end
