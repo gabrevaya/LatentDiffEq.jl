@@ -14,9 +14,23 @@ struct Hopf{T, P} <: AbstractSystem
         # Default parameters and initial conditions
         Random.seed!(1)
         a = 0.2f0*randn(Float32,k)
-        ω = fill(0.3f0, k) + 0.1f0*randn(Float32,k)
-        G = 0.5f0
-        C = 0.1rand(Float32,k^2)
+        ω = (fill(0.055f0, k) + 0.03f0*randn(Float32,k))*2π  # f = ω/2π
+        # Deco et al. (2017) uses G = 5.4 and max(abs.(C)) = 0.2. 5.4*0.2 = 1.08,
+        # so we could use use just G = 1 and max(abs.(C)) = 1
+        G = 5.4f0
+
+
+        # C = 0.2f0*rand(Float32,k^2)
+
+        # Let's make C sparse
+        # TODO: add C sparsity as a parameter when creating the problem
+
+        sparsity = 0.95
+        non_zero_connections = round(Int, (1 - sparsity)*k^2)
+        connections = sample(1:k^2, non_zero_connections)
+        C = zeros(Float32, k^2)
+        C[connections] .= 0.2f0*rand(Float32, non_zero_connections)
+
         u₀ = rand(Float32,2*k)
         p = [a; ω; G; C]
         tspan = (0.f0, 1.f0)
@@ -43,7 +57,7 @@ struct Hopf{T, P} <: AbstractSystem
                 end
 
                 du[j] = (a[j] - x[j]^2 - y[j]^2) * x[j] - ω[j]*y[j] + G*coupling_x
-                du[j+k] = (a[j] - x[j]^2 - y[j]^2) * y[j] - ω[j]*x[j] + G*coupling_y
+                du[j+k] = (a[j] - x[j]^2 - y[j]^2) * y[j] + ω[j]*x[j] + G*coupling_y
             end
 
             # coupling_x = [sum(i -> C[i,j]*(x[i] - x[j]), 1:k) for j in 1:k]
