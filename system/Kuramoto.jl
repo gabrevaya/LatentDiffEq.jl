@@ -59,7 +59,7 @@ struct Kuramoto{T,P} <: AbstractSystem
         θ₀ = randn(Float32, N)
         ω = rand(Float32, N)
         C = rand(Float32)
-        W = rand(Float32, k^2)
+        W = rand(Float32, N^2)
         p = [ω; C]
 
         # Define differential equations
