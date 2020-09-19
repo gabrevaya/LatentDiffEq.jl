@@ -2,16 +2,7 @@
 
 ################################################################################
 ## Arguments for the train function
-@with_kw mutable struct Args
-
-    ## Model and problem definition
-    model_name = "GOKU"         # Available : "latent_ode", "GOKU"
-    system = LV()               # Available : LV(), vdP_full(k),
-                                #             vdP_identical_local(k)
-                                #             WC_full(k), WC(k),
-                                #             WC_identical_local(k)
-                                #             (k → number of oscillators)
-
+@with_kw mutable struct Arg
     ## Training params
     η = 1e-3                    # learning rate
     λ = 0.01f0                  # regularization paramater
@@ -19,7 +10,7 @@
     seq_len = 100               # sampling size for output
     epochs = 200                # number of epochs for training
     seed = 1                    # random seed
-    cuda = true                 # GPU usage
+    cuda = false                 # GPU usage
     dt = 0.05                   # timestep for ode solve
     t_span = (0.f0, 4.95f0)     # span of time interval for training
     start_af = 0.00001f0        # Annealing factor start value
@@ -43,7 +34,7 @@
 
     ## Save paths and keys
     save_path = "output"        # results path
-    data_file_name = "lv_data.bson"  # data file name
+    # data_file_name = "lv_data.bson"  # data file name
     raw_data_name = "raw_data"  # raw data name
     gen_data_name = "gen_data"  # generated data name
 
@@ -53,7 +44,14 @@ end
 ################################################################################
 ## Training done manualy
 
-function train(; kws...)
+function train(model_name, system, data_file_name; kws...)
+    ## Model and problem definition
+    # model_name:               # Available : "latent_ode", "GOKU"
+    # system:                   # Available : LV(), vdP_full(k),
+                                #             vdP_identical_local(k)
+                                #             WC_full(k), WC(k),
+                                #             WC_identical_local(k)
+                                #             (k → number of oscillators)
 
     ############################################################################
     ## Load hyperparameters and GPU config
@@ -88,7 +86,7 @@ function train(; kws...)
     ############################################################################
     ## initialize model object and parameter reference
 
-    model, ps = initialize_model(args, device)
+    model, ps = initialize_model(args, model_name, system, device)
 
     ############################################################################
     ## Define optimizer
@@ -173,5 +171,6 @@ function train(; kws...)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    train()
+    train("GOKU", LV(), "lv_data.bson")
 end
+train("GOKU", LV(), "lv_data.bson")

@@ -143,7 +143,7 @@ function create_prob(sys, u₀, tspan, p)
         include("generated_jac.jl")
         include("generated_tgrad.jl")
     end
-
+    print(jac)
     prob = ODEProblem(f, u₀, tspan, p, jac = jac, tgrad = tgrad)
     return prob
 end

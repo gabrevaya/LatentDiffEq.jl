@@ -103,3 +103,4 @@ end
 # Deterministic neural-net used to get from state to imput sample for the GOKU architecture (input_dim ≂̸ ode_dim)
 gen(raw_in, hidden_dim_gen, input_dim) = Chain(Dense(raw_in, hidden_dim_gen, relu),
                                                    Dense(hidden_dim_gen, input_dim, relu))
+generate_dataset()

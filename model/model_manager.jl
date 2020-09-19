@@ -1,7 +1,7 @@
 
 ################################################################################
 ## Model manager in order to create right model from those available and assign it the right physical systemtem definition
-function initialize_model(args, device)
+function initialize_model(args, model_name, system, device)
 
     @unpack_Args args       # unpack all arguments
 
