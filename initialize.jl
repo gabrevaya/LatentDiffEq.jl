@@ -15,6 +15,7 @@ using Flux
 using Flux.Data: DataLoader
 import Flux.Data: _getobs
 using Flux: reset!
+using JLD2
 using Logging: with_logger
 using Parameters: @with_kw
 using ProgressMeter: Progress, next!

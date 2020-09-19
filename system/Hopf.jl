@@ -79,8 +79,8 @@ struct Hopf{T, P} <: AbstractSystem
        #                       sparse = true,
        #                       parallel = ModelingToolkit.SerialForm(),
        #                       eval_expression = false)
-       prob = create_prob(sys, u₀, tspan, p)
-       
+       prob = create_prob("Hopf", sys, u₀, tspan, p)
+
        T = typeof(u₀)
        P = typeof(prob)
        new{T,P}(u₀, p, prob)

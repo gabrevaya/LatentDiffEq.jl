@@ -15,7 +15,8 @@ struct Kuramoto_basic{T,P} <: AbstractSystem
         ω = rand(Float32, N)
         K = rand(Float32)
         p = [ω; K]
-
+        tspan = (0.f0, 1.f0)
+        
         # Define differential equations
         function f!(dθ, θ, p, t)
             N = length(θ)
@@ -29,16 +30,17 @@ struct Kuramoto_basic{T,P} <: AbstractSystem
 
 
         # Build ODE Problem
-        _prob = ODEProblem(f!, θ₀, (0.f0, 1.f0), p)
+        _prob = ODEProblem(f!, θ₀, tspan, p)
 
         @info "Optimizing ODE Problem"
         # prob,_ = auto_optimize(_prob, verbose = false, static = false)
         sys = modelingtoolkitize(_prob)
-        prob = ODEProblem(sys,_prob.u0,_prob.tspan,_prob.p,
-                               jac = true, tgrad = true, simplify = true,
-                               sparse = false,
-                               parallel = ModelingToolkit.SerialForm(),
-                               eval_expression = false)
+        # prob = ODEProblem(sys,_prob.u0,_prob.tspan,_prob.p,
+        #                        jac = true, tgrad = true, simplify = true,
+        #                        sparse = false,
+        #                        parallel = ModelingToolkit.SerialForm(),
+        #                        eval_expression = false)
+        prob = create_prob("Kuramoto", sys, u₀, tspan, p)
 
         T = typeof(θ₀)
         P = typeof(prob)

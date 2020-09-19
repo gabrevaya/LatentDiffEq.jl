@@ -18,7 +18,7 @@ struct WC_full{T, P} <: AbstractSystem
         W = rand(Float32, k^2)
         u₀ = rand(Float32,2*k)
         p = [α₁; α₂; α₃; α₄; W]
-
+        tspan = (0.f0, 1.f0)
 
         # Define differential equations
         function f!(dx,x,p,t)
@@ -40,16 +40,17 @@ struct WC_full{T, P} <: AbstractSystem
 
 
         # Build ODE Problem
-       _prob = ODEProblem(f!, u₀, (0.f0, 1.f0), p)
+       _prob = ODEProblem(f!, u₀, tspan, p)
 
        @info "Optimizing ODE Problem"
        # prob,_ = auto_optimize(_prob, verbose = false, static = false)
        sys = modelingtoolkitize(_prob)
-       prob = ODEProblem(sys,_prob.u0,_prob.tspan,_prob.p,
-                              jac = true, tgrad = true, simplify = true,
-                              sparse = false,
-                              parallel = ModelingToolkit.SerialForm(),
-                              eval_expression = false)
+       # prob = ODEProblem(sys,_prob.u0,_prob.tspan,_prob.p,
+       #                        jac = true, tgrad = true, simplify = true,
+       #                        sparse = false,
+       #                        parallel = ModelingToolkit.SerialForm(),
+       #                        eval_expression = false)
+       prob = create_prob("Wilson-Cowan", sys, u₀, tspan, p)
 
         T = typeof(u₀)
         P = typeof(prob)

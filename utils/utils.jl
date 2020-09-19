@@ -116,34 +116,45 @@ function time_loader(x, full_seq_len, seq_len)
 
 end
 
-function create_prob(sys, u₀, tspan, p)
+function create_prob(sys_name, sys, u₀, tspan, p)
 
-    generate_functions = ~(isfile("generated_f.jl") && isfile("generated_jac.jl") && isfile("generated_tgrad.jl"))
+    func_folder = mkpath(joinpath("precomputed_systems", sys_name))
+    f_file = joinpath(func_folder, "generated_f.jld2")
+    jac_file = joinpath(func_folder, "generated_jac.jld2")
+    tgrad_file = joinpath(func_folder, "generated_tgrad.jld2")
+
+    generate_functions = ~(isfile(f_file) && isfile(jac_file) && isfile(tgrad_file))
 
     if generate_functions
         computed_f = generate_function(sys, sparse = true)[2]
         computed_jac = generate_jacobian(sys, sparse = true)[2]
         computed_tgrad = generate_tgrad(sys, sparse = true)[2]
 
-        open("generated_f.jl", "w") do io
-         write(io, "f = $computed_f")
-        end
-        open("generated_jac.jl", "w") do io
-         write(io, "jac = $computed_jac")
-        end
-        open("generated_tgrad.jl", "w") do io
-         write(io, "tgrad = $computed_tgrad")
-        end
-
+        # open(f_file, "w") do io
+        #  write(io, "f = $computed_f")
+        # end
+        # open(jac_file, "w") do io
+        #  write(io, "jac = $computed_jac")
+        # end
+        # open(tgrad_file, "w") do io
+        #  write(io, "tgrad = $computed_tgrad")
+        # end
         f = eval(computed_f)
         jac = eval(computed_jac)
         tgrad = eval(computed_tgrad)
+
+        @save(f_file, f)
+        @save(jac_file, jac)
+        @save(tgrad_file, tgrad)
     else
-        include("generated_f.jl")
-        include("generated_jac.jl")
-        include("generated_tgrad.jl")
+        # include("generated_f.jl")
+        # include("generated_jac.jl")
+        # include("generated_tgrad.jl")
+        @info "Precomputed functions found for the system"
+        @load(f_file, "f")
+        @load(jac_file, "jac")
+        @load(f_file, "tgrad")
     end
-    print(jac)
     prob = ODEProblem(f, u₀, tspan, p, jac = jac, tgrad = tgrad)
     return prob
 end
