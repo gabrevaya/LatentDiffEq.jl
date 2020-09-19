@@ -143,17 +143,19 @@ function create_prob(sys_name, sys, u₀, tspan, p)
         jac = eval(computed_jac)
         tgrad = eval(computed_tgrad)
 
-        @save(f_file, f)
-        @save(jac_file, jac)
-        @save(tgrad_file, tgrad)
+        JLD2.@save(f_file, f)
+        JLD2.@save(jac_file, jac)
+        JLD2.@save(tgrad_file, tgrad)
     else
         # include("generated_f.jl")
         # include("generated_jac.jl")
         # include("generated_tgrad.jl")
         @info "Precomputed functions found for the system"
-        @load(f_file, "f")
-        @load(jac_file, "jac")
-        @load(f_file, "tgrad")
+        JLD2.@load(f_file, f)
+        JLD2.@load(jac_file, jac)
+        JLD2.@load(tgrad_file, tgrad)
+
+
     end
     prob = ODEProblem(f, u₀, tspan, p, jac = jac, tgrad = tgrad)
     return prob
