@@ -34,7 +34,7 @@ struct LV{T,P} <: AbstractSystem
         #                        sparse = false,
         #                        parallel = ModelingToolkit.SerialForm(),
         #                        eval_expression = false)
-        prob = create_prob("Lotka-Volterra", sys, u₀, tspan, p)
+        prob = create_prob("Lotka-Volterra", 1, sys, u₀, tspan, p)
 
         T = typeof(u₀)
         P = typeof(prob)

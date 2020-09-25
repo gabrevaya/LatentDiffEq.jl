@@ -46,7 +46,7 @@ struct vdP_full{T, P} <: AbstractSystem
        #                        sparse = false,
        #                        parallel = ModelingToolkit.SerialForm(),
        #                        eval_expression = false)
-       prob = create_prob("van_der_Pol", sys, u₀, tspan, p)
+       prob = create_prob("van_der_Pol", k, sys, u₀, tspan, p)
 
         T = typeof(u₀)
         P = typeof(prob)

@@ -116,12 +116,13 @@ function time_loader(x, full_seq_len, seq_len)
 
 end
 
-function create_prob(sys_name, sys, u₀, tspan, p)
+function create_prob(sys_name, k, sys, u₀, tspan, p)
 
     func_folder = mkpath(joinpath("precomputed_systems", sys_name))
-    f_file = joinpath(func_folder, "generated_f.jld2")
-    jac_file = joinpath(func_folder, "generated_jac.jld2")
-    tgrad_file = joinpath(func_folder, "generated_tgrad.jld2")
+    osc_folder = mkpath(joinpath(func_folder, "oscillators_"*string(k)))
+    f_file = joinpath(osc_folder, "generated_f.jld2")
+    jac_file = joinpath(osc_folder, "generated_jac.jld2")
+    tgrad_file = joinpath(osc_folder, "generated_tgrad.jld2")
 
     generate_functions = ~(isfile(f_file) && isfile(jac_file) && isfile(tgrad_file))
 
@@ -130,15 +131,6 @@ function create_prob(sys_name, sys, u₀, tspan, p)
         computed_jac = generate_jacobian(sys, sparse = true)[2]
         computed_tgrad = generate_tgrad(sys, sparse = true)[2]
 
-        # open(f_file, "w") do io
-        #  write(io, "f = $computed_f")
-        # end
-        # open(jac_file, "w") do io
-        #  write(io, "jac = $computed_jac")
-        # end
-        # open(tgrad_file, "w") do io
-        #  write(io, "tgrad = $computed_tgrad")
-        # end
         f = eval(computed_f)
         jac = eval(computed_jac)
         tgrad = eval(computed_tgrad)
@@ -147,9 +139,6 @@ function create_prob(sys_name, sys, u₀, tspan, p)
         JLD2.@save(jac_file, jac)
         JLD2.@save(tgrad_file, tgrad)
     else
-        # include("generated_f.jl")
-        # include("generated_jac.jl")
-        # include("generated_tgrad.jl")
         @info "Precomputed functions found for the system"
         JLD2.@load(f_file, f)
         JLD2.@load(jac_file, jac)

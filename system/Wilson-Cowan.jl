@@ -50,7 +50,7 @@ struct WC_full{T, P} <: AbstractSystem
        #                        sparse = false,
        #                        parallel = ModelingToolkit.SerialForm(),
        #                        eval_expression = false)
-       prob = create_prob("Wilson-Cowan", sys, u₀, tspan, p)
+       prob = create_prob("Wilson-Cowan", k, sys, u₀, tspan, p)
 
         T = typeof(u₀)
         P = typeof(prob)

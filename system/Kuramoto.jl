@@ -16,7 +16,7 @@ struct Kuramoto_basic{T,P} <: AbstractSystem
         K = rand(Float32)
         p = [ω; K]
         tspan = (0.f0, 1.f0)
-        
+
         # Define differential equations
         function f!(dθ, θ, p, t)
             N = length(θ)
@@ -40,7 +40,7 @@ struct Kuramoto_basic{T,P} <: AbstractSystem
         #                        sparse = false,
         #                        parallel = ModelingToolkit.SerialForm(),
         #                        eval_expression = false)
-        prob = create_prob("Kuramoto", sys, u₀, tspan, p)
+        prob = create_prob("Kuramoto", N, sys, u₀, tspan, p)
 
         T = typeof(θ₀)
         P = typeof(prob)
