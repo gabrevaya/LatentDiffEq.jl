@@ -2,7 +2,7 @@
 
 ################################################################################
 ## Arguments for the train function
-@with_kw mutable struct Arg
+@with_kw mutable struct Args
     ## Training params
     η = 1e-3                    # learning rate
     λ = 0.01f0                  # regularization paramater
@@ -173,4 +173,4 @@ end
 if abspath(PROGRAM_FILE) == @__FILE__
     train("GOKU", LV(), "lv_data.bson")
 end
-train("GOKU", LV(), "lv_data.bson")
+# train("GOKU", LV(), "lv_data.bson")
