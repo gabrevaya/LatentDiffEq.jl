@@ -99,6 +99,15 @@ function generate_dataset(; kws...)
       @save args.data_file_name raw_data data_masked
 end
 
+function transform_dataset(raw_data, window_size=400, interval=5)
+      start_idx = collect(1:interval:size(raw_data)[2]-window_size)
+      transformed_data = zeros(size(raw_data)[1], window_size, length(start_idx))
+      for i in 1:length(start_idx)
+            idx = start_idx[i]
+            transformed_data[:,:,i] = raw_data[:,idx:idx+window_size-1]
+      end
+      return transformed_data
+end
 
 # Deterministic neural-net used to get from state to imput sample for the GOKU architecture (input_dim ≂̸ ode_dim)
 gen(raw_in, hidden_dim_gen, input_dim) = Chain(Dense(raw_in, hidden_dim_gen, relu),
