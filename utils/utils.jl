@@ -31,6 +31,7 @@ end
 function loss_batch(model::AbstractModel, λ, x, t, af)
 
     # Make prediction
+    
     lat_var, pred_x, pred = model(x, t)
 
     # Compute reconstruction (and differential) loss
@@ -144,7 +145,7 @@ function create_prob(sys_name, k, sys, u₀, tspan, p)
         JLD2.@load(jac_file, jac)
         JLD2.@load(tgrad_file, tgrad)
 
-
+        # print(f)
     end
     prob = ODEProblem(f, u₀, tspan, p, jac = jac, tgrad = tgrad)
     return prob

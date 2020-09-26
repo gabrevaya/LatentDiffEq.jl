@@ -145,7 +145,7 @@ struct Goku <: AbstractModel
 end
 
 function (goku::Goku)(x, t)
-
+    
     ## Get encoded latent initial states and parameters
     latent_z₀_μ, latent_z₀_logσ², latent_p_μ, latent_p_logσ² = goku.encoder(x)
 

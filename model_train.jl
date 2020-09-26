@@ -24,7 +24,7 @@
     full_seq_len = 400          # training sequence length at last step
 
     ## Model dimensions
-    input_dim = 2               # input dimension
+    # input_dim = 8               # input dimension
     rnn_input_dim = 32          # rnn input dimension
     rnn_output_dim = 32         # rnn output dimension
     latent_dim = 4              # latent dimension
@@ -44,7 +44,7 @@ end
 ################################################################################
 ## Training done manualy
 
-function train(model_name, system, data_file_name; kws...)
+function train(model_name, system, data_file_name, input_dim=2; kws...)
     ## Model and problem definition
     # model_name:               # Available : "latent_ode", "GOKU"
     # system:                   # Available : LV(), vdP_full(k),
@@ -86,7 +86,7 @@ function train(model_name, system, data_file_name; kws...)
     ############################################################################
     ## initialize model object and parameter reference
 
-    model, ps = initialize_model(args, model_name, system, device)
+    model, ps = initialize_model(args, input_dim, model_name, system, device)
 
     ############################################################################
     ## Define optimizer
@@ -171,6 +171,6 @@ function train(model_name, system, data_file_name; kws...)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    train("GOKU", LV(), "lv_data.bson")
+    train("GOKU", vdP_full(6), "vdP6_data.bson", 12)
 end
-# train("GOKU", LV(), "lv_data.bson")
+# train("GOKU", vdP_full(6), "vdP6_data.bson", 12)
