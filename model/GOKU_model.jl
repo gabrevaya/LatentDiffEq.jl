@@ -100,7 +100,7 @@ function (decoder::GOKU_decoder)(latent_z₀, latent_p, t)
     function output_func(sol, i)
         # Check if solve was successful, if not fill z_pred with zeros to avoid problems with dimensions matches
         if sol.retcode != :Success
-            return (zeros(Float32, size(z₀, 1), size(t)), false)
+            return (zeros(Float32, size(z₀, 1), size(t,1)), false)
         else
             return (Array(sol), false)
         end
