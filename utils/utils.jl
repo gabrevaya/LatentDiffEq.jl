@@ -25,7 +25,7 @@ function rec_loss(x, pred_x)
     res_diff = diff(pred_x_stacked, dims = 3) - diff(x_stacked, dims = 3)
     res_diff_average = sum(mean((res_diff).^2, dims = (2, 3)))
 
-    return res_average + 1000*res_diff_average
+    return (0.1*res_average + res_diff_average)/size(pred_x_stacked,1)
 end
 
 function loss_batch(model::AbstractModel, λ, x, t, af)
