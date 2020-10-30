@@ -90,11 +90,12 @@ end
 
 function compare_sol(x, z)
 
-    plt = plot(x[1,:], color="blue", label="True x")
-    plt = plot!(x[2,:], color="red", label="True y")
-    plt = plot!(z[1,:], color="blue", linestyle=:dot, label="Model x")
-    plt = plot!(z[2,:], color="red", linestyle=:dot, label="Model y")
-
+    plt = plot(x[1,:], label=string("True ",1))
+    plt = plot!(z[1,:], linestyle=:dot, label=string("Model ",1))
+    for i = 2:size(x,1)
+        plt = plot!(x[i,:], label=string("True ",i))
+        plt = plot!(z[i,:], linestyle=:dot, label=string("Model ",i))
+    end
     plt
 
 end
