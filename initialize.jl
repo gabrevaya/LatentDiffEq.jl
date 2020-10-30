@@ -49,6 +49,8 @@ include("utils/visualize.jl")
 include("system/Lotka-Volterra.jl")
 include("system/van_der_Pol.jl")
 include("system/Wilson-Cowan.jl")
+include("system/Kuramoto.jl")
+include("system/Hopf.jl")
 
 
 ################################################################################
