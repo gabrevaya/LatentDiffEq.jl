@@ -25,10 +25,6 @@ function rec_loss(x, pred_x)
     res_diff = diff(pred_x_stacked, dims = 3) - diff(x_stacked, dims = 3)
     res_diff_average = sum(mean((res_diff).^2, dims = (2, 3)))
 
-    println("....")
-    println(res_average)
-    println(res_diff_average)
-
     return (res_average + 100*res_diff_average)
 end
 
@@ -50,7 +46,7 @@ function loss_batch(model::AbstractModel, λ, x, t, af)
 
     # Filthy one liner that does the for loop above # lit
     kl_loss = sum( [ mean(sum(KL.(lat_var[i][1], lat_var[i][2]), dims=1)) for i in 1:length(lat_var) ] )
-    println(af*kl_loss)
+    
     return reconstruction_loss + af*(kl_loss)
 end
 

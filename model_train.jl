@@ -85,7 +85,7 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
     # raw_data = raw_data[:,:,1:1000]
     train_set, test_set = splitobs(raw_data, 0.9)
     train_set, val_set = splitobs(train_set, 0.9)
-
+    
     # Initialize dataloaders
     loader_train = DataLoader(Array(train_set), batchsize=batch_size, shuffle=true, partial=false)
     loader_val = DataLoader(Array(val_set), batchsize=size(val_set, 3), shuffle=true, partial=false)

@@ -44,6 +44,7 @@ include("../system/Hopf.jl")
     ## Save paths and keys
     data_file_name = "kuramoto_data.bson"  # data file name
     seed = 1                         # random seed
+    n_traj = 10000                        # Number of trajectories
 
 end
 
@@ -74,16 +75,20 @@ function generate_dataset(; kws...)
       function prob_func_2(prob,i,repeat)
             u0_new = rand_uniform(args.u₀_range, length(prob.u0))
             prob = remake(prob; u0 = u0_new)
+            sim_p[:,i] = transpose([prob.u0; prob.p])
+            return prob
             # prob = remake(prob; u0 = SArray{Tuple{size(prob.u0)...}}(u0_new))
       end
 
       ##########################################################################
       ## Create data
 
+      sim_p = zeros(size(args.system.prob.u0,1) + size(args.system.prob.p,1), args.n_traj)
+
       @info "Creating data"
       # Solve for X trajectories
       ensemble_prob = EnsembleProblem(prob, prob_func=prob_func_2, output_func = output_func)
-      sim = solve(ensemble_prob, Tsit5(), saveat=args.dt, trajectories=10000)
+      sim = solve(ensemble_prob, Tsit5(), saveat=args.dt, trajectories=args.n_traj)
       raw_data = dropdims(Array(sim), dims = 2)
       transformed_data = args.system.transform(raw_data)
 
@@ -98,7 +103,7 @@ function generate_dataset(; kws...)
       data_masked = Flux.stack(data_masked, 2)
 
       @info "Saving data"
-      @save args.data_file_name raw_data transformed_data data_masked
+      @save args.data_file_name raw_data transformed_data data_masked sim_p
 end
 
 function transform_dataset(raw_data, window_size=400, interval=5)
