@@ -25,12 +25,13 @@ function rec_loss(x, pred_x)
     res_diff = diff(pred_x_stacked, dims = 3) - diff(x_stacked, dims = 3)
     res_diff_average = sum(mean((res_diff).^2, dims = (2, 3)))
 
-    return res_average + 1000*res_diff_average
+    return (res_average + 100*res_diff_average)
 end
 
 function loss_batch(model::AbstractModel, λ, x, t, af)
 
     # Make prediction
+    
     lat_var, pred_x, pred = model(x, t)
 
     # Compute reconstruction (and differential) loss
@@ -45,6 +46,8 @@ function loss_batch(model::AbstractModel, λ, x, t, af)
 
     # Filthy one liner that does the for loop above # lit
     kl_loss = sum( [ mean(sum(KL.(lat_var[i][1], lat_var[i][1]), dims=1)) for i in 1:length(lat_var) ] )
+
+    println(reconstruction_loss + af*(kl_loss))
 
     return reconstruction_loss + af*(kl_loss)
 end
@@ -114,4 +117,38 @@ function time_loader(x, full_seq_len, seq_len)
 
     return Flux.unstack(x_, 2)
 
+end
+
+function create_prob(sys_name, k, sys, u₀, tspan, p)
+
+    func_folder = mkpath(joinpath("precomputed_systems", sys_name))
+    osc_folder = mkpath(joinpath(func_folder, "oscillators_"*string(k)))
+    f_file = joinpath(osc_folder, "generated_f.jld2")
+    jac_file = joinpath(osc_folder, "generated_jac.jld2")
+    tgrad_file = joinpath(osc_folder, "generated_tgrad.jld2")
+
+    generate_functions = ~(isfile(f_file) && isfile(jac_file) && isfile(tgrad_file))
+
+    if generate_functions
+        computed_f = generate_function(sys, sparse = true)[2]
+        computed_jac = generate_jacobian(sys, sparse = true)[2]
+        computed_tgrad = generate_tgrad(sys, sparse = true)[2]
+
+        f = eval(computed_f)
+        jac = eval(computed_jac)
+        tgrad = eval(computed_tgrad)
+
+        JLD2.@save(f_file, f)
+        JLD2.@save(jac_file, jac)
+        JLD2.@save(tgrad_file, tgrad)
+    else
+        @info "Precomputed functions found for the system"
+        JLD2.@load(f_file, f)
+        JLD2.@load(jac_file, jac)
+        JLD2.@load(tgrad_file, tgrad)
+
+        # print(f)
+    end
+    prob = ODEProblem(f, u₀, tspan, p, jac = jac, tgrad = tgrad)
+    return prob
 end

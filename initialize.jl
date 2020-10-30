@@ -16,6 +16,8 @@ using Flux
 using Flux.Data: DataLoader
 import Flux.Data: _getobs
 using Flux: reset!
+using FileIO
+using JLD2
 using Logging: with_logger
 using Parameters: @with_kw
 using ProgressMeter: Progress, next!
@@ -35,6 +37,7 @@ CUDA.allowscalar(false)
 abstract type AbstractEncoder end
 abstract type AbstractDecoder end
 abstract type AbstractModel end
+abstract type AbstractSystem end
 
 ################################################################################
 ## Home files and modules
@@ -43,7 +46,10 @@ include("model_train.jl")
 include("model_alt_train.jl")
 include("utils/utils.jl")
 include("utils/visualize.jl")
-include("system/lv_problem.jl")
+include("system/Lotka-Volterra.jl")
+include("system/van_der_Pol.jl")
+include("system/Wilson-Cowan.jl")
+
 
 ################################################################################
 ## Model definitions

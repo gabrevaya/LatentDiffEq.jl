@@ -13,13 +13,13 @@
     cuda = false                 # GPU usage
     dt = 0.05                   # timestep for ode solve
     t_span = (0.f0, 4.95f0)     # span of time interval for training
-    start_af = 0.0f0        # Annealing factor start value
-    end_af = 1.f0          # Annealing factor end value
-    ae = 1000                    # Annealing factor epoch end
+    start_af = 0.00001f0        # Annealing factor start value
+    end_af = 0.00001f0          # Annealing factor end value
+    ae = 200                    # Annealing factor epoch end
 
     ## Progressive observation training
-    progressive_training = true    # progressive training usage
-    obs_seg_num = 400           # number of step to progressive training
+    progressive_training = false    # progressive training usage
+    obs_seg_num = 200           # number of step to progressive training
     start_seq_len = 20          # training sequence length at first step
     full_seq_len = 400          # training sequence length at last step
 
@@ -61,7 +61,7 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
 
     seed > 0 && Random.seed!(seed)
 
-    if cuda && has_cuda_gpu()
+    if cuda && CUDA.has_cuda_gpu()
         device = gpu
         @info "Training on GPU"
     else
@@ -75,10 +75,14 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
     # load data from bson
     @load data_file_name raw_data
     raw_data = Float32.(raw_data)
+    # If the raw_data is of size [input_dim, total_timesteps]
+    # and we want to convert it to [input_dim, time_size, observations]
+    # Use this sliding window function
+    raw_data = transform_dataset(raw_data, 400, 5)
     input_dim, time_size, observations = size(raw_data)
-    # raw_data = raw_data[:,:,1:1000]
     train_set, test_set = splitobs(raw_data, 0.9)
     train_set, val_set = splitobs(train_set, 0.9)
+
 
     # Initialize dataloaders
     loader_train = DataLoader(Array(train_set), batchsize=batch_size, shuffle=true, partial=false)
@@ -118,6 +122,7 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
         # Model evaluation length
         t = range(t_span[1], step=dt, length=seq_len)
 
+        af = 0.     # Annealing factor
         mb_id = 1   # Minibatch id
         @info "Epoch $(epoch) .. (Sequence training length $(seq_len))"
         progress = Progress(length(loader_train))
@@ -128,6 +133,7 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
 
             # Comput annealing factor
             af = annealing_factor(start_af, end_af, ae, epoch, mb_id, length(loader_train))
+
             loss, back = Flux.pullback(ps) do
 
                 # Compute loss
@@ -172,4 +178,3 @@ end
 if abspath(PROGRAM_FILE) == @__FILE__
     train("GOKU", vdP_full(6), "vdP6_data.bson", 12)
 end
-# train("GOKU", vdP_full(6), "vdP6_data.bson", 12)

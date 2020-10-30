@@ -62,7 +62,6 @@ end
 struct GOKU_decoder <: AbstractDecoder
 
     solver
-    ode_func
     ode_prob
 
     z₀_linear
@@ -71,7 +70,7 @@ struct GOKU_decoder <: AbstractDecoder
 
     device
 
-    function GOKU_decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_func, solver, device)
+    function GOKU_decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_prob, solver, device)
 
         z₀_linear = Chain(Dense(latent_dim, hidden_dim, relu),
                           Dense(hidden_dim, ode_dim, softplus)) |> device
@@ -80,9 +79,10 @@ struct GOKU_decoder <: AbstractDecoder
         gen_linear = Chain(Dense(ode_dim, hidden_dim, relu),
                            Dense(hidden_dim, input_dim)) |> device
 
-        ode_prob = ODEProblem(ode_func, [0., 0.], (0., 1.), [0., 0., 0., 0.])
+        # _ode_prob = ODEProblem(ode_func, zeros(Float32, ode_dim), (0.f0, 1.f0), zeros(Float32, p_dim))
+        # ode_prob,_ = auto_optimize(_ode_prob, verbose = false, static = false);
 
-        new(solver, ode_func, ode_prob, z₀_linear, p_linear, gen_linear, device)
+        new(solver, ode_prob, z₀_linear, p_linear, gen_linear, device)
 
     end
 
@@ -96,11 +96,12 @@ function (decoder::GOKU_decoder)(latent_z₀, latent_p, t)
 
     #####
     # Function definition for ensemble problem
-    prob_func = (prob,i,repeat) -> remake(prob, u0=z₀[:,i], p = p[:,i])
+    prob_func = (prob,i,repeat) -> remake(prob, u0=z₀[:,i], p = p[:,i]) # TODO: try using views and switching indexes to see if the performance improves
     function output_func(sol, i)
         # Check if solve was successful, if not fill z_pred with zeros to avoid problems with dimensions matches
         if sol.retcode != :Success
-            return (zeros(Float32, size(z₀, 1), size(t)), false)
+            return (zeros(Float32, size(z₀, 1), size(t,1)), false)
+            # return (1000*ones(Float32, size(z₀, 1), size(t,1)), false)
         else
             return (Array(sol), false)
         end
@@ -145,7 +146,7 @@ struct Goku <: AbstractModel
 end
 
 function (goku::Goku)(x, t)
-
+    
     ## Get encoded latent initial states and parameters
     latent_z₀_μ, latent_z₀_logσ², latent_p_μ, latent_p_logσ² = goku.encoder(x)
 
