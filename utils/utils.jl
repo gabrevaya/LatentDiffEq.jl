@@ -47,8 +47,6 @@ function loss_batch(model::AbstractModel, λ, x, t, af)
     # Filthy one liner that does the for loop above # lit
     kl_loss = sum( [ mean(sum(KL.(lat_var[i][1], lat_var[i][1]), dims=1)) for i in 1:length(lat_var) ] )
 
-    println(reconstruction_loss + af*(kl_loss))
-
     return reconstruction_loss + af*(kl_loss)
 end
 
