@@ -51,6 +51,7 @@ end
 
 
 struct Kuramoto{T,P} <: AbstractSystem
+
     u₀::T
     p::T
     prob::P
@@ -93,4 +94,10 @@ struct Kuramoto{T,P} <: AbstractSystem
         P = typeof(prob)
         new{T,P}(θ₀, p, prob)
     end
+
+    function output_transform(θ)
+        print(size(θ))
+        return sin.(θ)
+    end
+
 end
