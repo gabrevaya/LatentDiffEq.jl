@@ -32,6 +32,9 @@
     hidden_dim_node = 200       # hidden dimension of the neuralODE
     hidden_dim_gen = 10         # hidden dimension of the g function
 
+    ## Model parameters
+    variational = true
+
     ## Save paths and keys
     save_path = "output"        # results path
     # data_file_name = "kuramoto_data.bson"  # data file name

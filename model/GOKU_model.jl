@@ -136,14 +136,16 @@ struct Goku <: AbstractModel
     encoder::GOKU_encoder
     decoder::GOKU_decoder
 
+    variational::Bool
+
     device
 
-    function Goku(input_dim, latent_dim, rnn_input_dim, rnn_output_dim, hidden_dim, ode_dim, p_dim, ode_sys, sys_tranform, solver, device)
+    function Goku(input_dim, latent_dim, rnn_input_dim, rnn_output_dim, hidden_dim, ode_dim, p_dim, ode_sys, sys_tranform, solver, variational, device)
 
         encoder = GOKU_encoder(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, device)
         decoder = GOKU_decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_sys, sys_tranform, solver, device)
 
-        new(encoder, decoder, device)
+        new(encoder, decoder, variational, device)
 
     end
 
@@ -155,9 +157,13 @@ function (goku::Goku)(x, t)
     latent_z₀_μ, latent_z₀_logσ², latent_p_μ, latent_p_logσ² = goku.encoder(x)
 
     ## Sample from the distributions
-    latent_z₀ = latent_z₀_μ + goku.device(randn(Float32, size(latent_z₀_logσ²))) .* exp.(latent_z₀_logσ²/2f0)
-    latent_p = latent_p_μ + goku.device(randn(Float32, size(latent_p_logσ²))) .* exp.(latent_p_logσ²/2f0)
-
+    if goku.variational
+        latent_z₀ = latent_z₀_μ + goku.device(randn(Float32, size(latent_z₀_logσ²))) .* exp.(latent_z₀_logσ²/2f0)
+        latent_p = latent_p_μ + goku.device(randn(Float32, size(latent_p_logσ²))) .* exp.(latent_p_logσ²/2f0)
+    else
+        latent_z₀ = latent_z₀_μ
+        latent_p = latent_p_μ
+    end
     ## Get predicted output
     pred_x, pred_z₀, pred_p = goku.decoder(latent_z₀, latent_p, t)
 
