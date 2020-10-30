@@ -7,6 +7,7 @@ struct LV{T,P} <: AbstractSystem
     u₀::T
     p::T
     prob::P
+    transform
 
     function LV()
         # Default parameters and initial conditions
@@ -22,6 +23,7 @@ struct LV{T,P} <: AbstractSystem
                 du[2] = -δ*y + γ*x*y
         end
 
+        output_transform(u) = u
 
         # Build ODE Problem
         _prob = ODEProblem(f!, u₀, tspan, p)
@@ -38,6 +40,7 @@ struct LV{T,P} <: AbstractSystem
 
         T = typeof(u₀)
         P = typeof(prob)
-        new{T,P}(u₀, p, prob)
+        new{T,P}(u₀, p, prob, output_transform)
     end
+    
 end

@@ -4,7 +4,7 @@
 ## Arguments for the train function
 @with_kw mutable struct Args
     ## Training params
-    η = 1e-3                    # learning rate
+    η = 1e-2                    # learning rate
     λ = 0.01f0                  # regularization paramater
     batch_size = 256            # minibatch size
     seq_len = 100               # sampling size for output
@@ -18,7 +18,7 @@
     ae = 1000                    # Annealing factor epoch end
 
     ## Progressive observation training
-    progressive_training = true    # progressive training usage
+    progressive_training = false # progressive training usage
     obs_seg_num = 400           # number of step to progressive training
     start_seq_len = 20          # training sequence length at first step
     full_seq_len = 400          # training sequence length at last step
@@ -34,8 +34,9 @@
 
     ## Save paths and keys
     save_path = "output"        # results path
-    # data_file_name = "lv_data.bson"  # data file name
+    # data_file_name = "kuramoto_data.bson"  # data file name
     raw_data_name = "raw_data"  # raw data name
+    transformed_data_name = "transformed_data"
     gen_data_name = "gen_data"  # generated data name
 
 end
@@ -73,7 +74,9 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
     ## Prepare training data
 
     # load data from bson
-    @load data_file_name raw_data
+    # @load data_file_name raw_data
+    @load data_file_name transformed_data
+    raw_data = transformed_data
     raw_data = Float32.(raw_data)
     input_dim, time_size, observations = size(raw_data)
     # raw_data = raw_data[:,:,1:1000]

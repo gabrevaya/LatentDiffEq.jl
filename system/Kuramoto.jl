@@ -4,9 +4,11 @@
 ## Problem Definition -- Kuramoto Oscillators
 
 struct Kuramoto_basic{T,P} <: AbstractSystem
+
     u₀::T
     p::T
     prob::P
+    transform
 
     function Kuramoto_basic(N)
         # Default parameters and initial conditions
@@ -28,6 +30,7 @@ struct Kuramoto_basic{T,P} <: AbstractSystem
             end
         end
 
+        output_transform(θ) = sin.(θ)
 
         # Build ODE Problem
         _prob = ODEProblem(f!, θ₀, tspan, p)
@@ -44,7 +47,7 @@ struct Kuramoto_basic{T,P} <: AbstractSystem
 
         T = typeof(θ₀)
         P = typeof(prob)
-        new{T,P}(θ₀, p, prob)
+        new{T,P}(θ₀, p, prob, output_transform)
     end
 end
 
@@ -55,6 +58,7 @@ struct Kuramoto{T,P} <: AbstractSystem
     u₀::T
     p::T
     prob::P
+    transform
 
     function Kuramoto(N)
         # Default parameters and initial conditions
@@ -63,7 +67,7 @@ struct Kuramoto{T,P} <: AbstractSystem
         ω = rand(Float32, N)
         C = rand(Float32)
         W = rand(Float32, N^2)
-        p = [ω; C]
+        p = [ω; C; W]
 
         # Define differential equations
         function f!(dθ, θ, p, t)
@@ -77,6 +81,7 @@ struct Kuramoto{T,P} <: AbstractSystem
             end
         end
 
+        output_transform(θ) = sin.(θ)
 
         # Build ODE Problem
         _prob = ODEProblem(f!, θ₀, (0.f0, 1.f0), p)
@@ -92,12 +97,7 @@ struct Kuramoto{T,P} <: AbstractSystem
 
         T = typeof(θ₀)
         P = typeof(prob)
-        new{T,P}(θ₀, p, prob)
-    end
-
-    function output_transform(θ)
-        print(size(θ))
-        return sin.(θ)
+        new{T,P}(θ₀, p, prob, output_transform)
     end
 
 end

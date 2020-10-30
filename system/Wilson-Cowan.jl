@@ -4,9 +4,11 @@
 ## Problem Definition -- Wilson-Cowan
 
 struct WC_full{T, P} <: AbstractSystem
+
     u₀::T
     p::T
     prob::P
+    transform
 
     function WC_full(k::Int64)
         # Default parameters and initial conditions
@@ -38,6 +40,7 @@ struct WC_full{T, P} <: AbstractSystem
             @. dx[k+1:end] = -x₂ + σ(α₄*x₁)
         end
 
+        output_transform(x) = x
 
         # Build ODE Problem
        _prob = ODEProblem(f!, u₀, tspan, p)
@@ -54,16 +57,18 @@ struct WC_full{T, P} <: AbstractSystem
 
         T = typeof(u₀)
         P = typeof(prob)
-        new{T,P}(u₀, p, prob)
+        new{T,P}(u₀, p, prob, output_transform)
     end
 end
 
 
 
 struct WC{T, P} <: AbstractSystem
+
     u₀::T
     p::T
     prob::P
+    transform
 
     function WC(k::Int64)
         # Default parameters and initial conditions
@@ -93,6 +98,7 @@ struct WC{T, P} <: AbstractSystem
             @. dx[k+1:end] = -x₂ + σ(α₃*x₁)
         end
 
+        output_transform(x) = x
 
         # Build ODE Problem
        _prob = ODEProblem(f!, u₀, (0.f0, 1.f0), p)
@@ -108,16 +114,18 @@ struct WC{T, P} <: AbstractSystem
 
         T = typeof(u₀)
         P = typeof(prob)
-        new{T,P}(u₀, p, prob)
+        new{T,P}(u₀, p, prob, output_transform)
     end
 end
 
 
 
 struct WC_identical_local{T, P} <: AbstractSystem
+
     u₀::T
     p::T
     prob::P
+    transform
 
     function WC_identical_local(k::Int64)
         # Default parameters and initial conditions
@@ -148,6 +156,9 @@ struct WC_identical_local{T, P} <: AbstractSystem
         end
 
 
+        output_transform(x) = x
+
+
         # Build ODE Problem
        _prob = ODEProblem(f!, u₀, (0.f0, 1.f0), p)
 
@@ -162,7 +173,7 @@ struct WC_identical_local{T, P} <: AbstractSystem
 
         T = typeof(u₀)
         P = typeof(prob)
-        new{T,P}(u₀, p, prob)
+        new{T,P}(u₀, p, prob, output_transform)
     end
 end
 

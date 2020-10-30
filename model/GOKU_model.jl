@@ -63,6 +63,7 @@ struct GOKU_decoder <: AbstractDecoder
 
     solver
     ode_prob
+    transform
 
     z₀_linear
     p_linear
@@ -70,7 +71,7 @@ struct GOKU_decoder <: AbstractDecoder
 
     device
 
-    function GOKU_decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_prob, solver, device)
+    function GOKU_decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_prob, transform, solver, device)
 
         z₀_linear = Chain(Dense(latent_dim, hidden_dim, relu),
                           Dense(hidden_dim, ode_dim, softplus)) |> device
@@ -82,7 +83,7 @@ struct GOKU_decoder <: AbstractDecoder
         # _ode_prob = ODEProblem(ode_func, zeros(Float32, ode_dim), (0.f0, 1.f0), zeros(Float32, p_dim))
         # ode_prob,_ = auto_optimize(_ode_prob, verbose = false, static = false);
 
-        new(solver, ode_prob, z₀_linear, p_linear, gen_linear, device)
+        new(solver, ode_prob, transform, z₀_linear, p_linear, gen_linear, device)
 
     end
 
@@ -120,6 +121,9 @@ function (decoder::GOKU_decoder)(latent_z₀, latent_p, t)
     ## Create output data shape
     # pred_x = decoder.gen_linear. (pred_z) # TODO : create new dataset from a trained generation function
 
+    # Transform the resulting output (Mainly used for Kuramoto system to pass from phase -> time space)
+    pred_z = decoder.transform(pred_z)
+
     return Flux.unstack(pred_z, 2), z₀, p
 
 end
@@ -134,10 +138,10 @@ struct Goku <: AbstractModel
 
     device
 
-    function Goku(input_dim, latent_dim, rnn_input_dim, rnn_output_dim, hidden_dim, ode_dim, p_dim, ode_sys, solver, device)
+    function Goku(input_dim, latent_dim, rnn_input_dim, rnn_output_dim, hidden_dim, ode_dim, p_dim, ode_sys, sys_tranform, solver, device)
 
         encoder = GOKU_encoder(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, device)
-        decoder = GOKU_decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_sys, solver, device)
+        decoder = GOKU_decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_sys, sys_tranform, solver, device)
 
         new(encoder, decoder, device)
 

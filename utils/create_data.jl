@@ -23,7 +23,7 @@ include("../system/Hopf.jl")
 @with_kw mutable struct Args_gen
 
     ## Dynamical system
-    system = vdP_full(1)             # Available : LV(), vdP_full(k),
+    system = Kuramoto(2)        # Available : LV(), vdP_full(k),
                                 #             vdP_identical_local(k)
                                 #             WC_full(k), WC(k),
                                 #             WC_identical_local(k)
@@ -32,7 +32,7 @@ include("../system/Hopf.jl")
                                 #             (k → number of oscillators)
 
     ## Mask dimensions
-    input_dim = 4              # model input size
+    input_dim = 4               # model input size
     hidden_dim_gen = 10         # hidden dimension of the g function
 
     ## time and parameter ranges
@@ -42,7 +42,7 @@ include("../system/Hopf.jl")
     p₀_range = (1.0, 2.0)       # parameter value range
 
     ## Save paths and keys
-    data_file_name = "vdP1_data.bson"  # data file name
+    data_file_name = "kuramoto_data.bson"  # data file name
     seed = 1                         # random seed
 
 end
@@ -85,6 +85,7 @@ function generate_dataset(; kws...)
       ensemble_prob = EnsembleProblem(prob, prob_func=prob_func_2, output_func = output_func)
       sim = solve(ensemble_prob, Tsit5(), saveat=args.dt, trajectories=10000)
       raw_data = dropdims(Array(sim), dims = 2)
+      transformed_data = args.system.transform(raw_data)
 
       # Probably works but requieres alot of RAM for some reason
       # When solving this issue, add include("utils.jl")
@@ -97,7 +98,7 @@ function generate_dataset(; kws...)
       data_masked = Flux.stack(data_masked, 2)
 
       @info "Saving data"
-      @save args.data_file_name raw_data data_masked
+      @save args.data_file_name raw_data transformed_data data_masked
 end
 
 function transform_dataset(raw_data, window_size=400, interval=5)

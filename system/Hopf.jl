@@ -6,9 +6,11 @@
 # Ipiña et al. (2019), https://arxiv.org/abs/1907.04412 & https://www.sciencedirect.com/science/article/pii/S1053811920303207
 
 struct Hopf{T, P} <: AbstractSystem
+    
     u₀::T
     p::T
     prob::P
+    transform
 
     function Hopf(k::Int64)
         # Default parameters and initial conditions
@@ -67,6 +69,7 @@ struct Hopf{T, P} <: AbstractSystem
             # @. du[k+1:end] = (a - x^2 - y^2) * y - ω*x + G*coupling_y
         end
 
+        output_transform(u) = u
 
         # Build ODE Problem
        _prob = ODEProblem(f!, u₀, tspan, p)
@@ -83,6 +86,6 @@ struct Hopf{T, P} <: AbstractSystem
 
        T = typeof(u₀)
        P = typeof(prob)
-       new{T,P}(u₀, p, prob)
+       new{T,P}(u₀, p, prob, output_transform)
     end
 end

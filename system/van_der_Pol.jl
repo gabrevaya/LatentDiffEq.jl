@@ -4,9 +4,11 @@
 ## Problem Definition -- van der Pol
 
 struct vdP_full{T, P} <: AbstractSystem
+
     u₀::T
     p::T
     prob::P
+    transform
 
     function vdP_full(k::Int64)
         # Default parameters and initial conditions
@@ -34,6 +36,7 @@ struct vdP_full{T, P} <: AbstractSystem
             @. dx[k+1:end] = -x₁
         end
 
+        output_transform(x) = x
 
         # Build ODE Problem
        _prob = ODEProblem(f!, u₀, tspan, p)
@@ -50,16 +53,18 @@ struct vdP_full{T, P} <: AbstractSystem
 
         T = typeof(u₀)
         P = typeof(prob)
-        new{T,P}(u₀, p, prob)
+        new{T,P}(u₀, p, prob, output_transform)
     end
 end
 
 
 
 struct vdP_identical_local{T, P} <: AbstractSystem
+
     u₀::T
     p::T
     prob::P
+    transform
 
     function vdP_identical_local(k::Int64)
         # Default parameters and initial conditions
@@ -87,6 +92,7 @@ struct vdP_identical_local{T, P} <: AbstractSystem
             @. dx[k+1:end] = -x₁
         end
 
+        output_transform(x) = x
 
         # Build ODE Problem
        _prob = ODEProblem(f!, u₀, (0.f0, 1.f0), p)
@@ -102,6 +108,6 @@ struct vdP_identical_local{T, P} <: AbstractSystem
 
         T = typeof(u₀)
         P = typeof(prob)
-        new{T,P}(u₀, p, prob)
+        new{T,P}(u₀, p, prob, output_transforms)
     end
 end
