@@ -174,3 +174,4 @@ if abspath(PROGRAM_FILE) == @__FILE__
     train("GOKU", vdP_full(6), "vdP6_data.bson", 12)
 end
 # train("GOKU", vdP_full(6), "vdP6_data.bson", 12)
+# train("GOKU", SLV(), "SLV_data.bson", 2)

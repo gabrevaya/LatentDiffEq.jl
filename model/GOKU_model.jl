@@ -113,7 +113,8 @@ function (decoder::GOKU_decoder)(latent_z₀, latent_p, t)
     ens_prob = EnsembleProblem(prob, prob_func = prob_func, output_func = output_func)
 
     ## Solve
-    pred_z = solve(ens_prob, decoder.solver,  EnsembleThreads(), trajectories=size(p, 2), saveat = t) |> decoder.device
+    # pred_z = solve(ens_prob, SOSRI(),  EnsembleThreads(), trajectories=size(p, 2), saveat = t, force_dtmin=true) |> decoder.device
+    pred_z = solve(ens_prob, SOSRI(), sensealg=ForwardDiffSensitivity(), trajectories=size(p, 2), saveat = t) |> decoder.device
     # pred_z = solve(ens_prob, Rodas5(linsolve=LinSolveGPUSplitFactorize()),  EnsembleGPUArray(), trajectories=size(p, 2), saveat = t) |> decoder.device
     # pred_z = solve(ens_prob, Tsit5(),  EnsembleGPUArray(), trajectories=size(p, 2), saveat = t) |> decoder.device
 

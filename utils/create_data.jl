@@ -12,6 +12,7 @@ using Flux
 
 abstract type AbstractSystem end
 include("utils.jl")
+include("../system/Stochastic_Lotka-Volterra.jl")
 include("../system/Lotka-Volterra.jl")
 include("../system/van_der_Pol.jl")
 include("../system/Wilson-Cowan.jl")
@@ -23,7 +24,8 @@ include("../system/Hopf.jl")
 @with_kw mutable struct Args_gen
 
     ## Dynamical system
-    system = vdP_full(1)             # Available : LV(), vdP_full(k),
+    system = SLV()        # Available : LV(), SLV()
+                                # vdP_full(k),
                                 #             vdP_identical_local(k)
                                 #             WC_full(k), WC(k),
                                 #             WC_identical_local(k)
@@ -42,7 +44,7 @@ include("../system/Hopf.jl")
     p₀_range = (1.0, 2.0)       # parameter value range
 
     ## Save paths and keys
-    data_file_name = "vdP1_data.bson"  # data file name
+    data_file_name = "SLV_data.bson"  # data file name
     seed = 1                         # random seed
 
 end
@@ -83,7 +85,7 @@ function generate_dataset(; kws...)
       @info "Creating data"
       # Solve for X trajectories
       ensemble_prob = EnsembleProblem(prob, prob_func=prob_func_2, output_func = output_func)
-      sim = solve(ensemble_prob, Tsit5(), saveat=args.dt, trajectories=10000)
+      sim = solve(ensemble_prob, SOSRI(), saveat=args.dt, trajectories=10000,force_dtmin=true)
       raw_data = dropdims(Array(sim), dims = 2)
 
       # Probably works but requieres alot of RAM for some reason
