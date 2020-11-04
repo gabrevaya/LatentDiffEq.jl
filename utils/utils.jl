@@ -34,6 +34,12 @@ function rec_loss(x, pred_x)
     return res_average/size(pred_x_stacked,1)
 end
 
+function rec_ini_loss(x, pred)
+    # Data prep
+    x_stacked = Flux.stack(x, 3)
+    res = mean((pred[1] - x_stacked[:,:,1]).^2)
+end
+
 function loss_batch(model::AbstractModel, λ, x, t, af)
 
     # Make prediction
@@ -42,6 +48,8 @@ function loss_batch(model::AbstractModel, λ, x, t, af)
 
     # Compute reconstruction (and differential) loss
     reconstruction_loss = rec_loss(x, pred_x)
+    rec_initial_condition_loss = rec_ini_loss(x, pred)
+    # @show rec_initial_condition_loss
 
     # Compute KL losses from parameter and initial value estimation
     # kl_loss = 0
@@ -52,8 +60,8 @@ function loss_batch(model::AbstractModel, λ, x, t, af)
 
     # Filthy one liner that does the for loop above # lit
     kl_loss = sum( [ mean(sum(KL.(lat_var[i][1], lat_var[i][2]), dims=1)) for i in 1:length(lat_var) ] )
-
-    return reconstruction_loss + af*(kl_loss)
+    # @show reconstruction_loss + af*(kl_loss)
+    return reconstruction_loss + af*(kl_loss) + rec_initial_condition_loss
 end
 
 ## annealing factor parameters
@@ -208,3 +216,5 @@ function masking!(p, grads, threshold)
         grads[1][p][:] = mean_grads[:]
     end
 end
+
+rec_ini_loss(x::Array{T,2}, pred) where T = mean((pred[1] - x[:,1]).^2)
