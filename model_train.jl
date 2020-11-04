@@ -124,29 +124,50 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
         progress = Progress(length(loader_train))
         for x in loader_train
 
+            grads = Zygote.Grads[]
             # Use only a random sequence of length seq_len for all sample in the minibatch
-            x = time_loader(x, full_seq_len, seq_len)
-
+            x = time_loader2(x, full_seq_len, seq_len)
             # Comput annealing factor
             af = annealing_factor(start_af, end_af, ae, epoch, mb_id, length(loader_train))
-            loss, back = Flux.pullback(ps) do
+            
+            for sample in x
+                loss, back = Flux.pullback(ps) do
 
-                # Compute loss
-                loss_batch(model, λ, x |> device, t, af)
+                    # Compute loss
+                    loss_batch(model, λ, sample |> device, t, af)
 
+                end
+
+                # Backpropagate and update
+                mb_id += 1
+                grad = back(1f0)
+                # @show size(grad[ps[1]])
+                # grad[ps[1]][1] = 3.f0
+                # @show grad[ps[1]][1]
+                push!(grads, grad)
             end
 
-            # Backpropagate and update
-            mb_id += 1
-            grad = back(1f0)
-            Flux.Optimise.update!(opt, ps, grad)
+            threshold = 0.5f0
 
+            function masking!(p, grads, threshold)
+                if ~(grads[1][p] == nothing)
+                    mean_signs = mean([sign.(el[p]) for el in grads])
+                    mask = mean_signs .< threshold
+                    mean_grads = mean([el[p] for el in grads])
+                    mean_grads[mask] .= 0.f0
+                    grads[1][p][:] = mean_grads[:]
+                end
+            end
+            masking!.(ps, Ref(grads), threshold)
+
+            Flux.Optimise.update!(opt, ps, grads[1])
             # Use validation set to get loss and visualisation
             val_set = time_loader(first(loader_val), full_seq_len, seq_len)
             val_loss = loss_batch(model, λ, val_set |> device, t, af)
 
             # progress meter
-            next!(progress; showvalues=[(:loss, loss),(:val_loss, val_loss)])
+            # next!(progress; showvalues=[(:loss, loss),(:val_loss, val_loss)])
+            next!(progress; showvalues=[(:val_loss, val_loss)])
 
         end
 

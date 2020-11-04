@@ -19,13 +19,19 @@ function rec_loss(x, pred_x)
 
     # Residual loss
     res = pred_x_stacked - x_stacked
+    # res_av1 = mean((res).^2, dims = 2)
+    # @show typeof(res_av1)
+    # res_av1[:,:,1] .*= 10.f0
+    # res_average = sum(mean(res_av1, dims = 3))
+
     res_average = sum(mean((res).^2, dims = (2, 3)))
 
-    # Differential residual loss
-    res_diff = diff(pred_x_stacked, dims = 3) - diff(x_stacked, dims = 3)
-    res_diff_average = sum(mean((res_diff).^2, dims = (2, 3)))
+    # # Differential residual loss
+    # res_diff = diff(pred_x_stacked, dims = 3) - diff(x_stacked, dims = 3)
+    # res_diff_average = sum(mean((res_diff).^2, dims = (2, 3)))
 
-    return (res_average + 100f0*res_diff_average)/size(pred_x_stacked,1)
+    # return (res_average + 100f0*res_diff_average)/size(pred_x_stacked,1)
+    return res_average/size(pred_x_stacked,1)
 end
 
 function loss_batch(model::AbstractModel, λ, x, t, af)
@@ -46,6 +52,7 @@ function loss_batch(model::AbstractModel, λ, x, t, af)
 
     # Filthy one liner that does the for loop above # lit
     kl_loss = sum( [ mean(sum(KL.(lat_var[i][1], lat_var[i][2]), dims=1)) for i in 1:length(lat_var) ] )
+
     return reconstruction_loss + af*(kl_loss)
 end
 
@@ -116,6 +123,19 @@ function time_loader(x, full_seq_len, seq_len)
 
 end
 
+function time_loader2(x, full_seq_len, seq_len)
+
+    x_ = Array{Float32, 3}(undef, (size(x,1), seq_len, size(x,3)))
+
+    for i in 1:size(x,3)
+        x_[:,:,i] = x[:,rand_time(full_seq_len, seq_len),i]
+    end
+
+    x_samples_unstacked = Flux.unstack(x_, 3)
+    return x_samples_unstacked
+
+end
+
 function create_prob(sys_name, k, sys, u₀, tspan, p)
 
     func_folder = mkpath(joinpath("precomputed_systems", sys_name))
@@ -148,4 +168,17 @@ function create_prob(sys_name, k, sys, u₀, tspan, p)
     end
     prob = ODEProblem(f, u₀, tspan, p, jac = jac, tgrad = tgrad)
     return prob
+end
+
+
+
+## for ILC
+
+
+function rec_loss(x::Array{T,2}, pred_x) where T
+    pred_stacked = Flux.stack(pred_x, 2)
+    # Residual loss
+    res = x - pred_stacked
+    res_average = mean((res).^2, dims = (1, 2))
+    return res_average[1]
 end

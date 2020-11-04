@@ -27,6 +27,10 @@ struct GOKU_encoder <: AbstractEncoder
         rnn = Chain(RNN(rnn_input_dim, rnn_output_dim, relu),
                     RNN(rnn_output_dim, rnn_output_dim, relu)) |> device
 
+        # rnn = Chain(LSTM(rnn_input_dim, rnn_output_dim),
+        #             LSTM(rnn_output_dim, rnn_output_dim)) |> device
+
+
         rnn_μ = Dense(rnn_output_dim, latent_dim) |> device
         rnn_logσ² = Dense(rnn_output_dim, latent_dim) |> device
 
@@ -147,7 +151,6 @@ struct Goku <: AbstractModel
 end
 
 function (goku::Goku)(x, t)
-    
     ## Get encoded latent initial states and parameters
     latent_z₀_μ, latent_z₀_logσ², latent_p_μ, latent_p_logσ² = goku.encoder(x)
 
@@ -159,5 +162,59 @@ function (goku::Goku)(x, t)
     pred_x, pred_z₀, pred_p = goku.decoder(latent_z₀, latent_p, t)
 
     return ((latent_z₀_μ, latent_z₀_logσ²), (latent_p_μ, latent_p_logσ²)), pred_x, (pred_z₀, pred_p)
+
+end
+
+
+# for ILC
+
+function (goku::Goku)(x::Array{T,2}, t) where T
+    
+    ## Get encoded latent initial states and parameters
+    latent_z₀_μ, latent_z₀_logσ², latent_p_μ, latent_p_logσ² = goku.encoder(x)
+    ## Sample from the distributions
+    latent_z₀ = latent_z₀_μ + goku.device(randn(Float32, size(latent_z₀_logσ²))) .* exp.(latent_z₀_logσ²/2f0)
+    latent_p = latent_p_μ + goku.device(randn(Float32, size(latent_p_logσ²))) .* exp.(latent_p_logσ²/2f0)
+
+    ## Get predicted output
+    pred_x, pred_z₀, pred_p = goku.decoder(latent_z₀, latent_p, t)
+
+    return ((latent_z₀_μ, latent_z₀_logσ²), (latent_p_μ, latent_p_logσ²)), pred_x, (pred_z₀, pred_p)
+end
+
+function (encoder::GOKU_encoder)(x::Array{T,2}) where T
+    # @show x
+    # @show encoder.linear[1].W
+    # Pass all states in the time series in dense layer
+    h = encoder.linear(x)
+    # @show h[1,1:3]
+    h_rev = reverse(h, dims=2)
+    # @show h_rev[1,end-2:end]
+
+    # Pass an RNN and an LSTM through latent states
+    rnn_out = encoder.rnn.(eachcol(h_rev))[end]
+    lstm_out = encoder.lstm.(eachcol(h))[end]
+    reset!(encoder.rnn)
+    reset!(encoder.lstm)
+
+    # Return RNN/LSTM ouput passed trough dense layers (RNN -> z₀, LSTM -> p)
+    encoder.rnn_μ(rnn_out), encoder.rnn_logσ²(rnn_out), encoder.lstm_μ(lstm_out), encoder.lstm_logσ²(lstm_out)
+end
+
+
+function (decoder::GOKU_decoder)(latent_z₀::Array{T,1}, latent_p, t) where T
+
+    ## Pass sampled latent states in dense layers
+    z₀ = decoder.z₀_linear(latent_z₀)
+    p = decoder.p_linear(latent_p)
+
+    ## Adapt problem to given time span and create ensemble problem definition
+    prob = remake(decoder.ode_prob, u0=z₀[:], p = p[:], tspan = (t[1],t[end]))
+    pred_z = solve(prob, SOSRI(), sensealg=ForwardDiffSensitivity(), saveat = t) |> decoder.device
+
+    ## Create output data shape
+    # pred_x = decoder.gen_linear. (pred_z) # TODO : create new dataset from a trained generation function
+    
+    return Flux.unstack(pred_z, 2), z₀, p
 
 end
