@@ -182,3 +182,29 @@ function rec_loss(x::Array{T,2}, pred_x) where T
     res_average = mean((res).^2, dims = (1, 2))
     return res_average[1]
 end
+
+function ILC_train(x, model, λ, t, af, device, ILC_threshold, ps)
+    grads = Zygote.Grads[]
+    for sample in x
+        loss, back = Flux.pullback(ps) do
+            # Compute loss
+            loss_batch(model, λ, sample |> device, t, af)
+        end
+        # Backpropagate
+        grad = back(1f0)
+        push!(grads, grad)
+    end
+
+    masking!.(ps, Ref(grads), ILC_threshold)
+    return grads[1]
+end
+
+function masking!(p, grads, threshold)
+    if ~(grads[1][p] == nothing)
+        mean_signs = mean([sign.(el[p]) for el in grads])
+        mask = mean_signs .< threshold
+        mean_grads = mean([el[p] for el in grads])
+        mean_grads[mask] .= 0.f0
+        grads[1][p][:] = mean_grads[:]
+    end
+end

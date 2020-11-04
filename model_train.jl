@@ -32,6 +32,10 @@
     hidden_dim_node = 200       # hidden dimension of the neuralODE
     hidden_dim_gen = 10         # hidden dimension of the g function
 
+    ## ILC
+    ILC = true                  # train with ILC
+    ILC_threshold = 0.1f0       # ILC threshold
+
     ## Save paths and keys
     save_path = "output"        # results path
     # data_file_name = "lv_data.bson"  # data file name
@@ -108,6 +112,7 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
     ############################################################################
     ## Main train loop
     @info "Start Training of $(model_name)-net, total $(epochs) epochs"
+    @info "ILC: $ILC"
     for epoch = 1:epochs
 
         ## define seq_len according to training mode (progressive or not)
@@ -124,43 +129,25 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
         progress = Progress(length(loader_train))
         for x in loader_train
 
-            grads = Zygote.Grads[]
-            # Use only a random sequence of length seq_len for all sample in the minibatch
-            x = time_loader2(x, full_seq_len, seq_len)
             # Comput annealing factor
             af = annealing_factor(start_af, end_af, ae, epoch, mb_id, length(loader_train))
-            
-            for sample in x
+            mb_id += 1
+
+            if ILC
+                # Use only a random sequence of length seq_len for all sample in the minibatch
+                x = time_loader2(x, full_seq_len, seq_len)
+                grad = ILC_train(x, model, λ, t, af, device, ILC_threshold, ps)
+            else
+                # Use only a random sequence of length seq_len for all sample in the minibatch
+                x = time_loader(x, full_seq_len, seq_len)
                 loss, back = Flux.pullback(ps) do
-
-                    # Compute loss
-                    loss_batch(model, λ, sample |> device, t, af)
-
+                    loss_batch(model, λ, x |> device, t, af)
                 end
-
                 # Backpropagate and update
-                mb_id += 1
                 grad = back(1f0)
-                # @show size(grad[ps[1]])
-                # grad[ps[1]][1] = 3.f0
-                # @show grad[ps[1]][1]
-                push!(grads, grad)
             end
 
-            threshold = 0.5f0
-
-            function masking!(p, grads, threshold)
-                if ~(grads[1][p] == nothing)
-                    mean_signs = mean([sign.(el[p]) for el in grads])
-                    mask = mean_signs .< threshold
-                    mean_grads = mean([el[p] for el in grads])
-                    mean_grads[mask] .= 0.f0
-                    grads[1][p][:] = mean_grads[:]
-                end
-            end
-            masking!.(ps, Ref(grads), threshold)
-
-            Flux.Optimise.update!(opt, ps, grads[1])
+            Flux.Optimise.update!(opt, ps, grad)
             # Use validation set to get loss and visualisation
             val_set = time_loader(first(loader_val), full_seq_len, seq_len)
             val_loss = loss_batch(model, λ, val_set |> device, t, af)

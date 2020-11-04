@@ -46,9 +46,9 @@ include("model_alt_train.jl")
 include("utils/utils.jl")
 include("utils/visualize.jl")
 include("system/Lotka-Volterra.jl")
+include("system/Stochastic_Lotka-Volterra.jl")
 include("system/van_der_Pol.jl")
 include("system/Wilson-Cowan.jl")
-
 
 ################################################################################
 ## Model definitions
