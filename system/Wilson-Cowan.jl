@@ -180,4 +180,4 @@ end
 
 
 import NNlib:σ
-σ(x::Operation) = ModelingToolkit.Constant(1) / ( ModelingToolkit.Constant(1) + exp(-x))
+σ(x::Num) = ModelingToolkit.Constant(1) / ( ModelingToolkit.Constant(1) + exp(-x))
