@@ -1,18 +1,20 @@
 
 
 ################################################################################
-## Problem Definition -- Lotka-Volterra
+## Problem Definition -- Stochastic Lotka-Volterra
+using StochasticDiffEq, DiffEqSensitivity
 
-struct LV{T,P} <: AbstractSystem
+struct SLV{T,P} <: AbstractSystem
     u₀::T
     p::T
     prob::P
     transform::F
 
-    function LV()
+    function SLV()
         # Default parameters and initial conditions
         u₀ = Float32[1.0, 1.0]
-        p = Float32[1.25, 1.5, 1.75, 2]
+        # p = Float32[1.25, 1.5, 1.75, 2]
+        p = Float32[1.5,1.0,3.0,1.0]#,0.3,0.3]
         tspan = (0.f0, 1.f0)
 
         # Define differential equations
@@ -23,7 +25,6 @@ struct LV{T,P} <: AbstractSystem
                 du[2] = -δ*y + γ*x*y
         end
 
-        output_transform(u) = u
 
         # Build ODE Problem
         _prob = ODEProblem(f!, u₀, tspan, p)
@@ -36,12 +37,23 @@ struct LV{T,P} <: AbstractSystem
         #                        sparse = false,
         #                        parallel = ModelingToolkit.SerialForm(),
         #                        eval_expression = false)
-        prob = create_prob("Lotka-Volterra", 1, sys, u₀, tspan, p)
+        prob = create_prob("Stochastic_Lotka-Volterra", 1, sys, u₀, tspan, p)
+
+        # function σ(du,u,p,t)
+        #     du .= 0.001f0
+        # end
+
+        function σ(du,u,p,t)
+            du .= 0.1f0*u
+        end
+
+        prob_sde = SDEProblem(prob.f.f, σ, prob.u0, prob.tspan, prob.p, jac = prob.f.jac, tgrad = prob.f.tgrad)
+
+        output_transform(x) = x
 
         T = typeof(u₀)
-        P = typeof(prob)
+        P = typeof(prob_sde)
         F = typeof(output_transform)
-        new{T,P,F}(u₀, p, prob, output_transform)
+        new{T,P,F}(u₀, p, prob_sde, output_transform)
     end
-    
 end

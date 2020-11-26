@@ -1,20 +1,20 @@
 
 
 ################################################################################
-## Problem Definition -- van der Pol
+## Problem Definition -- Stochastic van der Pol
+using StochasticDiffEq, DiffEqSensitivity
 
-struct vdP_full{T, P} <: AbstractSystem
-
+struct SvdP_full{T, P} <: AbstractSystem
     u₀::T
     p::T
     prob::P
     transform::F
 
-    function vdP_full(k::Int64)
+    function SvdP_full(k::Int64)
         # Default parameters and initial conditions
-        Random.seed!(1)
-        α₁ = fill(0.6f0, k) + 0.1f0*randn(Float32,k)
-        α₂ = fill(10.f0, k) + 0.1f0*randn(Float32,k)
+        Random.seed!(2)
+        α₁ = fill(0.6f0, k) + 0.2f0*randn(Float32,k)
+        α₂ = fill(10.f0, k) + 0.2f0*randn(Float32,k)
         W = rand(Float32, k^2)
         u₀ = rand(Float32,2*k)
         p = [α₁; α₂; W]
@@ -36,32 +36,38 @@ struct vdP_full{T, P} <: AbstractSystem
             @. dx[k+1:end] = -x₁
         end
 
-        output_transform(x) = x
 
         # Build ODE Problem
-       _prob = ODEProblem(f!, u₀, tspan, p)
+        _prob = ODEProblem(f!, u₀, tspan, p)
 
-       @info "Optimizing ODE Problem"
-       # prob,_ = auto_optimize(_prob, verbose = false, static = false)
-       sys = modelingtoolkitize(_prob)
-       # prob = ODEProblem(sys,_prob.u0,_prob.tspan,_prob.p,
-       #                        jac = true, tgrad = true, simplify = true,
-       #                        sparse = false,
-       #                        parallel = ModelingToolkit.SerialForm(),
-       #                        eval_expression = false)
-       prob = create_prob("van_der_Pol", k, sys, u₀, tspan, p)
+        @info "Optimizing ODE Problem"
+        # prob,_ = auto_optimize(_prob, verbose = false, static = false)
+        sys = modelingtoolkitize(_prob)
+        # prob = ODEProblem(sys,_prob.u0,_prob.tspan,_prob.p,
+        #                        jac = true, tgrad = true, simplify = true,
+        #                        sparse = false,
+        #                        parallel = ModelingToolkit.SerialForm(),
+        #                        eval_expression = false)
+        prob = create_prob("Stochastic_van_der_Pol", k, sys, u₀, tspan, p)
 
+        function σ(du,u,p,t)
+            du .= 0.2f0*u
+        end
+
+        prob_sde = SDEProblem(prob.f.f, σ, prob.u0, prob.tspan, prob.p, jac = prob.f.jac, tgrad = prob.f.tgrad)
+
+        output_transform(x) = x
+        
         T = typeof(u₀)
-        P = typeof(prob)
+        P = typeof(prob_sde)
         F = typeof(output_transform)
-        new{T,P,F}(u₀, p, prob, output_transform)
+        new{T,P,F}(u₀, p, prob_sde, output_transform)
     end
 end
 
 
 
 struct vdP_identical_local{T, P} <: AbstractSystem
-
     u₀::T
     p::T
     prob::P
@@ -93,7 +99,6 @@ struct vdP_identical_local{T, P} <: AbstractSystem
             @. dx[k+1:end] = -x₁
         end
 
-        output_transform(x) = x
 
         # Build ODE Problem
        _prob = ODEProblem(f!, u₀, (0.f0, 1.f0), p)
@@ -107,9 +112,11 @@ struct vdP_identical_local{T, P} <: AbstractSystem
                               parallel = ModelingToolkit.SerialForm(),
                               eval_expression = false)
 
+        output_transform(x) = x
+
         T = typeof(u₀)
         P = typeof(prob)
         F = typeof(output_transform)
-        new{T,P,F}(u₀, p, prob, output_transforms)
+        new{T,P,F}(u₀, p, prob, output_transform)
     end
 end

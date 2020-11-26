@@ -8,7 +8,7 @@ struct WC_full{T, P} <: AbstractSystem
     u₀::T
     p::T
     prob::P
-    transform
+    transform::F
 
     function WC_full(k::Int64)
         # Default parameters and initial conditions
@@ -68,7 +68,7 @@ struct WC{T, P} <: AbstractSystem
     u₀::T
     p::T
     prob::P
-    transform
+    transform::F
 
     function WC(k::Int64)
         # Default parameters and initial conditions
@@ -125,7 +125,7 @@ struct WC_identical_local{T, P} <: AbstractSystem
     u₀::T
     p::T
     prob::P
-    transform
+    transform::F
 
     function WC_identical_local(k::Int64)
         # Default parameters and initial conditions
@@ -173,7 +173,8 @@ struct WC_identical_local{T, P} <: AbstractSystem
 
         T = typeof(u₀)
         P = typeof(prob)
-        new{T,P}(u₀, p, prob, output_transform)
+        F = typeof(output_transform)
+        new{T,P, F}(u₀, p, prob, output_transform)
     end
 end
 

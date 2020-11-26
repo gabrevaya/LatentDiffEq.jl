@@ -8,7 +8,7 @@ struct Kuramoto_basic{T,P} <: AbstractSystem
     u₀::T
     p::T
     prob::P
-    transform
+    transform::F
 
     function Kuramoto_basic(N)
         # Default parameters and initial conditions
@@ -47,7 +47,8 @@ struct Kuramoto_basic{T,P} <: AbstractSystem
 
         T = typeof(θ₀)
         P = typeof(prob)
-        new{T,P}(θ₀, p, prob, output_transform)
+        F = typeof(output_transform)
+        new{T,P,F}(θ₀, p, prob, output_transform)
     end
 end
 
@@ -58,7 +59,7 @@ struct Kuramoto{T,P} <: AbstractSystem
     u₀::T
     p::T
     prob::P
-    transform
+    transform::F
 
     function Kuramoto(N)
         # Default parameters and initial conditions
@@ -97,7 +98,8 @@ struct Kuramoto{T,P} <: AbstractSystem
 
         T = typeof(θ₀)
         P = typeof(prob)
-        new{T,P}(θ₀, p, prob, output_transform)
+        F = typeof(output_transform)
+        new{T,P,F}(θ₀, p, prob, output_transform)
     end
 
 end

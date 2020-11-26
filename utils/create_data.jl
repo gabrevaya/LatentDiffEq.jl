@@ -12,6 +12,7 @@ using Flux
 
 abstract type AbstractSystem end
 include("utils.jl")
+include("../system/Stochastic_Lotka-Volterra.jl")
 include("../system/Lotka-Volterra.jl")
 include("../system/van_der_Pol.jl")
 include("../system/Wilson-Cowan.jl")
@@ -23,13 +24,16 @@ include("../system/Hopf.jl")
 @with_kw mutable struct Args_gen
 
     ## Dynamical system
-    system = Kuramoto(2)        # Available : LV(), vdP_full(k),
-                                #             vdP_identical_local(k)
+    system = SLV()              # Available : LV(), SLV()
+                                #             vdP_full(k), SvdP_full(k),
+                                #             vdP_identical_local(k),
                                 #             WC_full(k), WC(k),
                                 #             WC_identical_local(k)
                                 #             Kuramoto_basic(k), Kuramoto(k)
                                 #             Hopf(k)
                                 #             (k → number of oscillators)
+
+    SDE = true
 
     ## Mask dimensions
     input_dim = 4               # model input size
@@ -42,7 +46,7 @@ include("../system/Hopf.jl")
     p₀_range = (1.0, 2.0)       # parameter value range
 
     ## Save paths and keys
-    data_file_name = "kuramoto_data.bson"  # data file name
+    data_file_name = "SvdP_data.bson"  # data file name
     seed = 1                         # random seed
     n_traj = 10000                        # Number of trajectories
 
@@ -88,7 +92,12 @@ function generate_dataset(; kws...)
       @info "Creating data"
       # Solve for X trajectories
       ensemble_prob = EnsembleProblem(prob, prob_func=prob_func_2, output_func = output_func)
-      sim = solve(ensemble_prob, Tsit5(), saveat=args.dt, trajectories=args.n_traj)
+
+      if args.SDE
+            sim = solve(ensemble_prob, SOSRI(), saveat=args.dt, trajectories=10000,force_dtmin=true)
+      else
+            sim = solve(ensemble_prob, Tsit5(), saveat=args.dt, trajectories=args.n_traj)
+      end
       raw_data = dropdims(Array(sim), dims = 2)
       transformed_data = args.system.transform(raw_data)
 
