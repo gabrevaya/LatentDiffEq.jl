@@ -48,6 +48,7 @@ include("utils/visualize.jl")
 include("system/Lotka-Volterra.jl")
 include("system/Stochastic_Lotka-Volterra.jl")
 include("system/van_der_Pol.jl")
+include("system/Stochastic_van_der_Pol.jl")
 include("system/Wilson-Cowan.jl")
 
 ################################################################################

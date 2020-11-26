@@ -10,12 +10,12 @@
     seq_len = 100               # sampling size for output
     epochs = 200                # number of epochs for training
     seed = 1                    # random seed
-    cuda = false                 # GPU usage
+    cuda = false                # GPU usage
     dt = 0.05                   # timestep for ode solve
     t_span = (0.f0, 4.95f0)     # span of time interval for training
-    start_af = 0.0f0        # Annealing factor start value
-    end_af = 1.f0          # Annealing factor end value
-    ae = 1000                    # Annealing factor epoch end
+    start_af = 0.0f0            # Annealing factor start value
+    end_af = 1.f0               # Annealing factor end value
+    ae = 1000                   # Annealing factor epoch end
 
     ## Progressive observation training
     progressive_training = true    # progressive training usage
@@ -24,7 +24,7 @@
     full_seq_len = 400          # training sequence length at last step
 
     ## Model dimensions
-    # input_dim = 8               # input dimension
+    # input_dim = 8             # input dimension
     rnn_input_dim = 32          # rnn input dimension
     rnn_output_dim = 32         # rnn output dimension
     latent_dim = 4              # latent dimension
@@ -33,8 +33,11 @@
     hidden_dim_gen = 10         # hidden dimension of the g function
 
     ## ILC
-    ILC = true                  # train with ILC
+    ILC = false                 # train with ILC
     ILC_threshold = 0.1f0       # ILC threshold
+
+    ## SDE
+    SDE = true                  # working with SDEs instead of ODEs
 
     ## Save paths and keys
     save_path = "output"        # results path
@@ -90,8 +93,7 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
 
     ############################################################################
     ## initialize model object and parameter reference
-
-    model, ps = initialize_model(args, input_dim, model_name, system, device)
+    model, ps = initialize_model(args, input_dim, model_name, system, SDE, device)
 
     ############################################################################
     ## Define optimizer
@@ -183,3 +185,4 @@ if abspath(PROGRAM_FILE) == @__FILE__
 end
 # train("GOKU", vdP_full(6), "vdP6_data.bson", 12)
 # train("GOKU", SLV(), "SLV_data.bson", 2)
+# train("GOKU", SvdP_full(1), "SvdP_data.bson", 2)

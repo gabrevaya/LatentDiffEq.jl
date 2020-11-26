@@ -72,9 +72,11 @@ struct GOKU_decoder <: AbstractDecoder
     p_linear
     gen_linear
 
+    SDE::Bool
+
     device
 
-    function GOKU_decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_prob, solver, device)
+    function GOKU_decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_prob, solver, SDE, device)
 
         z₀_linear = Chain(Dense(latent_dim, hidden_dim, relu),
                           Dense(hidden_dim, ode_dim, softplus)) |> device
@@ -86,7 +88,7 @@ struct GOKU_decoder <: AbstractDecoder
         # _ode_prob = ODEProblem(ode_func, zeros(Float32, ode_dim), (0.f0, 1.f0), zeros(Float32, p_dim))
         # ode_prob,_ = auto_optimize(_ode_prob, verbose = false, static = false);
 
-        new(solver, ode_prob, z₀_linear, p_linear, gen_linear, device)
+        new(solver, ode_prob, z₀_linear, p_linear, gen_linear, SDE, device)
 
     end
 
@@ -117,10 +119,11 @@ function (decoder::GOKU_decoder)(latent_z₀, latent_p, t)
     ens_prob = EnsembleProblem(prob, prob_func = prob_func, output_func = output_func)
 
     ## Solve
-    # pred_z = solve(ens_prob, SOSRI(),  EnsembleThreads(), trajectories=size(p, 2), saveat = t, force_dtmin=true) |> decoder.device
-    pred_z = solve(ens_prob, SOSRI(), sensealg=ForwardDiffSensitivity(), trajectories=size(p, 2), saveat = t) |> decoder.device
-    # pred_z = solve(ens_prob, Rodas5(linsolve=LinSolveGPUSplitFactorize()),  EnsembleGPUArray(), trajectories=size(p, 2), saveat = t) |> decoder.device
-    # pred_z = solve(ens_prob, Tsit5(),  EnsembleGPUArray(), trajectories=size(p, 2), saveat = t) |> decoder.device
+    if decoder.SDE
+        pred_z = solve(ens_prob, SOSRI(), sensealg=ForwardDiffSensitivity(), trajectories=size(p, 2), saveat = t) |> decoder.device
+    else
+        pred_z = solve(ens_prob, decoder.solver,  EnsembleThreads(), trajectories=size(p, 2), saveat = t) |> decoder.device
+    end
 
     ## Create output data shape
     # pred_x = decoder.gen_linear. (pred_z) # TODO : create new dataset from a trained generation function
@@ -139,10 +142,10 @@ struct Goku <: AbstractModel
 
     device
 
-    function Goku(input_dim, latent_dim, rnn_input_dim, rnn_output_dim, hidden_dim, ode_dim, p_dim, ode_sys, solver, device)
+    function Goku(input_dim, latent_dim, rnn_input_dim, rnn_output_dim, hidden_dim, ode_dim, p_dim, ode_sys, solver, SDE, device)
 
         encoder = GOKU_encoder(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, device)
-        decoder = GOKU_decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_sys, solver, device)
+        decoder = GOKU_decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_sys, solver, SDE, device)
 
         new(encoder, decoder, device)
 
@@ -208,9 +211,15 @@ function (decoder::GOKU_decoder)(latent_z₀::Array{T,1}, latent_p, t) where T
     z₀ = decoder.z₀_linear(latent_z₀)
     p = decoder.p_linear(latent_p)
 
-    ## Adapt problem to given time span and create ensemble problem definition
+    ## Adapt problem to given time span, parameters and initial conditions
     prob = remake(decoder.ode_prob, u0=z₀[:], p = p[:], tspan = (t[1],t[end]))
-    pred_z = solve(prob, SOSRI(), sensealg=ForwardDiffSensitivity(), saveat = t) |> decoder.device
+
+    ## Solve
+    if decoder.SDE
+        pred_z = solve(prob, SOSRI(), sensealg=ForwardDiffSensitivity(), saveat = t) |> decoder.device
+    else
+        pred_z = solve(prob, decoder.solver, saveat = t) |> decoder.device
+    end
 
     ## Create output data shape
     # pred_x = decoder.gen_linear. (pred_z) # TODO : create new dataset from a trained generation function
