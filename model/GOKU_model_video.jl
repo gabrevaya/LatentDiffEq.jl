@@ -44,6 +44,8 @@ struct GOKU_encoder <: AbstractEncoder
     end
 end
 
+Flux.@functor GOKU_encoder
+
 function (encoder::GOKU_encoder)(x)
 
     # Pass all states in the time series in dense layer
@@ -94,6 +96,8 @@ struct GOKU_decoder <: AbstractDecoder
     end
 
 end
+
+Flux.@functor GOKU_decoder
 
 function (decoder::GOKU_decoder)(latent_z₀, latent_p, t)
 
@@ -158,6 +162,8 @@ struct Goku <: AbstractModel
     end
 
 end
+
+Flux.@functor Goku
 
 function (goku::Goku)(x, t)
     ## Get encoded latent initial states and parameters
@@ -245,3 +251,5 @@ function (decoder::GOKU_decoder)(latent_z₀::Array{T,1}, latent_p, t) where T
     return pred_z, z₀, p
 
 end
+
+

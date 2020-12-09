@@ -30,6 +30,8 @@ struct LODE_encoder <: AbstractEncoder
     end
 end
 
+Flux.@functor LODE_encoder
+
 function (encoder::LODE_encoder)(x)
 
     h1 = encoder.linear.(x)
@@ -66,6 +68,8 @@ struct LODE_decoder <: AbstractDecoder
         end
 end
 
+Flux.@functor LODE_decoder
+
 function (decoder::LODE_decoder)(x, t)
 
     nODE = NeuralODE(decoder.dudt, (t[1], t[end]), Tsit5(), saveat = t)
@@ -94,6 +98,8 @@ struct Latent_ODE <: AbstractModel
     end
 
 end
+
+Flux.@functor Latent_ODE
 
 function (latent_ODE::Latent_ODE)(x, t)
 
