@@ -53,10 +53,12 @@ include("system/Stochastic_van_der_Pol.jl")
 include("system/Wilson-Cowan.jl")
 include("system/Kuramoto.jl")
 include("system/Hopf.jl")
+include("system/larynx_z-switch.jl")
 
 ################################################################################
 ## Model definitions
 
 include("model/model_manager.jl")
-include("model/GOKU_model.jl")
+# include("model/GOKU_model.jl")
+include("model/GOKU_model_video.jl")
 include("model/latent_ode_model.jl")

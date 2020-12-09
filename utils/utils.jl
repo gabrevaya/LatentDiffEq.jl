@@ -26,12 +26,12 @@ function rec_loss(x, pred_x)
 
     res_average = sum(mean((res).^2, dims = (2, 3)))
 
-    # # Differential residual loss
-    # res_diff = diff(pred_x_stacked, dims = 3) - diff(x_stacked, dims = 3)
-    # res_diff_average = sum(mean((res_diff).^2, dims = (2, 3)))
+    # Differential residual loss
+    res_diff = diff(pred_x_stacked, dims = 3) - diff(x_stacked, dims = 3)
+    res_diff_average = sum(mean((res_diff).^2, dims = (2, 3)))
 
-    # return (res_average + 100f0*res_diff_average)/size(pred_x_stacked,1)
-    return res_average/size(pred_x_stacked,1)
+    return (res_average + 1000f0*res_diff_average)/size(pred_x_stacked,1)
+    # return res_average/size(pred_x_stacked,1)
 end
 
 function rec_ini_loss(x, pred)
@@ -43,12 +43,10 @@ end
 function loss_batch(model::AbstractModel, λ, x, t, af)
 
     # Make prediction
-    
     lat_var, pred_x, pred = model(x, t)
-
     # Compute reconstruction (and differential) loss
     reconstruction_loss = rec_loss(x, pred_x)
-    rec_initial_condition_loss = rec_ini_loss(x, pred)
+    # rec_initial_condition_loss = rec_ini_loss(x, pred)
     # @show rec_initial_condition_loss
 
     # Compute KL losses from parameter and initial value estimation
@@ -61,7 +59,7 @@ function loss_batch(model::AbstractModel, λ, x, t, af)
     # Filthy one liner that does the for loop above # lit
     kl_loss = sum( [ mean(sum(KL.(lat_var[i][1], lat_var[i][2]), dims=1)) for i in 1:length(lat_var) ] )
     # @show reconstruction_loss + af*(kl_loss)
-    return reconstruction_loss + af*(kl_loss) + rec_initial_condition_loss
+    return reconstruction_loss + af*(kl_loss)# + rec_initial_condition_loss
 end
 
 ## annealing factor parameters

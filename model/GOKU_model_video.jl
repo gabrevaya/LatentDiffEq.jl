@@ -130,10 +130,10 @@ function (decoder::GOKU_decoder)(latent_z₀, latent_p, t)
     pred_z = decoder.transform(pred_z)
 
     ## Create output data shape
-    # pred_z = decoder.gen_linear.(Flux.unstack(pred_z, 2)) # TODO : create new dataset from a trained generation function
-    # return pred_z, z₀, p
+    pred_z = decoder.gen_linear.(Flux.unstack(pred_z, 2)) # TODO : create new dataset from a trained generation function
 
-    return Flux.unstack(pred_z, 2), z₀, p
+    return pred_z, z₀, p
+
 end
 
 ################################################################################
@@ -240,8 +240,8 @@ function (decoder::GOKU_decoder)(latent_z₀::Array{T,1}, latent_p, t) where T
     pred_z = decoder.transform(pred_z)
 
     ## Create output data shape
-    # pred_z = decoder.gen_linear.(Flux.unstack(pred_z, 2)) # TODO : create new dataset from a trained generation function
-    # return pred_z, z₀, p
+    pred_z = decoder.gen_linear.(Flux.unstack(pred_z, 2)) # TODO : create new dataset from a trained generation function
+    
+    return pred_z, z₀, p
 
-    return Flux.unstack(pred_z, 2), z₀, p
 end

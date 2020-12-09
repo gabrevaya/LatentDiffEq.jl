@@ -3,7 +3,7 @@
 ################################################################################
 ## Problem Definition -- van der Pol
 
-struct vdP_full{T, P} <: AbstractSystem
+struct vdP_full{T, P, F} <: AbstractSystem
 
     u₀::T
     p::T
@@ -60,7 +60,7 @@ end
 
 
 
-struct vdP_identical_local{T, P} <: AbstractSystem
+struct vdP_identical_local{T, P, F} <: AbstractSystem
 
     u₀::T
     p::T

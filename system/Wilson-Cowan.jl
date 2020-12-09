@@ -3,7 +3,7 @@
 ################################################################################
 ## Problem Definition -- Wilson-Cowan
 
-struct WC_full{T, P} <: AbstractSystem
+struct WC_full{T, P, F} <: AbstractSystem
 
     u₀::T
     p::T
@@ -57,13 +57,15 @@ struct WC_full{T, P} <: AbstractSystem
 
         T = typeof(u₀)
         P = typeof(prob)
-        new{T,P}(u₀, p, prob, output_transform)
+        F = typeof(output_transform)
+
+        new{T,P,F}(u₀, p, prob, output_transform)
     end
 end
 
 
 
-struct WC{T, P} <: AbstractSystem
+struct WC{T, P, F} <: AbstractSystem
 
     u₀::T
     p::T
@@ -114,13 +116,14 @@ struct WC{T, P} <: AbstractSystem
 
         T = typeof(u₀)
         P = typeof(prob)
-        new{T,P}(u₀, p, prob, output_transform)
+        F = typeof(output_transform)
+        new{T,P,F}(u₀, p, prob, output_transform)
     end
 end
 
 
 
-struct WC_identical_local{T, P} <: AbstractSystem
+struct WC_identical_local{T, P,F} <: AbstractSystem
 
     u₀::T
     p::T

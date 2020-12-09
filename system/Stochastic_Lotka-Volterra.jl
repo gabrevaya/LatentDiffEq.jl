@@ -4,7 +4,7 @@
 ## Problem Definition -- Stochastic Lotka-Volterra
 using StochasticDiffEq, DiffEqSensitivity
 
-struct SLV{T,P} <: AbstractSystem
+struct SLV{T,P,F} <: AbstractSystem
     u₀::T
     p::T
     prob::P
