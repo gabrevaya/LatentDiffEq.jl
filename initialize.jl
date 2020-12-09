@@ -42,8 +42,8 @@ abstract type AbstractSystem end
 ################################################################################
 ## Home files and modules
 
-include("model_train.jl")
-include("model_alt_train.jl")
+# include("model_train.jl")
+# include("model_alt_train.jl")
 include("utils/utils.jl")
 include("utils/visualize.jl")
 include("system/Lotka-Volterra.jl")

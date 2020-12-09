@@ -20,8 +20,7 @@ function initialize_model(args, input_dim, model_name, system, variational, SDE,
         model = Latent_ODE(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, hidden_dim_node, seq_len, t_span[2], device)
 
         # Get parameters
-        ps = Flux.params(model.encoder.linear, model.encoder.rnn, model.encoder.μ, model.encoder.logσ²,
-                         model.decoder.dudt, model.decoder.linear)
+        ps = Flux.params(model)
 
     end
 

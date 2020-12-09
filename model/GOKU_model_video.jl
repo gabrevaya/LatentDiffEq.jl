@@ -44,7 +44,6 @@ struct GOKU_encoder <: AbstractEncoder
     end
 end
 
-Flux.@functor GOKU_encoder
 
 function (encoder::GOKU_encoder)(x)
 
@@ -97,7 +96,6 @@ struct GOKU_decoder <: AbstractDecoder
 
 end
 
-Flux.@functor GOKU_decoder
 
 function (decoder::GOKU_decoder)(latent_z₀, latent_p, t)
 
@@ -163,7 +161,6 @@ struct Goku <: AbstractModel
 
 end
 
-Flux.@functor Goku
 
 function (goku::Goku)(x, t)
     ## Get encoded latent initial states and parameters
@@ -249,7 +246,9 @@ function (decoder::GOKU_decoder)(latent_z₀::Array{T,1}, latent_p, t) where T
     pred_z = decoder.gen_linear.(Flux.unstack(pred_z, 2)) # TODO : create new dataset from a trained generation function
     
     return pred_z, z₀, p
-
 end
 
 
+Flux.@functor GOKU_encoder
+Flux.@functor GOKU_decoder
+Flux.@functor Goku

@@ -84,8 +84,8 @@ function visualize_val_image(model, val_set, t_val, h, w)
     j = rand(1:size(val_set,3))
     X_test = val_set[:,:,j]
     frames_test = [Gray.(reshape(x,h,w)) for x in eachcol(X_test)]
-
     x = Flux.unstack(X_test, 2)
+
     lat_var, pred_x, pred = model(x, t_val)
     pred_x = Flux.stack(pred_x, 2)
 
@@ -230,14 +230,19 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
     ############################################################################
     ## Various definitions
 
-    mkpath(save_path)
-
     seq_step = (full_seq_len - start_seq_len) / obs_seg_num
     loss_mem = zeros(Float32, epochs)  # TODO : implement loss memorization
 
     best_val_loss::Float32 = Inf32
     val_loss::Float32 = 0
 
+    let
+        mkpath(save_path)
+        saving_path = joinpath(save_path, "Args.bson")
+        args=struct2dict(args)
+        BSON.@save saving_path args
+    end
+    
     ############################################################################
     ## Main train loop
     @info "Start Training of $(model_name)-net, total $(epochs) epochs"
@@ -297,17 +302,16 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
             t_val = range(t_span[1], step=dt, length=size(val_set,2))
             visualize_val_image(model, val_set |> device, t_val, h, w)
         end
-
         if val_loss < best_val_loss
             best_val_loss = deepcopy(val_loss)
-
             model_path = joinpath(save_path, "best_model_$(model_name).bson")
-            let model = cpu(model),
-                args=struct2dict(args)
 
-                BSON.@save model_path model args
+            let
+                # model = cpu(model)
+                BSON.@save model_path model
                 @info "Model saved: $(model_path)"
             end
+
         end
     end
 end
