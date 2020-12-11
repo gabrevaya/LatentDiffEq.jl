@@ -121,12 +121,13 @@ end
 
     ## Model dimensions
     # input_dim = 8             # input dimension
+    hidden_dim1 = 64
+    hidden_dim2 = 32
+    hidden_dim3 = 16
     rnn_input_dim = 32          # rnn input dimension
     rnn_output_dim = 32         # rnn output dimension
-    latent_dim = 4              # latent dimension
-    hidden_dim = 120            # hidden dimension
-    hidden_dim_node = 200       # hidden dimension of the neuralODE
-    hidden_dim_gen = 10         # hidden dimension of the g function
+    latent_dim = 16             # latent dimension
+    hidden_dim_latent_ode = 200 # hidden dimension
 
     ## Model parameters
     variational = true
@@ -220,8 +221,14 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
 
     ############################################################################
     ## initialize model object and parameter reference
-    model, ps = initialize_model(args, input_dim, model_name, system, variational, SDE, device)
+    # Create model
+    model = Goku(input_dim, input_dim, hidden_dim1, hidden_dim2, hidden_dim3,
+                rnn_input_dim, rnn_output_dim, latent_dim, hidden_dim_latent_ode,
+                length(system.u₀), length(system.p), system.prob, system.transform,
+                Tsit5(), variational, SDE, device)
 
+    # Get parameters
+    ps = Flux.params(model)
     ############################################################################
     ## Define optimizer
 
