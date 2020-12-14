@@ -120,10 +120,10 @@ end
     full_seq_len = 400          # training sequence length at last step
 
     ## Model dimensions
-    # input_dim = 8             # input dimension
-    hidden_dim1 = 64
-    hidden_dim2 = 32
-    hidden_dim3 = 16
+    hidden_dim1 = 200 #64
+    hidden_dim2 = 32            # not used when using ResNets (GOKU_model_video2.jl)
+    hidden_dim3 = 16            # not used when using ResNets
+
     rnn_input_dim = 32          # rnn input dimension
     rnn_output_dim = 32         # rnn output dimension
     latent_dim = 16             # latent dimension
@@ -200,7 +200,7 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
     data = [d .- mean_data for d in data]
     data_vec = vec.(data)
 
-    @load "$root_dir/../SvdP_data.bson" raw_data
+    # @load "$root_dir/../SvdP_data.bson" raw_data
 
     raw_data = hcat(data_vec...)
     train_set, val_set = splitobs(raw_data, 0.8)
