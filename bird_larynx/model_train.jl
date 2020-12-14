@@ -222,7 +222,7 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
     ############################################################################
     ## initialize model object and parameter reference
     # Create model
-    model = Goku(input_dim, input_dim, hidden_dim1, hidden_dim2, hidden_dim3,
+    model = Goku(input_dim, hidden_dim1, hidden_dim2, hidden_dim3,
                 rnn_input_dim, rnn_output_dim, latent_dim, hidden_dim_latent_ode,
                 length(system.u₀), length(system.p), system.prob, system.transform,
                 Tsit5(), variational, SDE, device)
