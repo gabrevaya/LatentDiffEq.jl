@@ -93,13 +93,13 @@ struct GOKU_decoder <: AbstractDecoder
         z₀_linear = Chain(Dense(latent_dim, hidden_dim_latent_ode, relu),
                           Dense(hidden_dim_latent_ode, ode_dim)) |> device
         p_linear = Chain(Dense(latent_dim, hidden_dim_latent_ode, relu),
-                         Dense(hidden_dim_latent_ode, p_dim)) |> device
+                         Dense(hidden_dim_latent_ode, p_dim, softplus)) |> device
 
 
         l1 = Dense(ode_dim, hidden_dim1, relu)
         l2 = Dense(hidden_dim1, hidden_dim1, relu)
         l3 = Dense(hidden_dim1, hidden_dim1, relu)
-        l4 = Dense(hidden_dim1, input_dim)
+        l4 = Dense(hidden_dim1, input_dim, σ)
 
         gen_linear = Chain(l1,
                         SkipConnection(l2, +),

@@ -141,3 +141,20 @@ function predict_within()
     png(plt, "figure/prediction_outside_train.png")
 
 end
+
+
+
+function visualize_val_image(model, val_set, t_val, h, w)
+    j = rand(1:size(val_set,3))
+    X_test = val_set[:,:,j]
+    frames_test = [Gray.(reshape(x,h,w)) for x in eachcol(X_test)]
+    x = Flux.unstack(X_test, 2)
+
+    lat_var, pred_x, pred = model(x, t_val)
+    pred_x = Flux.stack(pred_x, 2)
+
+    frames_pred = [Gray.(reshape(x,h,w)) for x in eachcol(pred_x)]
+
+    plt = mosaicview(frames_test..., frames_pred..., nrow=2, rowmajor=true)
+    display(plt)
+end

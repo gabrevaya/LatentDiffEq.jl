@@ -27,11 +27,11 @@ function rec_loss(x, pred_x)
     res_average = sum(mean((res).^2, dims = (2, 3)))
 
     # Differential residual loss
-    res_diff = diff(pred_x_stacked, dims = 3) - diff(x_stacked, dims = 3)
-    res_diff_average = sum(mean((res_diff).^2, dims = (2, 3)))
+    # res_diff = diff(pred_x_stacked, dims = 3) - diff(x_stacked, dims = 3)
+    # res_diff_average = sum(mean((res_diff).^2, dims = (2, 3)))
 
-    return (res_average + 1000f0*res_diff_average)/size(pred_x_stacked,1)
-    # return res_average/size(pred_x_stacked,1)
+    # return (res_average + 1000f0*res_diff_average)/size(pred_x_stacked,1)
+    return res_average/size(pred_x_stacked,1)
 end
 
 function rec_ini_loss(x, pred)
@@ -106,6 +106,17 @@ function normalize_Z(data)
       return norm_data
 
 end
+
+
+function NormalizeToUnitSegment(X)
+    min_val = minimum(X)
+    max_val = maximum(X)
+
+    X̂ = (X .- min_val) ./ (max_val - min_val)
+    return X̂, min_val, max_val
+end
+
+DenormalizeUnitSegment(X̂, min_val, max_val) = X̂ .* (max_val .- min_val) .+ min_val
 
 
 ################################################################################
