@@ -14,7 +14,8 @@ struct GOKU_encoder <: AbstractEncoder
     rnn
     rnn_μ
     rnn_logσ²
-    lstm        # TODO: Implement bidirectional LSTM : https://github.com/maetshju/flux-blstm-implementation/blob/master/01-blstm.jl
+    lstm_forward        # TODO: Implement bidirectional LSTM : https://github.com/maetshju/flux-blstm-implementation/blob/master/01-blstm.jl
+    lstm_backward
     lstm_μ                                           # https://github.com/AzamatB/Tacotron2.jl
     lstm_logσ²
 
@@ -42,13 +43,17 @@ struct GOKU_encoder <: AbstractEncoder
         rnn_μ = Dense(rnn_output_dim, latent_dim) |> device
         rnn_logσ² = Dense(rnn_output_dim, latent_dim) |> device
 
-        lstm = Chain(LSTM(rnn_input_dim, rnn_output_dim),
-                     LSTM(rnn_output_dim, rnn_output_dim)) |> device
+        lstm_forward = Chain(LSTM(rnn_input_dim, rnn_output_dim),
+                                LSTM(rnn_output_dim, rnn_output_dim)) |> device
 
-        lstm_μ = Dense(rnn_output_dim, latent_dim) |> device
-        lstm_logσ² = Dense(rnn_output_dim, latent_dim) |> device
+        lstm_backward = Chain(LSTM(rnn_input_dim, rnn_output_dim),
+                                LSTM(rnn_output_dim, rnn_output_dim)) |> device
 
-        new(linear, rnn, rnn_μ, rnn_logσ², lstm, lstm_μ, lstm_logσ², device)
+
+        lstm_μ = Dense(rnn_output_dim*2, latent_dim) |> device
+        lstm_logσ² = Dense(rnn_output_dim*2, latent_dim) |> device
+
+        new(linear, rnn, rnn_μ, rnn_logσ², lstm_forward, lstm_backward, lstm_μ, lstm_logσ², device)
     end
 end
 
@@ -61,12 +66,16 @@ function (encoder::GOKU_encoder)(x)
 
     # Pass an RNN and an LSTM through latent states
     rnn_out = encoder.rnn.(h_rev)[end]
-    lstm_out = encoder.lstm.(h)[end]
+    lstm_out_f = encoder.lstm_forward.(h)[end]
+    lstm_out_b = encoder.lstm_backward.(h_rev)[end]
+    bi_lstm_out = vcat(lstm_out_f, lstm_out_b)
+
     reset!(encoder.rnn)
-    reset!(encoder.lstm)
+    reset!(encoder.lstm_forward)
+    reset!(encoder.lstm_backward)
 
     # Return RNN/LSTM ouput passed trough dense layers (RNN -> z₀, LSTM -> p)
-    encoder.rnn_μ(rnn_out), encoder.rnn_logσ²(rnn_out), encoder.lstm_μ(lstm_out), encoder.lstm_logσ²(lstm_out)
+    encoder.rnn_μ(rnn_out), encoder.rnn_logσ²(rnn_out), encoder.lstm_μ(bi_lstm_out), encoder.lstm_logσ²(bi_lstm_out)
 end
 
 ################################################################################
@@ -235,11 +244,17 @@ function (encoder::GOKU_encoder)(x::Array{T,2}) where T
     # Pass an RNN and an LSTM through latent states
     rnn_out = encoder.rnn.(eachcol(h_rev))[end]
     lstm_out = encoder.lstm.(eachcol(h))[end]
+
+    lstm_out_f = encoder.lstm_forward.(eachcol(h))[end]
+    lstm_out_b = encoder.lstm_backward.(eachcol(h_rev))[end]
+    bi_lstm_out = vcat(lstm_out_f, lstm_out_b)
+
     reset!(encoder.rnn)
-    reset!(encoder.lstm)
+    reset!(encoder.lstm_forward)
+    reset!(encoder.lstm_backward)
 
     # Return RNN/LSTM ouput passed trough dense layers (RNN -> z₀, LSTM -> p)
-    encoder.rnn_μ(rnn_out), encoder.rnn_logσ²(rnn_out), encoder.lstm_μ(lstm_out), encoder.lstm_logσ²(lstm_out)
+    encoder.rnn_μ(rnn_out), encoder.rnn_logσ²(rnn_out), encoder.lstm_μ(bi_lstm_out), encoder.lstm_logσ²(bi_lstm_out)
 end
 
 
