@@ -62,5 +62,5 @@ include("system/pendulum.jl")
 
 # include("model/model_manager.jl")
 # include("model/GOKU_model.jl")
-include("model/GOKU_model_video.jl")
+include("model/GOKU_model_video2.jl")
 include("model/latent_ode_model.jl")
