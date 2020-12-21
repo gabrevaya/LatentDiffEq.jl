@@ -1,6 +1,6 @@
+using HDF5
 using Images, FileIO
-using JLD2, FileIO
-
+using ColorSchemes
 
 ################################################################################
 ## Arguments for the train function
@@ -9,11 +9,11 @@ using JLD2, FileIO
     η = 1e-2                    # learning rate
     λ = 0.01f0                  # regularization paramater
     batch_size = 64             # minibatch size
-    seq_len = 50                # sampling size for output
+    seq_len = 100               # sampling size for output
     epochs = 1600               # number of epochs for training
     seed = 1                    # random seed
     cuda = false                # GPU usage
-    dt = 0.05                   # timestep for ode solve
+    dt = 0.002                   # timestep for ode solve
     start_af = 0.0001f0            # Annealing factor start value
     end_af = 0.0001f0           # Annealing factor end value
     ae = 200                    # Annealing factor epoch end
@@ -25,7 +25,7 @@ using JLD2, FileIO
 
     ## Visualization
     vis_len = 10                # number of frames to visualize after each epoch
-
+    color_scheme = ColorSchemes.prism # color scheme for visualization
     ## Model dimensions
     # input_dim = 8             # input dimension
     hidden_dim1 = 64
@@ -89,23 +89,30 @@ function train(model_name, system; kws...)
 
     
     root_dir = @__DIR__
-    data_path = "pendulum_friction-less/data/jld/processed_data.jld2"
-    data_loaded = load(data_path, "processed_data")
+    data_path = "data/NDARBD879MBX_RestingState.hdf5"
+
+    c = h5open("$root_dir/$data_path", "r")
+    #EO = read(c, "EO")
+    EC = read(c, "EC")
     
-    train_data = data_loaded["train"]
+    # size(EO) = (501, 104, 97)
+    # 501 => samples (1 second at 500Hz  sampling rate)
+    # 104 => channels (sensors on the head)
+    # 97 => epochs (1 second chunk of data) 
 
-    train_data_norm, min_val, max_val = NormalizeToUnitSegment(train_data)
-    observations, full_seq_len, h, w = size(train_data_norm)
+    data_norm, min_val, max_val = NormalizeToUnitSegment(EC)
+    full_seq_len, input_dim, observations = size(data_norm)
 
-    train_data = reshape(train_data_norm, observations, full_seq_len, :)
-    train_data = permutedims(train_data, [3, 2, 1]) # input_dim, time_size, observations
+    # for visualization reshaping
+    h = 8
+    w = 13
 
-    train_set, val_set = splitobs(train_data, 0.9)
+    data_norm = permutedims(data_norm, [2, 1, 3]) # input_dim, time_size, observations
+
+    train_set, val_set = splitobs(data_norm, 0.9)
 
     loader_train = DataLoader(Array(train_set), batchsize=batch_size, shuffle=true, partial=false)
     loader_val = DataLoader(Array(val_set), batchsize=size(val_set, 3), shuffle=false, partial=false)
-
-    input_dim = size(train_set,1)
 
     ############################################################################
     ## initialize model object and parameter reference
@@ -143,7 +150,6 @@ function train(model_name, system; kws...)
     @info "Start Training of $(model_name)-net, total $(epochs) epochs"
     @info "ILC: $ILC"
     for epoch = 1:epochs
-        seq_len = 50
 
         ## define seq_len according to training mode (progressive or not)
         if progressive_training
@@ -194,7 +200,7 @@ function train(model_name, system; kws...)
         if device != gpu
             val_set = first(loader_val)
             t_val = range(0.f0, step=dt, length=vis_len)
-            visualize_val_image(model, val_set[:,1:vis_len,:] |> device, t_val, h, w)
+            visualize_val_image(model, val_set[:,1:vis_len,:] |> device, t_val, h, w, color_scheme)
         end
         if val_loss < best_val_loss
             best_val_loss = deepcopy(val_loss)
@@ -211,7 +217,7 @@ function train(model_name, system; kws...)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    train("GOKU", pendulum())
+    train("GOKU", Kuramoto(2))
 end
 
-# train("GOKU", pendulum())
+# train("GOKU", Kuramoto(2))
