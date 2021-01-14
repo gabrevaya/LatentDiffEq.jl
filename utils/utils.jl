@@ -121,9 +121,12 @@ function create_prob(sys_name, k, sys, u₀, tspan, p)
 
     func_folder = mkpath(joinpath("precomputed_systems", sys_name))
     osc_folder = mkpath(joinpath(func_folder, "oscillators_"*string(k)))
-    f_file = joinpath(osc_folder, "generated_f.jld2")
-    jac_file = joinpath(osc_folder, "generated_jac.jld2")
-    tgrad_file = joinpath(osc_folder, "generated_tgrad.jld2")
+    # f_file = joinpath(osc_folder, "generated_f.jld2")
+    # jac_file = joinpath(osc_folder, "generated_jac.jld2")
+    # tgrad_file = joinpath(osc_folder, "generated_tgrad.jld2")
+    f_file = joinpath(osc_folder, "generated_f.bson")
+    jac_file = joinpath(osc_folder, "generated_jac.bson")
+    tgrad_file = joinpath(osc_folder, "generated_tgrad.bson")
 
     generate_functions = ~(isfile(f_file) && isfile(jac_file) && isfile(tgrad_file))
 
@@ -136,14 +139,21 @@ function create_prob(sys_name, k, sys, u₀, tspan, p)
         jac = eval(computed_jac)
         tgrad = eval(computed_tgrad)
 
-        JLD2.@save(f_file, f)
-        JLD2.@save(jac_file, jac)
-        JLD2.@save(tgrad_file, tgrad)
+        # JLD2.@save(f_file, f)
+        # JLD2.@save(jac_file, jac)
+        # JLD2.@save(tgrad_file, tgrad)
+        BSON.@save(f_file, f)
+        BSON.@save(jac_file, jac)
+        BSON.@save(tgrad_file, tgrad)
+        
     else
         @info "Precomputed functions found for the system"
-        JLD2.@load(f_file, f)
-        JLD2.@load(jac_file, jac)
-        JLD2.@load(tgrad_file, tgrad)
+        # JLD2.@load(f_file, f)
+        # JLD2.@load(jac_file, jac)
+        # JLD2.@load(tgrad_file, tgrad)
+        BSON.@load(f_file, f)
+        BSON.@load(jac_file, jac)
+        BSON.@load(tgrad_file, tgrad)
 
         # print(f)
     end
