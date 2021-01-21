@@ -14,8 +14,8 @@ using JLD2, FileIO
     seed = 1                    # random seed
     cuda = false                # GPU usage
     dt = 0.05                   # timestep for ode solve
-    start_af = 0.0001f0            # Annealing factor start value
-    end_af = 0.0001f0           # Annealing factor end value
+    start_af = 0.00001f0            # Annealing factor start value
+    end_af = 0.00001f0           # Annealing factor end value
     ae = 200                    # Annealing factor epoch end
 
     ## Progressive observation training
@@ -28,11 +28,11 @@ using JLD2, FileIO
 
     ## Model dimensions
     # input_dim = 8             # input dimension
-    hidden_dim1 = 64
-    hidden_dim2 = 32
-    hidden_dim3 = 16
+    hidden_dim1 = 200
+    hidden_dim2 = 200
+    hidden_dim3 = 200
     rnn_input_dim = 32          # rnn input dimension
-    rnn_output_dim = 32         # rnn output dimension
+    rnn_output_dim = 16         # rnn output dimension
     latent_dim = 16             # latent dimension
     hidden_dim_latent_ode = 200 # hidden dimension
 
