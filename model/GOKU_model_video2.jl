@@ -74,8 +74,13 @@ function (encoder::GOKU_encoder)(x)
     reset!(encoder.lstm_forward)
     reset!(encoder.lstm_backward)
 
-    # Return RNN/LSTM ouput passed trough dense layers (RNN -> z₀, LSTM -> p)
-    encoder.rnn_μ(rnn_out), encoder.rnn_logσ²(rnn_out), encoder.lstm_μ(bi_lstm_out), encoder.lstm_logσ²(bi_lstm_out)
+    # Return RNN/BiLSTM ouput passed trough dense layers
+    z₀_μ = encoder.rnn_μ(rnn_out)
+    z₀_logσ² = encoder.rnn_logσ²(rnn_out)
+    θ_μ = encoder.lstm_μ(bi_lstm_out)
+    θ_logσ² = encoder.lstm_logσ²(bi_lstm_out)
+
+    z₀_μ, z₀_logσ², θ_μ, θ_logσ²
 end
 
 ################################################################################
@@ -88,7 +93,7 @@ struct GOKU_decoder <: AbstractDecoder
     transform
 
     z₀_linear
-    p_linear
+    θ_linear
     gen_linear
 
     SDE::Bool
@@ -96,13 +101,13 @@ struct GOKU_decoder <: AbstractDecoder
     device
 
     function GOKU_decoder(input_dim, hidden_dim1, hidden_dim2, hidden_dim3,
-                            latent_dim, hidden_dim_latent_ode, ode_dim, p_dim,
+                            latent_dim, hidden_dim_latent_ode, ode_dim, θ_dim,
                             ode_prob, transform, solver, SDE, device)
 
         z₀_linear = Chain(Dense(latent_dim, hidden_dim_latent_ode, relu),
                           Dense(hidden_dim_latent_ode, ode_dim)) |> device
-        p_linear = Chain(Dense(latent_dim, hidden_dim_latent_ode, relu),
-                         Dense(hidden_dim_latent_ode, p_dim, softplus)) |> device
+        θ_linear = Chain(Dense(latent_dim, hidden_dim_latent_ode, relu),
+                         Dense(hidden_dim_latent_ode, θ_dim, softplus)) |> device
 
 
         l1 = Dense(ode_dim, hidden_dim1, relu)
@@ -115,30 +120,25 @@ struct GOKU_decoder <: AbstractDecoder
                         SkipConnection(l3, +),
                         l4)  |> device
 
-        # _ode_prob = ODEProblem(ode_func, zeros(Float32, ode_dim), (0.f0, 1.f0), zeros(Float32, p_dim))
-        # ode_prob,_ = auto_optimize(_ode_prob, verbose = false, static = false);
-
-        new(solver, ode_prob, transform, z₀_linear, p_linear, gen_linear, SDE, device)
-
+        new(solver, ode_prob, transform, z₀_linear, θ_linear, gen_linear, SDE, device)
     end
-
 end
 
 
-function (decoder::GOKU_decoder)(latent_z₀, latent_p, t)
+function (decoder::GOKU_decoder)(ẑ₀, θ̂, t)
 
     ## Pass sampled latent states in dense layers
-    z₀ = decoder.z₀_linear(latent_z₀)
-    p = decoder.p_linear(latent_p)
+    ẑ₀ = decoder.z₀_linear(ẑ₀)
+    θ̂ = decoder.θ_linear(θ̂)
 
     #####
     # Function definition for ensemble problem
-    prob_func = (prob,i,repeat) -> remake(prob, u0=z₀[:,i], p = p[:,i]) # TODO: try using views and switching indexes to see if the performance improves
+    prob_func = (prob,i,repeat) -> remake(prob, u0=ẑ₀[:,i], p = θ̂[:,i]) # TODO: try using views and switching indexes to see if the performance improves
     function output_func(sol, i)
         # Check if solve was successful, if not fill z_pred with zeros to avoid problems with dimensions matches
         if sol.retcode != :Success
-            return (zeros(Float32, size(z₀, 1), size(t,1)), false)
-            # return (1000*ones(Float32, size(z₀, 1), size(t,1)), false)
+            return (zeros(Float32, size(ẑ₀, 1), size(t,1)), false)
+            # return (1000*ones(Float32, size(ẑ₀, 1), size(t,1)), false)
         else
             return (Array(sol), false)
         end
@@ -151,23 +151,23 @@ function (decoder::GOKU_decoder)(latent_z₀, latent_p, t)
 
     ## Solve
     if decoder.SDE
-        pred_z = solve(ens_prob, SOSRI(), sensealg=ForwardDiffSensitivity(), trajectories=size(p, 2), saveat = t) |> decoder.device
+        ẑ = solve(ens_prob, SOSRI(), sensealg=ForwardDiffSensitivity(), trajectories=size(θ̂, 2), saveat = t) |> decoder.device
     else
-        pred_z = solve(ens_prob, decoder.solver, EnsembleSerial(), sensealg=BacksolveAdjoint(autojacvec=ReverseDiffVJP(true),checkpointing=true), trajectories=size(p, 2), saveat = t) |> decoder.device
+        ẑ = solve(ens_prob, decoder.solver, EnsembleSerial(), sensealg=BacksolveAdjoint(autojacvec=ReverseDiffVJP(true),checkpointing=true), trajectories=size(θ̂, 2), saveat = t) |> decoder.device
     end
     
     # Zygote.ignore() do
-    #     plt = plot(pred_z[1,:,1])
+    #     plt = plot(ẑ[1,:,1])
     #     display(plt)
     # end
 
     # Transform the resulting output (Mainly used for Kuramoto system to pass from phase -> time space)
-    pred_z = decoder.transform(pred_z)
+    ẑ = decoder.transform(ẑ)
 
     ## Create output data shape
-    recon_batch = decoder.gen_linear.(Flux.unstack(pred_z, 2))
+    recon_batch = decoder.gen_linear.(Flux.unstack(ẑ, 2))
 
-    return recon_batch, pred_z, z₀, p
+    return recon_batch, ẑ, ẑ₀, θ̂
 end
 
 ################################################################################
@@ -182,57 +182,57 @@ struct Goku <: AbstractModel
 
     device
 
-    function Goku(input_dim, hidden_dim1, hidden_dim2, hidden_dim3, rnn_input_dim, rnn_output_dim, latent_dim, hidden_dim_latent_ode, ode_dim, p_dim, ode_prob, transform, solver, variational, SDE, device)
+    function Goku(input_dim, hidden_dim1, hidden_dim2, hidden_dim3, rnn_input_dim, rnn_output_dim, latent_dim, hidden_dim_latent_ode, ode_dim, θ_dim, ode_prob, transform, solver, variational, SDE, device)
 
         encoder = GOKU_encoder(input_dim, hidden_dim1, hidden_dim2, hidden_dim3, rnn_input_dim, rnn_output_dim, latent_dim, device)
-        decoder = GOKU_decoder(input_dim, hidden_dim1, hidden_dim2, hidden_dim3, latent_dim, hidden_dim_latent_ode, ode_dim, p_dim, ode_prob, transform, solver, SDE, device)
+        decoder = GOKU_decoder(input_dim, hidden_dim1, hidden_dim2, hidden_dim3, latent_dim, hidden_dim_latent_ode, ode_dim, θ_dim, ode_prob, transform, solver, SDE, device)
 
         new(encoder, decoder, variational, device)
-
     end
-
 end
 
 
 function (goku::Goku)(x, t)
     ## Get encoded latent initial states and parameters
-    latent_z₀_μ, latent_z₀_logσ², latent_p_μ, latent_p_logσ² = goku.encoder(x)
-
+    z₀_μ, z₀_logσ²,  θ_μ,  θ_logσ² = goku.encoder(x)
+    
     ## Sample from the distributions
     if goku.variational
-        latent_z₀ = latent_z₀_μ + goku.device(randn(Float32, size(latent_z₀_logσ²))) .* exp.(latent_z₀_logσ²/2f0)
-        latent_p = latent_p_μ + goku.device(randn(Float32, size(latent_p_logσ²))) .* exp.(latent_p_logσ²/2f0)
+        ẑ₀ = z₀_μ + goku.device(randn(Float32, size(z₀_logσ²))) .* exp.(z₀_logσ²/2f0)
+        θ̂ =  θ_μ + goku.device(randn(Float32, size( θ_logσ²))) .* exp.( θ_logσ²/2f0)
     else
-        latent_z₀ = latent_z₀_μ
-        latent_p = latent_p_μ
+        ẑ₀ = z₀_μ
+        θ̂ =  θ_μ
     end
     ## Get predicted output
-    x̂, ẑ, ẑ₀, θ̂ = goku.decoder(latent_z₀, latent_p, t)
+    x̂, ẑ, ẑ₀, θ̂ = goku.decoder(ẑ₀, θ̂, t)
 
-    return ((latent_z₀_μ, latent_z₀_logσ²), (latent_p_μ, latent_p_logσ²)), x̂, (ẑ₀, θ̂), ẑ
+    return ((z₀_μ, z₀_logσ²), ( θ_μ,  θ_logσ²)), x̂, (ẑ₀, θ̂), ẑ
 end
 
+################################################################################
+################################################################################
 
-# for ILC
+# For ILC
 
 # function (goku::Goku)(x::Array{T,2}, t) where T
 #     println("Goku ILC")
 #     ## Get encoded latent initial states and parameters
-#     latent_z₀_μ, latent_z₀_logσ², latent_p_μ, latent_p_logσ² = goku.encoder(x)
+#     z₀_μ, z₀_logσ²,  θ_μ,  θ_logσ² = goku.encoder(x)
 
 #     ## Sample from the distributions
 #     if goku.variational
-#         latent_z₀ = latent_z₀_μ + goku.device(randn(Float32, size(latent_z₀_logσ²))) .* exp.(latent_z₀_logσ²/2f0)
-#         latent_p = latent_p_μ + goku.device(randn(Float32, size(latent_p_logσ²))) .* exp.(latent_p_logσ²/2f0)
+#         ẑ₀ = z₀_μ + goku.device(randn(Float32, size(z₀_logσ²))) .* exp.(z₀_logσ²/2f0)
+#         θ̂ =  θ_μ + goku.device(randn(Float32, size( θ_logσ²))) .* exp.( θ_logσ²/2f0)
 #     else
-#         latent_z₀ = latent_z₀_μ
-#         latent_p = latent_p_μ
+#         ẑ₀ = z₀_μ
+#         θ̂ =  θ_μ
 #     end
 
 #     ## Get predicted output
-#     pred_x, pred_z₀, pred_p = goku.decoder(latent_z₀, latent_p, t)
+#     pred_x, pred_z₀, pred_p = goku.decoder(ẑ₀, θ̂, t)
 
-#     return ((latent_z₀_μ, latent_z₀_logσ²), (latent_p_μ, latent_p_logσ²)), pred_x, (pred_z₀, pred_p)
+#     return ((z₀_μ, z₀_logσ²), ( θ_μ,  θ_logσ²)), pred_x, (pred_z₀, pred_p)
 # end
 
 # function (encoder::GOKU_encoder)(x::Array{T,2}) where T
@@ -256,33 +256,33 @@ end
 #     reset!(encoder.lstm_forward)
 #     reset!(encoder.lstm_backward)
 
-#     # Return RNN/LSTM ouput passed trough dense layers (RNN -> z₀, LSTM -> p)
+#     # Return RNN/LSTM ouput passed trough dense layers (RNN -> ẑ₀, LSTM -> θ̂)
 #     encoder.rnn_μ(rnn_out), encoder.rnn_logσ²(rnn_out), encoder.lstm_μ(bi_lstm_out), encoder.lstm_logσ²(bi_lstm_out)
 # end
 
 
-# function (decoder::GOKU_decoder)(latent_z₀::Array{T,1}, latent_p, t) where T
+# function (decoder::GOKU_decoder)(ẑ₀::Array{T,1}, θ̂, t) where T
 #     ## Pass sampled latent states in dense layers
-#     z₀ = decoder.z₀_linear(latent_z₀)
-#     p = decoder.p_linear(latent_p)
+#     ẑ₀ = decoder.z₀_linear(ẑ₀)
+#     θ̂ = decoder.θ_linear(θ̂)
 
 #     ## Adapt problem to given time span, parameters and initial conditions
-#     prob = remake(decoder.ode_prob, u0=z₀[:], p = p[:], tspan = (t[1],t[end]))
+#     prob = remake(decoder.ode_prob, u0=ẑ₀[:], p = θ̂[:], tspan = (t[1],t[end]))
 
 #     ## Solve
 #     if decoder.SDE
-#         pred_z = solve(prob, SOSRI(), sensealg=ForwardDiffSensitivity(), saveat = t) |> decoder.device
+#         ẑ = solve(prob, SOSRI(), sensealg=ForwardDiffSensitivity(), saveat = t) |> decoder.device
 #     else
-#         pred_z = solve(prob, decoder.solver, saveat = t) |> decoder.device
+#         ẑ = solve(prob, decoder.solver, saveat = t) |> decoder.device
 #     end
 
 #     # Transform the resulting output (Mainly used for Kuramoto system to pass from phase -> time space)
-#     pred_z = decoder.transform(pred_z)
+#     ẑ = decoder.transform(ẑ)
 
 #     ## Create output data shape
-#     pred_z = decoder.gen_linear.(Flux.unstack(pred_z, 2)) # TODO : create new dataset from a trained generation function
+#     ẑ = decoder.gen_linear.(Flux.unstack(ẑ, 2)) # TODO : create new dataset from a trained generation function
     
-#     return pred_z, z₀, p
+#     return ẑ, ẑ₀, θ̂
 # end
 
 
