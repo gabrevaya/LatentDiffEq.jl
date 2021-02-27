@@ -14,17 +14,17 @@ using JLD2, FileIO
     seed = 1                    # random seed
     cuda = false                # GPU usage
     dt = 0.05                   # timestep for ode solve
-    start_af = 0.00001f0            # Annealing factor start value
-    end_af = 0.00001f0           # Annealing factor end value
+    start_af = 0.00001f0        # Annealing factor start value
+    end_af = 0.00001f0          # Annealing factor end value
     ae = 200                    # Annealing factor epoch end
 
     ## Progressive observation training
     progressive_training = false # progressive training usage
-    obs_seg_num = 400           # number of step to progressive training
-    start_seq_len = 20          # training sequence length at first step
+    obs_seg_num = 20            # number of step to progressive training
+    start_seq_len = 10          # training sequence length at first step
 
     ## Visualization
-    vis_len = 10                # number of frames to visualize after each epoch
+    vis_len = 20                # number of frames to visualize after each epoch
 
     ## Model dimensions
     # input_dim = 8             # input dimension
