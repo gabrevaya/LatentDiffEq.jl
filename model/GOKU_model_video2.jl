@@ -23,22 +23,8 @@ struct GOKU_encoder <: AbstractEncoder
 
     function GOKU_encoder(input_dim, hidden_dim1, hidden_dim2, hidden_dim3, rnn_input_dim, rnn_output_dim, latent_dim, device)
 
-        l1 = Dense(input_dim, hidden_dim1, relu)
-        l2 = Dense(hidden_dim1, hidden_dim1, relu)
-        l3 = Dense(hidden_dim1, hidden_dim1, relu)
-        l4 = Dense(hidden_dim1, rnn_input_dim, relu)
-
-        linear = Chain(l1,
-                        SkipConnection(l2, +),
-                        SkipConnection(l3, +),
-                        l4) |> device
-
-        rnn = Chain(RNN(rnn_input_dim, rnn_output_dim, relu),
+        rnn = Chain(RNN(input_dim, rnn_output_dim, relu),
                     RNN(rnn_output_dim, rnn_output_dim, relu)) |> device
-
-        # rnn = Chain(LSTM(rnn_input_dim, rnn_output_dim),
-        #             LSTM(rnn_output_dim, rnn_output_dim)) |> device
-
 
         rnn_μ = Dense(rnn_output_dim, latent_dim) |> device
         rnn_logσ² = Dense(rnn_output_dim, latent_dim) |> device
@@ -96,13 +82,11 @@ struct GOKU_decoder <: AbstractDecoder
     θ_linear
     gen_linear
 
-    SDE::Bool
-
     device
 
     function GOKU_decoder(input_dim, hidden_dim1, hidden_dim2, hidden_dim3,
                             latent_dim, hidden_dim_latent_ode, ode_dim, θ_dim,
-                            ode_prob, transform, solver, SDE, device)
+                            ode_prob, transform, solver, device)
 
         z₀_linear = Chain(Dense(latent_dim, hidden_dim_latent_ode, relu),
                           Dense(hidden_dim_latent_ode, ode_dim)) |> device
@@ -120,7 +104,7 @@ struct GOKU_decoder <: AbstractDecoder
                         SkipConnection(l3, +),
                         l4)  |> device
 
-        new(solver, ode_prob, transform, z₀_linear, θ_linear, gen_linear, SDE, device)
+        new(solver, ode_prob, transform, z₀_linear, θ_linear, gen_linear, device)
     end
 end
 
@@ -150,22 +134,13 @@ function (decoder::GOKU_decoder)(ẑ₀, θ̂, t)
     ens_prob = EnsembleProblem(prob, prob_func = prob_func, output_func = output_func)
 
     ## Solve
-    if decoder.SDE
-        ẑ = solve(ens_prob, SOSRI(), sensealg=ForwardDiffSensitivity(), trajectories=size(θ̂, 2), saveat = t) |> decoder.device
-    else
-        ẑ = solve(ens_prob, decoder.solver, EnsembleSerial(), sensealg=BacksolveAdjoint(autojacvec=ReverseDiffVJP(true),checkpointing=true), trajectories=size(θ̂, 2), saveat = t) |> decoder.device
-    end
+    ẑ = solve(ens_prob, decoder.solver, EnsembleSerial(), sensealg=BacksolveAdjoint(autojacvec=ReverseDiffVJP(true), checkpointing=true), trajectories=size(θ̂, 2), saveat = t) |> decoder.device
     
-    # Zygote.ignore() do
-    #     plt = plot(ẑ[1,:,1])
-    #     display(plt)
-    # end
-
     # Transform the resulting output (Mainly used for Kuramoto system to pass from phase -> time space)
     ẑ = decoder.transform(ẑ)
 
     ## Create output data shape
-    recon_batch = decoder.gen_linear.(Flux.unstack(ẑ, 2))
+    recon_batch = Flux.unstack(ẑ, 2)
 
     return recon_batch, ẑ, ẑ₀, θ̂
 end
@@ -182,10 +157,10 @@ struct Goku <: AbstractModel
 
     device
 
-    function Goku(input_dim, hidden_dim1, hidden_dim2, hidden_dim3, rnn_input_dim, rnn_output_dim, latent_dim, hidden_dim_latent_ode, ode_dim, θ_dim, ode_prob, transform, solver, variational, SDE, device)
+    function Goku(input_dim, hidden_dim1, hidden_dim2, hidden_dim3, rnn_input_dim, rnn_output_dim, latent_dim, hidden_dim_latent_ode, ode_dim, θ_dim, ode_prob, transform, solver, variational, device)
 
         encoder = GOKU_encoder(input_dim, hidden_dim1, hidden_dim2, hidden_dim3, rnn_input_dim, rnn_output_dim, latent_dim, device)
-        decoder = GOKU_decoder(input_dim, hidden_dim1, hidden_dim2, hidden_dim3, latent_dim, hidden_dim_latent_ode, ode_dim, θ_dim, ode_prob, transform, solver, SDE, device)
+        decoder = GOKU_decoder(input_dim, hidden_dim1, hidden_dim2, hidden_dim3, latent_dim, hidden_dim_latent_ode, ode_dim, θ_dim, ode_prob, transform, solver, device)
 
         new(encoder, decoder, variational, device)
     end
@@ -209,81 +184,6 @@ function (goku::Goku)(x, t)
 
     return ((z₀_μ, z₀_logσ²), ( θ_μ,  θ_logσ²)), x̂, (ẑ₀, θ̂), ẑ
 end
-
-################################################################################
-################################################################################
-
-# For ILC
-
-# function (goku::Goku)(x::Array{T,2}, t) where T
-#     println("Goku ILC")
-#     ## Get encoded latent initial states and parameters
-#     z₀_μ, z₀_logσ²,  θ_μ,  θ_logσ² = goku.encoder(x)
-
-#     ## Sample from the distributions
-#     if goku.variational
-#         ẑ₀ = z₀_μ + goku.device(randn(Float32, size(z₀_logσ²))) .* exp.(z₀_logσ²/2f0)
-#         θ̂ =  θ_μ + goku.device(randn(Float32, size( θ_logσ²))) .* exp.( θ_logσ²/2f0)
-#     else
-#         ẑ₀ = z₀_μ
-#         θ̂ =  θ_μ
-#     end
-
-#     ## Get predicted output
-#     pred_x, pred_z₀, pred_p = goku.decoder(ẑ₀, θ̂, t)
-
-#     return ((z₀_μ, z₀_logσ²), ( θ_μ,  θ_logσ²)), pred_x, (pred_z₀, pred_p)
-# end
-
-# function (encoder::GOKU_encoder)(x::Array{T,2}) where T
-#     # @show x
-#     # @show encoder.linear[1].W
-#     # Pass all states in the time series in dense layer
-#     h = encoder.linear(x)
-#     # @show h[1,1:3]
-#     h_rev = reverse(h, dims=2)
-#     # @show h_rev[1,end-2:end]
-
-#     # Pass an RNN and an LSTM through latent states
-#     rnn_out = encoder.rnn.(eachcol(h_rev))[end]
-#     lstm_out = encoder.lstm.(eachcol(h))[end]
-
-#     lstm_out_f = encoder.lstm_forward.(eachcol(h))[end]
-#     lstm_out_b = encoder.lstm_backward.(eachcol(h_rev))[end]
-#     bi_lstm_out = vcat(lstm_out_f, lstm_out_b)
-
-#     reset!(encoder.rnn)
-#     reset!(encoder.lstm_forward)
-#     reset!(encoder.lstm_backward)
-
-#     # Return RNN/LSTM ouput passed trough dense layers (RNN -> ẑ₀, LSTM -> θ̂)
-#     encoder.rnn_μ(rnn_out), encoder.rnn_logσ²(rnn_out), encoder.lstm_μ(bi_lstm_out), encoder.lstm_logσ²(bi_lstm_out)
-# end
-
-
-# function (decoder::GOKU_decoder)(ẑ₀::Array{T,1}, θ̂, t) where T
-#     ## Pass sampled latent states in dense layers
-#     ẑ₀ = decoder.z₀_linear(ẑ₀)
-#     θ̂ = decoder.θ_linear(θ̂)
-
-#     ## Adapt problem to given time span, parameters and initial conditions
-#     prob = remake(decoder.ode_prob, u0=ẑ₀[:], p = θ̂[:], tspan = (t[1],t[end]))
-
-#     ## Solve
-#     if decoder.SDE
-#         ẑ = solve(prob, SOSRI(), sensealg=ForwardDiffSensitivity(), saveat = t) |> decoder.device
-#     else
-#         ẑ = solve(prob, decoder.solver, saveat = t) |> decoder.device
-#     end
-
-#     # Transform the resulting output (Mainly used for Kuramoto system to pass from phase -> time space)
-#     ẑ = decoder.transform(ẑ)
-
-#     ## Create output data shape
-#     ẑ = decoder.gen_linear.(Flux.unstack(ẑ, 2)) # TODO : create new dataset from a trained generation function
-    
-#     return ẑ, ẑ₀, θ̂
-# end
 
 
 Flux.@functor GOKU_encoder

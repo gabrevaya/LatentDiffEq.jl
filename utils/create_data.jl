@@ -24,7 +24,7 @@ include("../system/Hopf.jl")
 @with_kw mutable struct Args_gen
 
     ## Dynamical system
-    system = SLV()              # Available : LV(), SLV()
+    system = LV()               # Available : LV(), SLV()
                                 #             vdP_full(k), SvdP_full(k),
                                 #             vdP_identical_local(k),
                                 #             WC_full(k), WC(k),
@@ -32,8 +32,6 @@ include("../system/Hopf.jl")
                                 #             Kuramoto_basic(k), Kuramoto(k)
                                 #             Hopf(k)
                                 #             (k → number of oscillators)
-
-    SDE = true
 
     ## Mask dimensions
     input_dim = 4               # model input size
@@ -46,7 +44,7 @@ include("../system/Hopf.jl")
     p₀_range = (1.0, 2.0)       # parameter value range
 
     ## Save paths and keys
-    data_file_name = "SvdP_data.bson"  # data file name
+    data_file_name = "lv_data.bson"  # data file name
     seed = 1                         # random seed
     n_traj = 10000                        # Number of trajectories
 

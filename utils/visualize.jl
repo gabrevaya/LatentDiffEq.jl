@@ -7,7 +7,9 @@ function visualize_training(model::AbstractModel, x, t)
     j = rand(1:size(x[1],2))
     xᵢ = [ x[i][:,j] for i in 1:size(x, 1)]
 
-    lat_var, pred_x, pred = model(xᵢ, t)
+    lat_var, pred_x, pred, _ = model(xᵢ, t)
+
+    @show pred
 
     x = Flux.stack(xᵢ, 2)
     pred_x = Flux.stack(pred_x, 2)
@@ -154,6 +156,7 @@ function visualize_val_image(model, val_set, t_val, h, w)
     lat_var, pred_x, pred, ẑ = model(x, t_val)
     plt = plot(ẑ[1,:,1])
     display(plt)
+
     @show pred
 
     pred_x = Flux.stack(pred_x, 2)

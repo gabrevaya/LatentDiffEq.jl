@@ -17,30 +17,18 @@
     end_af = 1.f0               # Annealing factor end value
     ae = 1000                   # Annealing factor epoch end
 
-    ## Progressive observation training
-    progressive_training = true # progressive training usage
-    obs_seg_num = 400           # number of step to progressive training
-    start_seq_len = 20          # training sequence length at first step
-    full_seq_len = 400          # training sequence length at last step
-
-    ## Model dimensions
+    ## Model dimension    ## Model dimensions
     # input_dim = 8             # input dimension
+    hidden_dim1 = 200
+    hidden_dim2 = 200
+    hidden_dim3 = 200
     rnn_input_dim = 32          # rnn input dimension
-    rnn_output_dim = 32         # rnn output dimension
-    latent_dim = 4              # latent dimension
-    hidden_dim = 120            # hidden dimension
-    hidden_dim_node = 200       # hidden dimension of the neuralODE
-    hidden_dim_gen = 10         # hidden dimension of the g function
+    rnn_output_dim = 16         # rnn output dimension
+    latent_dim = 16             # latent dimension
+    hidden_dim_latent_ode = 200 # hidden dimension
 
     ## Model parameters
     variational = true
-
-    ## ILC
-    ILC = false                 # train with ILC
-    ILC_threshold = 0.1f0       # ILC threshold
-
-    ## SDE
-    SDE = true                  # working with SDEs instead of ODEs
 
     ## Save paths and keys
     save_path = "output"        # results path
@@ -99,7 +87,13 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
 
     ############################################################################
     ## initialize model object and parameter reference
-    model, ps = initialize_model(args, input_dim, model_name, system, variational, SDE, device)
+    model = Goku(input_dim, hidden_dim1, hidden_dim2, hidden_dim3,
+        rnn_input_dim, rnn_output_dim, latent_dim, hidden_dim_latent_ode,
+        length(system.u₀), length(system.p), system.prob, system.transform,
+        Tsit5(), variational, device)
+
+    # Get parameters
+    ps = Flux.params(model)
 
     ############################################################################
     ## Define optimizer
@@ -111,7 +105,6 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
 
     mkpath(save_path)
 
-    seq_step = (full_seq_len - start_seq_len) / obs_seg_num
     loss_mem = zeros(Float32, epochs)  # TODO : implement loss memorization
 
     best_val_loss::Float32 = Inf32
@@ -120,13 +113,7 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
     ############################################################################
     ## Main train loop
     @info "Start Training of $(model_name)-net, total $(epochs) epochs"
-    @info "ILC: $ILC"
     for epoch = 1:epochs
-
-        ## define seq_len according to training mode (progressive or not)
-        if progressive_training
-            seq_len = Int( round( start_seq_len + seq_step * floor( (epoch-1) / (epochs/obs_seg_num) ) ) )
-        end
 
         # Model evaluation length
         t = range(t_span[1], step=dt, length=seq_len)
@@ -140,23 +127,18 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
             af = annealing_factor(start_af, end_af, ae, epoch, mb_id, length(loader_train))
             mb_id += 1
 
-            if ILC
-                # Use only a random sequence of length seq_len for all sample in the minibatch
-                x = time_loader2(x, full_seq_len, seq_len)
-                grad = ILC_train(x, model, λ, t, af, device, ILC_threshold, ps)
-            else
-                # Use only a random sequence of length seq_len for all sample in the minibatch
-                x = time_loader(x, full_seq_len, seq_len)
-                loss, back = Flux.pullback(ps) do
-                    loss_batch(model, λ, x |> device, t, af)
-                end
-                # Backpropagate and update
-                grad = back(1f0)
+            # Use only a random sequence of length seq_len for all sample in the minibatch
+            x = time_loader(x, time_size, seq_len)
+            loss, back = Flux.pullback(ps) do
+                loss_batch(model, λ, x |> device, t, af)
             end
+            # Backpropagate and update
+            grad = back(1f0)
 
             Flux.Optimise.update!(opt, ps, grad)
+
             # Use validation set to get loss and visualisation
-            val_set = time_loader(first(loader_val), full_seq_len, seq_len)
+            val_set = time_loader(first(loader_val), time_size, seq_len)
             val_loss = loss_batch(model, λ, val_set |> device, t, af)
 
             # progress meter
@@ -167,27 +149,17 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
 
         loss_mem[epoch] = val_loss
         if device != gpu
-            val_set = time_loader(first(loader_val), full_seq_len, seq_len)
+            val_set = time_loader(first(loader_val), time_size, seq_len)
             visualize_training(model, val_set |> device, t)
-        end
-
-        if val_loss < best_val_loss
-            best_val_loss = deepcopy(val_loss)
-
-            model_path = joinpath(save_path, "best_model_$(model_name).bson")
-            let model = cpu(model),
-                args=struct2dict(args)
-
-                BSON.@save model_path model args
-                @info "Model saved: $(model_path)"
-            end
         end
     end
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    train("GOKU", vdP_full(6), "vdP6_data.bson", 12)
+    train("GOKU", LV(), "lv_data.bson")
 end
+
+train("GOKU", LV(), "lv_data.bson")
 # train("GOKU", vdP_full(6), "vdP6_data.bson", 12)
 # train("GOKU", SLV(), "SLV_data.bson", 2)
 # train("GOKU", SvdP_full(1), "SvdP_data.bson", 2)
