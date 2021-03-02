@@ -24,7 +24,7 @@ using JLD2, FileIO
     start_seq_len = 10          # training sequence length at first step
 
     ## Visualization
-    vis_len = 20                # number of frames to visualize after each epoch
+    vis_len = 50                # number of frames to visualize after each epoch
 
     ## Model dimensions
     # input_dim = 8             # input dimension
@@ -75,7 +75,7 @@ function train(model_name, system; kws...)
     @unpack_Args args
 
     seed > 0 && Random.seed!(seed)
-
+    
     if cuda && has_cuda_gpu()
         device = gpu
         @info "Training on GPU"

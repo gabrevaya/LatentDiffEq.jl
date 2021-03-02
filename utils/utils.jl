@@ -60,7 +60,7 @@ function loss_batch(model::AbstractModel, λ, x, t, af)
     # Filthy one liner that does the for loop above # lit
     kl_loss = sum( [ mean(sum(KL.(lat_var[i][1], lat_var[i][2]), dims=1)) for i in 1:length(lat_var) ] )
     # @show reconstruction_loss + af*(kl_loss)
-    return reconstruction_loss + af*(kl_loss)# + rec_initial_condition_loss
+    return reconstruction_loss + af*(kl_loss) #+ 0.000000000001f0*mean((pred[2]).^2)# + rec_initial_condition_loss
 end
 
 ## annealing factor parameters
