@@ -13,26 +13,26 @@ using ColorSchemes
     epochs = 1600               # number of epochs for training
     seed = 1                    # random seed
     cuda = false                # GPU usage
-    dt = 0.002                   # timestep for ode solve
-    start_af = 0.0001f0            # Annealing factor start value
-    end_af = 0.0001f0           # Annealing factor end value
+    dt = 0.002                  # timestep for ode solve
+    start_af = 0.00001f0        # Annealing factor start value
+    end_af = 0.00001f0          # Annealing factor end value
     ae = 200                    # Annealing factor epoch end
 
     ## Progressive observation training
     progressive_training = false # progressive training usage
-    obs_seg_num = 400           # number of step to progressive training
+    obs_seg_num = 20           # number of step to progressive training
     start_seq_len = 20          # training sequence length at first step
 
     ## Visualization
-    vis_len = 10                # number of frames to visualize after each epoch
+    vis_len = 50                # number of frames to visualize after each epoch
     color_scheme = ColorSchemes.prism # color scheme for visualization
     ## Model dimensions
     # input_dim = 8             # input dimension
-    hidden_dim1 = 64
-    hidden_dim2 = 32
-    hidden_dim3 = 16
+    hidden_dim1 = 200
+    hidden_dim2 = 200
+    hidden_dim3 = 200
     rnn_input_dim = 32          # rnn input dimension
-    rnn_output_dim = 32         # rnn output dimension
+    rnn_output_dim = 16         # rnn output dimension
     latent_dim = 16             # latent dimension
     hidden_dim_latent_ode = 200 # hidden dimension
 
