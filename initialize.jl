@@ -42,8 +42,8 @@ abstract type AbstractSystem end
 ################################################################################
 ## Home files and modules
 
-include("model_train.jl")
-include("model_alt_train.jl")
+# include("model_train.jl")
+# include("model_alt_train.jl")
 include("utils/utils.jl")
 include("utils/visualize.jl")
 include("system/Lotka-Volterra.jl")
@@ -53,10 +53,14 @@ include("system/Stochastic_van_der_Pol.jl")
 include("system/Wilson-Cowan.jl")
 include("system/Kuramoto.jl")
 include("system/Hopf.jl")
+include("system/larynx_z-switch.jl")
+include("system/pendulum.jl")
+
 
 ################################################################################
 ## Model definitions
 
-include("model/model_manager.jl")
-include("model/GOKU_model.jl")
+# include("model/model_manager.jl")
+# include("model/GOKU_model.jl")
+include("model/GOKU_model_video2.jl")
 include("model/latent_ode_model.jl")

@@ -1,26 +1,26 @@
 
 
 ################################################################################
-## Problem Definition -- Lotka-Volterra
+## Problem Definition -- z-switch model for bird larynx
 
-struct LV{T,P,F} <: AbstractSystem
+struct z_switch{T,P,F} <: AbstractSystem
     u₀::T
     p::T
     prob::P
     transform::F
 
-    function LV()
+    function z_switch()
         # Default parameters and initial conditions
         u₀ = Float32[1.0, 1.0]
-        p = Float32[1.25, 1.5, 1.75, 2]
+        p = Float32[1., 1., 1., 1., 1., 1., 0.01]
         tspan = (0.f0, 1.f0)
 
         # Define differential equations
         function f!(du, u, p, t)
-                x, y = u
-                α, β, δ, γ = p
-                du[1] = α*x - β*x*y
-                du[2] = -δ*y + γ*x*y
+                y, z = u
+                a, b, c, m, zₒ, α, ϵ = p
+                du[1] = a*z
+                du[2] = (zₒ + α*y - z)*(-zₒ + α*y - z)*(m*y + b - z)/ϵ - c*z
         end
 
         output_transform(u) = u
@@ -36,7 +36,7 @@ struct LV{T,P,F} <: AbstractSystem
         #                        sparse = false,
         #                        parallel = ModelingToolkit.SerialForm(),
         #                        eval_expression = false)
-        prob = create_prob("Lotka-Volterra", 1, sys, u₀, tspan, p)
+        prob = create_prob("z-switch", 1, sys, u₀, tspan, p)
 
         T = typeof(u₀)
         P = typeof(prob)

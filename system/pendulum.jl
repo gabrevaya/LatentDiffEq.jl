@@ -1,26 +1,28 @@
 
 
 ################################################################################
-## Problem Definition -- Lotka-Volterra
+## Problem Definition -- frictionless pendulum
 
-struct LV{T,P,F} <: AbstractSystem
+struct pendulum{T,P,F} <: AbstractSystem
     u₀::T
     p::T
     prob::P
     transform::F
 
-    function LV()
+    function pendulum()
         # Default parameters and initial conditions
         u₀ = Float32[1.0, 1.0]
-        p = Float32[1.25, 1.5, 1.75, 2]
+        p = Float32[1.]
         tspan = (0.f0, 1.f0)
 
         # Define differential equations
         function f!(du, u, p, t)
                 x, y = u
-                α, β, δ, γ = p
-                du[1] = α*x - β*x*y
-                du[2] = -δ*y + γ*x*y
+                G = 10.0f0
+                L = p[1]
+                
+                du[1] = y
+                du[2] =  -G/L*sin(x)
         end
 
         output_transform(u) = u
@@ -36,7 +38,7 @@ struct LV{T,P,F} <: AbstractSystem
         #                        sparse = false,
         #                        parallel = ModelingToolkit.SerialForm(),
         #                        eval_expression = false)
-        prob = create_prob("Lotka-Volterra", 1, sys, u₀, tspan, p)
+        prob = create_prob("pendulum", 1, sys, u₀, tspan, p)
 
         T = typeof(u₀)
         P = typeof(prob)
@@ -45,3 +47,5 @@ struct LV{T,P,F} <: AbstractSystem
     end
     
 end
+
+# sin(x::Num) = sin()

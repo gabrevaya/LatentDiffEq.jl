@@ -20,10 +20,12 @@ struct GOKU_encoder <: AbstractEncoder
 
     device
 
-    function GOKU_encoder(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, device)
+    function GOKU_encoder(input_dim, hidden_dim1, hidden_dim2, hidden_dim3, rnn_input_dim, rnn_output_dim, latent_dim, device)
 
-        linear = Chain(Dense(input_dim, hidden_dim, relu),
-                       Dense(hidden_dim, rnn_input_dim, relu)) |> device
+        linear = Chain(Dense(input_dim, hidden_dim1, relu),
+                        Dense(hidden_dim1, hidden_dim2, relu),
+                        Dense(hidden_dim2, hidden_dim3, relu),
+                        Dense(hidden_dim3, rnn_input_dim, relu)) |> device
         rnn = Chain(RNN(rnn_input_dim, rnn_output_dim, relu),
                     RNN(rnn_output_dim, rnn_output_dim, relu)) |> device
 
@@ -44,7 +46,6 @@ struct GOKU_encoder <: AbstractEncoder
     end
 end
 
-Flux.@functor GOKU_encoder
 
 function (encoder::GOKU_encoder)(x)
 
@@ -79,14 +80,19 @@ struct GOKU_decoder <: AbstractDecoder
 
     device
 
-    function GOKU_decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_prob, transform, solver, SDE, device)
+    function GOKU_decoder(input_dim, hidden_dim1, hidden_dim2, hidden_dim3,
+                            latent_dim, hidden_dim_latent_ode, ode_dim, p_dim,
+                            ode_prob, transform, solver, SDE, device)
 
-        z₀_linear = Chain(Dense(latent_dim, hidden_dim, relu),
-                          Dense(hidden_dim, ode_dim, softplus)) |> device
-        p_linear = Chain(Dense(latent_dim, hidden_dim, relu),
-                         Dense(hidden_dim, p_dim, softplus)) |> device
-        gen_linear = Chain(Dense(ode_dim, hidden_dim, relu),
-                           Dense(hidden_dim, input_dim)) |> device
+        z₀_linear = Chain(Dense(latent_dim, hidden_dim_latent_ode, relu),
+                          Dense(hidden_dim_latent_ode, ode_dim)) |> device
+        p_linear = Chain(Dense(latent_dim, hidden_dim_latent_ode, relu),
+                         Dense(hidden_dim_latent_ode, p_dim)) |> device
+
+        gen_linear = Chain(Dense(ode_dim, hidden_dim3, relu),
+                            Dense(hidden_dim3, hidden_dim2, relu),
+                            Dense(hidden_dim2, hidden_dim1, relu),
+                            Dense(hidden_dim1, input_dim)) |> device
 
         # _ode_prob = ODEProblem(ode_func, zeros(Float32, ode_dim), (0.f0, 1.f0), zeros(Float32, p_dim))
         # ode_prob,_ = auto_optimize(_ode_prob, verbose = false, static = false);
@@ -97,7 +103,6 @@ struct GOKU_decoder <: AbstractDecoder
 
 end
 
-Flux.@functor GOKU_decoder
 
 function (decoder::GOKU_decoder)(latent_z₀, latent_p, t)
 
@@ -134,10 +139,10 @@ function (decoder::GOKU_decoder)(latent_z₀, latent_p, t)
     pred_z = decoder.transform(pred_z)
 
     ## Create output data shape
-    # pred_z = decoder.gen_linear.(Flux.unstack(pred_z, 2)) # TODO : create new dataset from a trained generation function
-    # return pred_z, z₀, p
+    pred_z = decoder.gen_linear.(Flux.unstack(pred_z, 2)) # TODO : create new dataset from a trained generation function
 
-    return Flux.unstack(pred_z, 2), z₀, p
+    return pred_z, z₀, p
+
 end
 
 ################################################################################
@@ -152,10 +157,10 @@ struct Goku <: AbstractModel
 
     device
 
-    function Goku(input_dim, latent_dim, rnn_input_dim, rnn_output_dim, hidden_dim, ode_dim, p_dim, ode_sys, sys_tranform, solver, variational, SDE, device)
+    function Goku(input_dim, hidden_dim1, hidden_dim2, hidden_dim3, rnn_input_dim, rnn_output_dim, latent_dim, hidden_dim_latent_ode, ode_dim, p_dim, ode_prob, transform, solver, variational, SDE, device)
 
-        encoder = GOKU_encoder(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, device)
-        decoder = GOKU_decoder(input_dim, latent_dim, hidden_dim, ode_dim, p_dim, ode_sys, sys_tranform, solver, SDE, device)
+        encoder = GOKU_encoder(input_dim, hidden_dim1, hidden_dim2, hidden_dim3, rnn_input_dim, rnn_output_dim, latent_dim, device)
+        decoder = GOKU_decoder(input_dim, hidden_dim1, hidden_dim2, hidden_dim3, latent_dim, hidden_dim_latent_ode, ode_dim, p_dim, ode_prob, transform, solver, SDE, device)
 
         new(encoder, decoder, variational, device)
 
@@ -163,7 +168,6 @@ struct Goku <: AbstractModel
 
 end
 
-Flux.@functor Goku
 
 function (goku::Goku)(x, t)
     ## Get encoded latent initial states and parameters
@@ -246,8 +250,12 @@ function (decoder::GOKU_decoder)(latent_z₀::Array{T,1}, latent_p, t) where T
     pred_z = decoder.transform(pred_z)
 
     ## Create output data shape
-    # pred_z = decoder.gen_linear.(Flux.unstack(pred_z, 2)) # TODO : create new dataset from a trained generation function
-    # return pred_z, z₀, p
-
-    return Flux.unstack(pred_z, 2), z₀, p
+    pred_z = decoder.gen_linear.(Flux.unstack(pred_z, 2)) # TODO : create new dataset from a trained generation function
+    
+    return pred_z, z₀, p
 end
+
+
+Flux.@functor GOKU_encoder
+Flux.@functor GOKU_decoder
+Flux.@functor Goku

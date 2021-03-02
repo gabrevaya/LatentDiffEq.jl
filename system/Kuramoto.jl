@@ -3,7 +3,7 @@
 ################################################################################
 ## Problem Definition -- Kuramoto Oscillators
 
-struct Kuramoto_basic{T,P} <: AbstractSystem
+struct Kuramoto_basic{T,P,F} <: AbstractSystem
 
     u₀::T
     p::T
@@ -54,7 +54,7 @@ end
 
 
 
-struct Kuramoto{T,P} <: AbstractSystem
+struct Kuramoto{T,P,F} <: AbstractSystem
 
     u₀::T
     p::T

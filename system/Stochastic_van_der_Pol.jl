@@ -4,7 +4,7 @@
 ## Problem Definition -- Stochastic van der Pol
 using StochasticDiffEq, DiffEqSensitivity
 
-struct SvdP_full{T, P} <: AbstractSystem
+struct SvdP_full{T, P, F} <: AbstractSystem
     u₀::T
     p::T
     prob::P
@@ -67,7 +67,7 @@ end
 
 
 
-struct vdP_identical_local{T, P} <: AbstractSystem
+struct vdP_identical_local{T, P, F} <: AbstractSystem
     u₀::T
     p::T
     prob::P

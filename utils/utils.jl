@@ -26,11 +26,11 @@ function rec_loss(x, pred_x)
 
     res_average = sum(mean((res).^2, dims = (2, 3)))
 
-    # # Differential residual loss
+    # Differential residual loss
     # res_diff = diff(pred_x_stacked, dims = 3) - diff(x_stacked, dims = 3)
     # res_diff_average = sum(mean((res_diff).^2, dims = (2, 3)))
 
-    # return (res_average + 100f0*res_diff_average)/size(pred_x_stacked,1)
+    # return (res_average + 1000f0*res_diff_average)/size(pred_x_stacked,1)
     return res_average/size(pred_x_stacked,1)
 end
 
@@ -43,12 +43,11 @@ end
 function loss_batch(model::AbstractModel, λ, x, t, af)
 
     # Make prediction
-    
-    lat_var, pred_x, pred = model(x, t)
+    lat_var, pred_x, pred, ẑ = model(x, t)
 
     # Compute reconstruction (and differential) loss
     reconstruction_loss = rec_loss(x, pred_x)
-    rec_initial_condition_loss = rec_ini_loss(x, pred)
+    # rec_initial_condition_loss = rec_ini_loss(x, pred)
     # @show rec_initial_condition_loss
 
     # Compute KL losses from parameter and initial value estimation
@@ -61,7 +60,7 @@ function loss_batch(model::AbstractModel, λ, x, t, af)
     # Filthy one liner that does the for loop above # lit
     kl_loss = sum( [ mean(sum(KL.(lat_var[i][1], lat_var[i][2]), dims=1)) for i in 1:length(lat_var) ] )
     # @show reconstruction_loss + af*(kl_loss)
-    return reconstruction_loss + af*(kl_loss) + rec_initial_condition_loss
+    return reconstruction_loss + af*(kl_loss) #+ 0.000000000001f0*mean((pred[2]).^2)# + rec_initial_condition_loss
 end
 
 ## annealing factor parameters
@@ -108,6 +107,17 @@ function normalize_Z(data)
       return norm_data
 
 end
+
+
+function NormalizeToUnitSegment(X)
+    min_val = minimum(X)
+    max_val = maximum(X)
+
+    X̂ = (X .- min_val) ./ (max_val - min_val)
+    return X̂, min_val, max_val
+end
+
+DenormalizeUnitSegment(X̂, min_val, max_val) = X̂ .* (max_val .- min_val) .+ min_val
 
 
 ################################################################################
@@ -193,38 +203,38 @@ end
 ## for ILC
 
 
-function rec_loss(x::Array{T,2}, pred_x) where T
-    pred_stacked = Flux.stack(pred_x, 2)
-    # Residual loss
-    res = x - pred_stacked
-    res_average = mean((res).^2, dims = (1, 2))
-    return res_average[1]
-end
+# function rec_loss(x::Array{T,2}, pred_x) where T
+#     pred_stacked = Flux.stack(pred_x, 2)
+#     # Residual loss
+#     res = x - pred_stacked
+#     res_average = mean((res).^2, dims = (1, 2))
+#     return res_average[1]
+# end
 
-function ILC_train(x, model, λ, t, af, device, ILC_threshold, ps)
-    grads = Zygote.Grads[]
-    for sample in x
-        loss, back = Flux.pullback(ps) do
-            # Compute loss
-            loss_batch(model, λ, sample |> device, t, af)
-        end
-        # Backpropagate
-        grad = back(1f0)
-        push!(grads, grad)
-    end
+# function ILC_train(x, model, λ, t, af, device, ILC_threshold, ps)
+#     grads = Zygote.Grads[]
+#     for sample in x
+#         loss, back = Flux.pullback(ps) do
+#             # Compute loss
+#             loss_batch(model, λ, sample |> device, t, af)
+#         end
+#         # Backpropagate
+#         grad = back(1f0)
+#         push!(grads, grad)
+#     end
 
-    masking!.(ps, Ref(grads), ILC_threshold)
-    return grads[1]
-end
+#     masking!.(ps, Ref(grads), ILC_threshold)
+#     return grads[1]
+# end
 
-function masking!(p, grads, threshold)
-    if ~(grads[1][p] == nothing)
-        mean_signs = mean([sign.(el[p]) for el in grads])
-        mask = mean_signs .< threshold
-        mean_grads = mean([el[p] for el in grads])
-        mean_grads[mask] .= 0.f0
-        grads[1][p][:] = mean_grads[:]
-    end
-end
+# function masking!(p, grads, threshold)
+#     if ~(grads[1][p] == nothing)
+#         mean_signs = mean([sign.(el[p]) for el in grads])
+#         mask = mean_signs .< threshold
+#         mean_grads = mean([el[p] for el in grads])
+#         mean_grads[mask] .= 0.f0
+#         grads[1][p][:] = mean_grads[:]
+#     end
+# end
 
-rec_ini_loss(x::Array{T,2}, pred) where T = mean((pred[1] - x[:,1]).^2)
+# rec_ini_loss(x::Array{T,2}, pred) where T = mean((pred[1] - x[:,1]).^2)

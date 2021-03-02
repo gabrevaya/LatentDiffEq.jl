@@ -5,7 +5,7 @@
 # Deco et al. (2017), https://www.nature.com/articles/s41598-017-03073-5
 # Ipiña et al. (2019), https://arxiv.org/abs/1907.04412 & https://www.sciencedirect.com/science/article/pii/S1053811920303207
 
-struct Hopf{T, P} <: AbstractSystem
+struct Hopf{T,P,F} <: AbstractSystem
     
     u₀::T
     p::T
