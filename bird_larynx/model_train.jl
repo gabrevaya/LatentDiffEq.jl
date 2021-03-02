@@ -74,26 +74,26 @@ using Images, FileIO
 
 
 
-function visualize_val_image(model, val_set, t_val, h, w)
-    # @show size(val_set)
-    # @show size(val_set[:,:,1])
-    # val_set = Flux.unstack(val_set, 2)
-    # @show size(val_set)
-    # @show size(val_set[:,:,1])
+# function visualize_val_image(model, val_set, t_val, h, w)
+#     # @show size(val_set)
+#     # @show size(val_set[:,:,1])
+#     # val_set = Flux.unstack(val_set, 2)
+#     # @show size(val_set)
+#     # @show size(val_set[:,:,1])
 
-    j = rand(1:size(val_set,3))
-    X_test = val_set[:,:,j]
-    frames_test = [Gray.(reshape(x,h,w)) for x in eachcol(X_test)]
-    x = Flux.unstack(X_test, 2)
+#     j = rand(1:size(val_set,3))
+#     X_test = val_set[:,:,j]
+#     frames_test = [Gray.(reshape(x,h,w)) for x in eachcol(X_test)]
+#     x = Flux.unstack(X_test, 2)
 
-    lat_var, pred_x, pred = model(x, t_val)
-    pred_x = Flux.stack(pred_x, 2)
+#     lat_var, pred_x, pred = model(x, t_val)
+#     pred_x = Flux.stack(pred_x, 2)
 
-    frames_pred = [Gray.(reshape(x,h,w)) for x in eachcol(pred_x)]
+#     frames_pred = [Gray.(reshape(x,h,w)) for x in eachcol(pred_x)]
 
-    plt = mosaicview(frames_test..., frames_pred..., nrow=2, rowmajor=true)
-    display(plt)
-end
+#     plt = mosaicview(frames_test..., frames_pred..., nrow=2, rowmajor=true)
+#     display(plt)
+# end
 
 
 ################################################################################
@@ -102,30 +102,30 @@ end
     ## Training params
     η = 1e-2                    # learning rate
     λ = 0.01f0                  # regularization paramater
-    batch_size = 256            # minibatch size
+    batch_size = 64            # minibatch size
     seq_len = 40               # sampling size for output
-    epochs = 200                # number of epochs for training
+    epochs = 300                # number of epochs for training
     seed = 1                    # random seed
     cuda = false                # GPU usage
     dt = 0.05                   # timestep for ode solve
-    t_span = (0.f0, 4.95f0)     # span of time interval for training
-    start_af = 0.0f0            # Annealing factor start value
-    end_af = 1.f0               # Annealing factor end value
-    ae = 1000                   # Annealing factor epoch end
+    start_af = 0.00001f0        # Annealing factor start value
+    end_af = 0.00001f0          # Annealing factor end value
+    ae = 200                   # Annealing factor epoch end
 
     ## Progressive observation training
     progressive_training = false # progressive training usage
-    obs_seg_num = 400           # number of step to progressive training
-    start_seq_len = 20          # training sequence length at first step
-    full_seq_len = 400          # training sequence length at last step
+    obs_seg_num = 20           # number of step to progressive training
+    start_seq_len = 10          # training sequence length at first step
+
+    ## Visualization
+    vis_len = 20                # number of frames to visualize after each epoch
 
     ## Model dimensions
     hidden_dim1 = 200 #64
     hidden_dim2 = 32            # not used when using ResNets (GOKU_model_video2.jl)
     hidden_dim3 = 16            # not used when using ResNets
-
     rnn_input_dim = 32          # rnn input dimension
-    rnn_output_dim = 32         # rnn output dimension
+    rnn_output_dim = 16         # rnn output dimension
     latent_dim = 16             # latent dimension
     hidden_dim_latent_ode = 200 # hidden dimension
 
@@ -152,7 +152,7 @@ end
 ################################################################################
 ## Training done manualy
 
-function train(model_name, system, data_file_name, input_dim=2; kws...)
+function train(model_name, system; kws...)
     ## Model and problem definition
     # model_name:               # Available : "latent_ode", "GOKU"
     # system:                   # Available : LV(), vdP_full(k),
@@ -205,7 +205,7 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
     raw_data = hcat(data_vec...)
     train_set, val_set = splitobs(raw_data, 0.8)
 
-    seq_len = 40
+    full_seq_len = seq_len = 40
     train_set = [train_set[:,k:k+seq_len-1] for k in 1:(size(train_set,2)-seq_len)]
     train_set = Flux.stack(train_set, 3)
 
@@ -263,7 +263,7 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
         end
 
         # Model evaluation length
-        t = range(t_span[1], step=dt, length=seq_len)
+        t = range(0.f0, step=dt, length=seq_len)
 
         mb_id = 1   # Minibatch id
         @info "Epoch $(epoch) .. (Sequence training length $(seq_len))"
@@ -293,7 +293,7 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
             # Use validation set to get loss and visualisation
             # val_set = time_loader(first(loader_val), full_seq_len, seq_len)
             val_set = Flux.unstack(first(loader_val), 2)
-            t_val = range(t_span[1], step=dt, length=length(val_set))
+            t_val = range(0.f0, step=dt, length=length(val_set))
             val_loss = loss_batch(model, λ, val_set |> device, t_val, af)
 
             # progress meter
@@ -306,7 +306,7 @@ function train(model_name, system, data_file_name, input_dim=2; kws...)
         loss_mem[epoch] = val_loss
         if device != gpu
             val_set = first(loader_val)
-            t_val = range(t_span[1], step=dt, length=size(val_set,2))
+            t_val = range(0.f0, step=dt, length=vis_len)
             visualize_val_image(model, val_set |> device, t_val, h, w)
         end
         if val_loss < best_val_loss
@@ -329,4 +329,4 @@ end
 # train("GOKU", vdP_full(6), "vdP6_data.bson", 12)
 # train("GOKU", SLV(), "SLV_data.bson", 2)
 # train("GOKU", SvdP_full(1), "SvdP_data.bson", 2)
-# train("GOKU", z_switch(), "SvdP_data.bson", 2)
+# train("GOKU", z_switch())
