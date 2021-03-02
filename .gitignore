@@ -2,3 +2,5 @@
 *.png
 other
 output
+
+pendulum_friction-less/*

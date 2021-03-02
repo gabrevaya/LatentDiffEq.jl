@@ -19,13 +19,25 @@ function rec_loss(x, pred_x)
 
     # Residual loss
     res = pred_x_stacked - x_stacked
+    # res_av1 = mean((res).^2, dims = 2)
+    # @show typeof(res_av1)
+    # res_av1[:,:,1] .*= 10.f0
+    # res_average = sum(mean(res_av1, dims = 3))
+
     res_average = sum(mean((res).^2, dims = (2, 3)))
 
-    # Differential residual loss
-    res_diff = diff(pred_x_stacked, dims = 3) - diff(x_stacked, dims = 3)
-    res_diff_average = sum(mean((res_diff).^2, dims = (2, 3)))
+    # # Differential residual loss
+    # res_diff = diff(pred_x_stacked, dims = 3) - diff(x_stacked, dims = 3)
+    # res_diff_average = sum(mean((res_diff).^2, dims = (2, 3)))
 
-    return (res_average + 100*res_diff_average)
+    # return (res_average + 100f0*res_diff_average)/size(pred_x_stacked,1)
+    return res_average/size(pred_x_stacked,1)
+end
+
+function rec_ini_loss(x, pred)
+    # Data prep
+    x_stacked = Flux.stack(x, 3)
+    res = mean((pred[1] - x_stacked[:,:,1]).^2)
 end
 
 function loss_batch(model::AbstractModel, λ, x, t, af)
@@ -36,6 +48,8 @@ function loss_batch(model::AbstractModel, λ, x, t, af)
 
     # Compute reconstruction (and differential) loss
     reconstruction_loss = rec_loss(x, pred_x)
+    rec_initial_condition_loss = rec_ini_loss(x, pred)
+    # @show rec_initial_condition_loss
 
     # Compute KL losses from parameter and initial value estimation
     # kl_loss = 0
@@ -46,8 +60,8 @@ function loss_batch(model::AbstractModel, λ, x, t, af)
 
     # Filthy one liner that does the for loop above # lit
     kl_loss = sum( [ mean(sum(KL.(lat_var[i][1], lat_var[i][2]), dims=1)) for i in 1:length(lat_var) ] )
-    
-    return reconstruction_loss + af*(kl_loss)
+    # @show reconstruction_loss + af*(kl_loss)
+    return reconstruction_loss + af*(kl_loss) + rec_initial_condition_loss
 end
 
 ## annealing factor parameters
@@ -117,6 +131,19 @@ function time_loader(x, full_seq_len, seq_len)
 
 end
 
+function time_loader2(x, full_seq_len, seq_len)
+
+    x_ = Array{Float32, 3}(undef, (size(x,1), seq_len, size(x,3)))
+
+    for i in 1:size(x,3)
+        x_[:,:,i] = x[:,rand_time(full_seq_len, seq_len),i]
+    end
+
+    x_samples_unstacked = Flux.unstack(x_, 3)
+    return x_samples_unstacked
+
+end
+
 function create_prob(sys_name, k, sys, u₀, tspan, p)
 
     func_folder = mkpath(joinpath("precomputed_systems", sys_name))
@@ -150,3 +177,44 @@ function create_prob(sys_name, k, sys, u₀, tspan, p)
     prob = ODEProblem(f, u₀, tspan, p, jac = jac, tgrad = tgrad)
     return prob
 end
+
+
+
+## for ILC
+
+
+function rec_loss(x::Array{T,2}, pred_x) where T
+    pred_stacked = Flux.stack(pred_x, 2)
+    # Residual loss
+    res = x - pred_stacked
+    res_average = mean((res).^2, dims = (1, 2))
+    return res_average[1]
+end
+
+function ILC_train(x, model, λ, t, af, device, ILC_threshold, ps)
+    grads = Zygote.Grads[]
+    for sample in x
+        loss, back = Flux.pullback(ps) do
+            # Compute loss
+            loss_batch(model, λ, sample |> device, t, af)
+        end
+        # Backpropagate
+        grad = back(1f0)
+        push!(grads, grad)
+    end
+
+    masking!.(ps, Ref(grads), ILC_threshold)
+    return grads[1]
+end
+
+function masking!(p, grads, threshold)
+    if ~(grads[1][p] == nothing)
+        mean_signs = mean([sign.(el[p]) for el in grads])
+        mask = mean_signs .< threshold
+        mean_grads = mean([el[p] for el in grads])
+        mean_grads[mask] .= 0.f0
+        grads[1][p][:] = mean_grads[:]
+    end
+end
+
+rec_ini_loss(x::Array{T,2}, pred) where T = mean((pred[1] - x[:,1]).^2)
