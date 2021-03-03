@@ -137,7 +137,8 @@ function (decoder::GOKU_decoder)(ẑ₀, θ̂, t)
     function output_func(sol, i)
         # Check if solve was successful, if not fill z_pred with zeros to avoid problems with dimensions matches
         if sol.retcode != :Success
-            return (zeros(Float32, size(ẑ₀, 1), size(t,1)), false)
+            # return (zeros(Float32, size(ẑ₀, 1), size(t,1)), false)
+            return (fill(NaN32,(size(ẑ₀, 1), size(t,1))), false)
             # return (1000*ones(Float32, size(ẑ₀, 1), size(t,1)), false)
         else
             return (Array(sol), false)
