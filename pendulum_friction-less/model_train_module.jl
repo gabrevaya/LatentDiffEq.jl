@@ -9,6 +9,7 @@ using BSON: @save
 using Flux.Data: DataLoader
 using Flux
 using OrdinaryDiffEq
+using ModelingToolkit
 
 ################################################################################
 ## Arguments for the train function
