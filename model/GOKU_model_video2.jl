@@ -103,11 +103,11 @@ struct GOKU_decoder <: AbstractDecoder
     function GOKU_decoder(input_dim, hidden_dim1, hidden_dim2, hidden_dim3,
                             latent_dim, hidden_dim_latent_ode, ode_dim, θ_dim,
                             ode_prob, transform, solver, SDE, device)
-
+        
         z₀_linear = Chain(Dense(latent_dim, hidden_dim_latent_ode, relu),
                           Dense(hidden_dim_latent_ode, ode_dim)) |> device
         θ_linear = Chain(Dense(latent_dim, hidden_dim_latent_ode, relu),
-                         Dense(hidden_dim_latent_ode, θ_dim, softplus)) |> device
+                         Dense(hidden_dim_latent_ode, θ_dim, x -> 5*σ(x))) |> device
 
 
         l1 = Dense(ode_dim, hidden_dim1, relu)

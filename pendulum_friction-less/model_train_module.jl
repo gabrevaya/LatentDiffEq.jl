@@ -1,3 +1,4 @@
+using .LatentDE
 using Images, FileIO
 using DrWatson: struct2dict
 using Logging: with_logger
@@ -19,7 +20,7 @@ using ModelingToolkit
     λ = 0.01f0                  # regularization paramater
     batch_size = 64             # minibatch size
     seq_len = 50                # sampling size for output
-    epochs = 200               # number of epochs for training
+    epochs = 200                # number of epochs for training
     seed = 1                    # random seed
     cuda = false                # GPU usage
     dt = 0.05                   # timestep for ode solve
@@ -33,7 +34,7 @@ using ModelingToolkit
     start_seq_len = 10          # training sequence length at first step
 
     ## Visualization
-    vis_len = 50                # number of frames to visualize after each epoch
+    vis_len = 60                # number of frames to visualize after each epoch
 
     ## Model dimensions
     # input_dim = 8             # input dimension
