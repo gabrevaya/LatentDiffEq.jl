@@ -12,7 +12,6 @@ struct SvdP_full{T, P, F} <: AbstractSystem
 
     function SvdP_full(k::Int64)
         # Default parameters and initial conditions
-        Random.seed!(2)
         α₁ = fill(0.6f0, k) + 0.2f0*randn(Float32,k)
         α₂ = fill(10.f0, k) + 0.2f0*randn(Float32,k)
         W = rand(Float32, k^2)
@@ -41,14 +40,8 @@ struct SvdP_full{T, P, F} <: AbstractSystem
         _prob = ODEProblem(f!, u₀, tspan, p)
 
         @info "Optimizing ODE Problem"
-        # prob,_ = auto_optimize(_prob, verbose = false, static = false)
         sys = modelingtoolkitize(_prob)
-        # prob = ODEProblem(sys,_prob.u0,_prob.tspan,_prob.p,
-        #                        jac = true, tgrad = true, simplify = true,
-        #                        sparse = false,
-        #                        parallel = ModelingToolkit.SerialForm(),
-        #                        eval_expression = false)
-        prob = create_prob("Stochastic_van_der_Pol", k, sys, u₀, tspan, p)
+        prob = create_prob("Stochastic_van_der_Pol_$k", k, sys, u₀, tspan, p)
 
         function σ(du,u,p,t)
             du .= 0.2f0*u

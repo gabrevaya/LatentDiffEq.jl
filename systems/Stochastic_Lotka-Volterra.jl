@@ -30,18 +30,8 @@ struct SLV{T,P,F} <: AbstractSystem
         _prob = ODEProblem(f!, u₀, tspan, p)
 
         @info "Optimizing ODE Problem"
-        # prob,_ = auto_optimize(_prob, verbose = false, static = false)
         sys = modelingtoolkitize(_prob)
-        # prob = ODEProblem(sys,_prob.u0,_prob.tspan,_prob.p,
-        #                        jac = true, tgrad = true, simplify = true,
-        #                        sparse = false,
-        #                        parallel = ModelingToolkit.SerialForm(),
-        #                        eval_expression = false)
         prob = create_prob("Stochastic_Lotka-Volterra", 1, sys, u₀, tspan, p)
-
-        # function σ(du,u,p,t)
-        #     du .= 0.001f0
-        # end
 
         function σ(du,u,p,t)
             du .= 0.1f0*u

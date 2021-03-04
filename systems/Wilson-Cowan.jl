@@ -12,7 +12,6 @@ struct WC_full{T, P, F} <: AbstractSystem
 
     function WC_full(k::Int64)
         # Default parameters and initial conditions
-        Random.seed!(1)
         α₁ = randn(Float32,k)
         α₂ = randn(Float32,k)
         α₃ = randn(Float32,k)
@@ -42,18 +41,12 @@ struct WC_full{T, P, F} <: AbstractSystem
 
         output_transform(x) = x
 
-        # Build ODE Problem
-       _prob = ODEProblem(f!, u₀, tspan, p)
+            # Build ODE Problem
+        _prob = ODEProblem(f!, u₀, tspan, p)
 
-       @info "Optimizing ODE Problem"
-       # prob,_ = auto_optimize(_prob, verbose = false, static = false)
-       sys = modelingtoolkitize(_prob)
-       # prob = ODEProblem(sys,_prob.u0,_prob.tspan,_prob.p,
-       #                        jac = true, tgrad = true, simplify = true,
-       #                        sparse = false,
-       #                        parallel = ModelingToolkit.SerialForm(),
-       #                        eval_expression = false)
-       prob = create_prob("Wilson-Cowan", k, sys, u₀, tspan, p)
+        @info "Optimizing ODE Problem"
+        sys = modelingtoolkitize(_prob)
+        prob = create_prob("Wilson-Cowan_full_$k", k, sys, u₀, tspan, p)
 
         T = typeof(u₀)
         P = typeof(prob)
@@ -74,7 +67,6 @@ struct WC{T, P, F} <: AbstractSystem
 
     function WC(k::Int64)
         # Default parameters and initial conditions
-        Random.seed!(1)
         α₁ = randn(Float32,k)
         α₂ = randn(Float32,k)
         α₃ = randn(Float32,k)
@@ -103,16 +95,12 @@ struct WC{T, P, F} <: AbstractSystem
         output_transform(x) = x
 
         # Build ODE Problem
-       _prob = ODEProblem(f!, u₀, (0.f0, 1.f0), p)
+        _prob = ODEProblem(f!, u₀, tspan, p)
 
-       @info "Optimizing ODE Problem"
-       # prob,_ = auto_optimize(_prob, verbose = false, static = false)
-       sys = modelingtoolkitize(_prob)
-       prob = ODEProblem(sys,_prob.u0,_prob.tspan,_prob.p,
-                              jac = true, tgrad = true, simplify = true,
-                              sparse = false,
-                              parallel = ModelingToolkit.SerialForm(),
-                              eval_expression = false)
+        @info "Optimizing ODE Problem"
+        sys = modelingtoolkitize(_prob)
+        prob = create_prob("Wilson-Cowan_$k", k, sys, u₀, tspan, p)
+ 
 
         T = typeof(u₀)
         P = typeof(prob)
@@ -132,7 +120,6 @@ struct WC_identical_local{T, P,F} <: AbstractSystem
 
     function WC_identical_local(k::Int64)
         # Default parameters and initial conditions
-        Random.seed!(1)
         α₁ = randn(Float32)
         α₂ = randn(Float32)
         α₃ = randn(Float32)
@@ -158,21 +145,14 @@ struct WC_identical_local{T, P,F} <: AbstractSystem
             @. dx[k+1:end] = -x₂ + σ(α₃*x₁)
         end
 
-
         output_transform(x) = x
 
-
         # Build ODE Problem
-       _prob = ODEProblem(f!, u₀, (0.f0, 1.f0), p)
+        _prob = ODEProblem(f!, u₀, tspan, p)
 
-       @info "Optimizing ODE Problem"
-       # prob,_ = auto_optimize(_prob, verbose = false, static = false)
-       sys = modelingtoolkitize(_prob)
-       prob = ODEProblem(sys,_prob.u0,_prob.tspan,_prob.p,
-                              jac = true, tgrad = true, simplify = true,
-                              sparse = false,
-                              parallel = ModelingToolkit.SerialForm(),
-                              eval_expression = false)
+        @info "Optimizing ODE Problem"
+        sys = modelingtoolkitize(_prob)
+        prob = create_prob("Wilson-Cowan_identical_local_$k", k, sys, u₀, tspan, p)
 
         T = typeof(u₀)
         P = typeof(prob)

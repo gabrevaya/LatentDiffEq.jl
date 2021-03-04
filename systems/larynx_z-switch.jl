@@ -29,13 +29,7 @@ struct z_switch{T,P,F} <: AbstractSystem
         _prob = ODEProblem(f!, u₀, tspan, p)
 
         @info "Optimizing ODE Problem"
-        # prob,_ = auto_optimize(_prob, verbose = false, static = false)
         sys = modelingtoolkitize(_prob)
-        # prob = ODEProblem(sys,_prob.u0,_prob.tspan,_prob.p,
-        #                        jac = true, tgrad = true, simplify = true,
-        #                        sparse = false,
-        #                        parallel = ModelingToolkit.SerialForm(),
-        #                        eval_expression = false)
         prob = create_prob("z-switch", 1, sys, u₀, tspan, p)
 
         T = typeof(u₀)
