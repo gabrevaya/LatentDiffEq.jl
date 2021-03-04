@@ -1,5 +1,5 @@
 using .LatentDE
-using Images, FileIO
+using FileIO
 using DrWatson: struct2dict
 using Logging: with_logger
 using Parameters: @with_kw
@@ -48,10 +48,6 @@ using ModelingToolkit
 
     ## Model parameters
     variational = true
-
-    ## ILC
-    ILC = false                 # train with ILC
-    ILC_threshold = 0.1f0       # ILC threshold
 
     ## SDE
     SDE = false                  # working with SDEs instead of ODEs
@@ -146,7 +142,6 @@ function train(model_name, system; kws...)
     ############################################################################
     ## Main train loop
     @info "Start Training of $(model_name)-net, total $(epochs) epochs"
-    @info "ILC: $ILC"
     for epoch = 1:epochs
 
         ## define seq_len according to training mode (progressive or not)
@@ -166,21 +161,15 @@ function train(model_name, system; kws...)
             af = annealing_factor(start_af, end_af, ae, epoch, mb_id, length(loader_train))
             mb_id += 1
 
-            if ILC
-                # Use only a random sequence of length seq_len for all sample in the minibatch
-                x = time_loader2(x, full_seq_len, seq_len)
-                grad = ILC_train(x, model, λ, t, af, device, ILC_threshold, ps)
-            else
-                # Use only a random sequence of length seq_len for all sample in the minibatch
-                x = time_loader(x, full_seq_len, seq_len)
-                loss, back = Flux.pullback(ps) do
-                    loss_batch(model, λ, x |> device, t, af)
-                end
-                # Backpropagate and update
-                grad = back(1f0)
+            # Use only a random sequence of length seq_len for all sample in the minibatch
+            x = time_loader(x, full_seq_len, seq_len)
+            loss, back = Flux.pullback(ps) do
+                loss_batch(model, λ, x |> device, t, af)
             end
-
+            # Backpropagate and update
+            grad = back(1f0)
             Flux.Optimise.update!(opt, ps, grad)
+
             # Use validation set to get loss and visualisation
             # val_set = time_loader(first(loader_val), full_seq_len, seq_len)
             val_set = Flux.unstack(first(loader_val), 2)
@@ -189,9 +178,6 @@ function train(model_name, system; kws...)
 
             # progress meter
             next!(progress; showvalues=[(:loss, loss),(:val_loss, val_loss)])
-            # next!(progress; showvalues=[(:loss, loss)])
-            # next!(progress; showvalues=[(:val_loss, val_loss)])
-
         end
 
         loss_mem[epoch] = val_loss

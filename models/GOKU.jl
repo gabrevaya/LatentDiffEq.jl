@@ -109,7 +109,6 @@ struct GOKU_decoder <: AbstractDecoder
         θ_linear = Chain(Dense(latent_dim, hidden_dim_latent_ode, relu),
                          Dense(hidden_dim_latent_ode, θ_dim, x -> 5*σ(x))) |> device
 
-
         l1 = Dense(ode_dim, hidden_dim1, relu)
         l2 = Dense(hidden_dim1, hidden_dim1, relu)
         l3 = Dense(hidden_dim1, hidden_dim1, relu)
@@ -152,7 +151,7 @@ function (decoder::GOKU_decoder)(ẑ₀, θ̂, t)
 
     ## Solve
     if decoder.SDE
-        ẑ = solve(ens_prob, SOSRI(), sensealg=ForwardDiffSensitivity(), trajectories=size(θ̂, 2), saveat = t) |> decoder.device
+        ẑ = solve(ens_prob, SOSRI(), EnsembleSerial(), sensealg=ForwardDiffSensitivity(), trajectories=size(θ̂, 2), saveat = t) |> decoder.device
     else
         ẑ = solve(ens_prob, decoder.solver, EnsembleSerial(), sensealg=BacksolveAdjoint(autojacvec=ReverseDiffVJP(true),checkpointing=true), trajectories=size(θ̂, 2), saveat = t) |> decoder.device
     end
