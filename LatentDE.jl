@@ -27,14 +27,25 @@ include("./utils/visualize.jl")
 export visualize_val_image
 
 ## Predefined systems
-include("./system/pendulum.jl")
+include("./systems/pendulum.jl")
 export pendulum
-
-include("./system/Kuramoto.jl")
-export Kuramoto
+include("./systems/Kuramoto.jl")
+export Kuramoto, Kuramoto_basic
+include("./systems/Hopf.jl")
+export Hopf
+include("./systems/Lotka-Volterra.jl")
+export LV
+include("./systems/van_der_Pol.jl")
+export vdP_full, vdP_identical_local
+include("./systems/Wilson-Cowan.jl")
+export WC_full, WC, WC_identical_local
+include("./systems/Stochastic_van_der_Pol.jl")
+export SvdP_full
+include("./systems/Stochastic_Lotka-Volterra.jl")
+export SLV
 
 ## Model definitions
-include("./model/GOKU_model_video2.jl")
+include("./models/GOKU.jl")
 export Goku
 
 end # end LatentDE module
