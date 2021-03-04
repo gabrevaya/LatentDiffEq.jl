@@ -168,13 +168,13 @@ function visualize_val_image(model, val_set, t_val, h, w, color_scheme)
     j = rand(1:size(val_set,3))
     X_test = val_set[:,:,j]
     frames_test = [get.(Ref(color_scheme), reshape(x,h,w)) for x in eachcol(X_test)]
-
+    X_test = reshape(X_test, Val(3))
     x = Flux.unstack(X_test, 2)
 
-    lat_var, pred_x, pred = model(x, t_val)
+    lat_var, pred_x, pred, ẑ = model(x, t_val)
     pred_x = Flux.stack(pred_x, 2)
 
-    frames_pred = [get.(Ref(color_scheme), reshape(x,h,w)) for x in eachcol(pred_x)]
+    frames_pred = [get.(Ref(color_scheme), reshape(x,h,w)) for x in eachslice(pred_x, dims=2)]
 
     plt = mosaicview(frames_test..., frames_pred..., nrow=2, rowmajor=true)
     display(plt)

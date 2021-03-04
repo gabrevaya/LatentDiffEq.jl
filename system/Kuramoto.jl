@@ -12,7 +12,6 @@ struct Kuramoto_basic{T,P,F} <: AbstractSystem
 
     function Kuramoto_basic(N)
         # Default parameters and initial conditions
-        Random.seed!(1)
         θ₀ = randn(Float32, N)
         ω = rand(Float32, N)
         K = rand(Float32)
@@ -63,7 +62,6 @@ struct Kuramoto{T,P,F} <: AbstractSystem
 
     function Kuramoto(N)
         # Default parameters and initial conditions
-        Random.seed!(1)
         θ₀ = randn(Float32, N)
         ω = rand(Float32, N)
         C = rand(Float32)
@@ -97,7 +95,7 @@ struct Kuramoto{T,P,F} <: AbstractSystem
         #                       parallel = ModelingToolkit.SerialForm(),
         #                       eval_expression = false)
 
-        prob = create_prob("Kuramoto", N, sys, θ₀, tspan, p)
+        prob = create_prob("Kuramoto_$N", N, sys, θ₀, tspan, p)
 
         T = typeof(θ₀)
         P = typeof(prob)

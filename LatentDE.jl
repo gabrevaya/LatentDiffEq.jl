@@ -30,6 +30,9 @@ export visualize_val_image
 include("./system/pendulum.jl")
 export pendulum
 
+include("./system/Kuramoto.jl")
+export Kuramoto
+
 ## Model definitions
 include("./model/GOKU_model_video2.jl")
 export Goku
