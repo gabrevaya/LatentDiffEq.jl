@@ -15,6 +15,12 @@ using ModelingToolkit
 ################################################################################
 ## Arguments for the train function
 @with_kw mutable struct Args
+    ## Global model
+    LatentDE_model = Goku       # Available: Goku, LatentODE
+
+    ## Latent model
+    system = pendulum()         
+
     ## Training params
     η = 1e-2                    # learning rate
     λ = 0.01f0                  # regularization paramater
@@ -54,34 +60,20 @@ using ModelingToolkit
 
     ## Save paths and keys
     save_path = "output"        # results path
-    # data_file_name = "kuramoto_data.bson"  # data file name
-    raw_data_name = "raw_data"  # raw data name
-    transformed_data_name = "transformed_data"
-    gen_data_name = "gen_data"  # generated data name
-
+    
 end
 
 ################################################################################
 ################################################################################
 ## Training done manualy
 
-function train(model_name, system; kws...)
-    ## Model and problem definition
-    # model_name:               # Available : "latent_ode", "GOKU"
-    # system:                   # Available : LV(), vdP_full(k),
-                                #             vdP_identical_local(k)
-                                #             WC_full(k), WC(k),
-                                #             WC_identical_local(k)
-                                #             (k → number of oscillators)
-
-    ############################################################################
+function train(; kws...)
     ## Load hyperparameters and GPU config
-
     args = Args(; kws...)
     @unpack_Args args
 
     seed > 0 && Random.seed!(seed)
-    
+
     device = cpu
     @info "Training on CPU"
 
@@ -111,7 +103,7 @@ function train(model_name, system; kws...)
     ############################################################################
     ## initialize model object and parameter reference
     # Create model
-    model = Goku(input_dim, hidden_dim1, hidden_dim2, hidden_dim3,
+    model = LatentDE_model(input_dim, hidden_dim1, hidden_dim2, hidden_dim3,
                 rnn_input_dim, rnn_output_dim, latent_dim, hidden_dim_latent_ode,
                 length(system.u₀), length(system.p), system.prob, system.transform,
                 Tsit5(), variational, SDE, device)
@@ -144,7 +136,7 @@ function train(model_name, system; kws...)
     
     ############################################################################
     ## Main train loop
-    @info "Start Training of $(model_name)-net, total $(epochs) epochs"
+    @info "Start Training of $(LatentDE_model.name)-net, total $epochs epochs"
     for epoch = 1:epochs
 
         ## define seq_len according to training mode (progressive or not)
@@ -156,7 +148,7 @@ function train(model_name, system; kws...)
         t = range(0.f0, step=dt, length=seq_len)
 
         mb_id = 1   # Minibatch id
-        @info "Epoch $(epoch) .. (Sequence training length $(seq_len))"
+        @info "Epoch $epoch .. (Sequence training length $seq_len)"
         progress = Progress(length(loader_train))
         for x in loader_train
 
@@ -191,12 +183,12 @@ function train(model_name, system; kws...)
         end
         if val_loss < best_val_loss
             best_val_loss = deepcopy(val_loss)
-            model_path = joinpath(save_path, "best_model_$(model_name).bson")
+            model_path = joinpath(save_path, "best_model_$(LatentDE_model.name).bson")
 
             let
                 # model = cpu(model)
                 @save model_path model
-                @info "Model saved: $(model_path)"
+                @info "Model saved: $model_path"
             end
 
         end
@@ -204,7 +196,7 @@ function train(model_name, system; kws...)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    train("GOKU", pendulum())
+    train()
 end
 
-# train("GOKU", pendulum())
+# train()

@@ -74,14 +74,14 @@ end
 ################################################################################
 ## Latent ODE model definition (Encoder/decoder container)
 
-struct Latent_ODE <: AbstractModel
+struct LatentODE <: AbstractModel
 
     encoder::LODE_encoder
     decoder::LODE_decoder
 
     device
 
-    function Latent_ODE(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, hidden_dim_node, device)
+    function LatentODE(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, hidden_dim_node, device)
 
         encoder = LODE_encoder(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, device)
         decoder = LODE_decoder(input_dim, latent_dim, hidden_dim, hidden_dim_node, device)
@@ -92,14 +92,14 @@ struct Latent_ODE <: AbstractModel
 
 end
 
-function (latent_ODE::Latent_ODE)(x, t)
+function (LatentODE::LatentODE)(x, t)
 
     μ, logσ² = latent_ODE.encoder(x)
-    ẑ₀ = μ + latent_ODE.device(randn(Float32, size(logσ²))) .* exp.(logσ²/2f0)
-    x̂, ẑ = latent_ODE.decoder(ẑ₀, t)
+    ẑ₀ = μ + LatentODE.device(randn(Float32, size(logσ²))) .* exp.(logσ²/2f0)
+    x̂, ẑ = LatentODE.decoder(ẑ₀, t)
     return ((μ, logσ²),), x̂, (ẑ₀,), ẑ
 end
 
 Flux.@functor LODE_encoder
 Flux.@functor LODE_decoder
-Flux.@functor Latent_ODE
+Flux.@functor LatentODE

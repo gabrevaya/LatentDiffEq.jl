@@ -36,7 +36,8 @@ struct Kuramoto_basic{T,P,F} <: AbstractSystem
 
         @info "Optimizing ODE Problem"
         sys = modelingtoolkitize(_prob)
-        prob = create_prob("Kuramoto_basic_$k", N, sys, θ₀, tspan, p)
+        ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
+        prob = ODEProblem(ODEFunc, θ₀, tspan, p)
 
         T = typeof(θ₀)
         P = typeof(prob)
@@ -82,7 +83,8 @@ struct Kuramoto{T,P,F} <: AbstractSystem
 
         @info "Optimizing ODE Problem"
         sys = modelingtoolkitize(_prob)
-        prob = create_prob("Kuramoto_$N", N, sys, θ₀, tspan, p)
+        ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
+        prob = ODEProblem(ODEFunc, θ₀, tspan, p)
 
         T = typeof(θ₀)
         P = typeof(prob)

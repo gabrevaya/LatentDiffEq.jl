@@ -21,15 +21,14 @@ export AbstractSystem
 include("./utils/utils.jl")
 export KL, loss_batch, annealing_factor
 export NormalizeToUnitSegment, time_loader
-export create_prob
 
 include("./utils/visualize.jl")
 export visualize_val_image
 
 ## Model definitions
 include("./models/GOKU.jl")
-include("./models/latent_ode_model.jl")
-export Goku, Latent_ODE
+include("./models/LatentODE.jl")
+export Goku, LatentODE
 
 ## Predefined systems
 include("./systems/pendulum.jl")

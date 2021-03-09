@@ -30,8 +30,9 @@ struct LV{T,P,F} <: AbstractSystem
 
         @info "Optimizing ODE Problem"
         sys = modelingtoolkitize(_prob)
-        prob = create_prob("Lotka-Volterra", 1, sys, u₀, tspan, p)
-
+        ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
+        prob = ODEProblem(ODEFunc, u₀, tspan, p)
+        
         T = typeof(u₀)
         P = typeof(prob)
         F = typeof(output_transform)

@@ -42,7 +42,8 @@ struct vdP_full{T, P, F} <: AbstractSystem
 
         @info "Optimizing ODE Problem"
         sys = modelingtoolkitize(_prob)
-        prob = create_prob("van_der_Pol_$k", k, sys, u₀, tspan, p)
+        ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
+        prob = ODEProblem(ODEFunc, u₀, tspan, p)
 
         T = typeof(u₀)
         P = typeof(prob)
@@ -92,8 +93,9 @@ struct vdP_identical_local{T, P, F} <: AbstractSystem
 
         @info "Optimizing ODE Problem"
         sys = modelingtoolkitize(_prob)
-        prob = create_prob("van_der_Pol_identical_locals_$k", k, sys, u₀, tspan, p)
-
+        ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
+        prob = ODEProblem(ODEFunc, u₀, tspan, p)
+        
         T = typeof(u₀)
         P = typeof(prob)
         F = typeof(output_transform)

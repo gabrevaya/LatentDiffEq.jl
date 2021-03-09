@@ -46,7 +46,8 @@ struct WC_full{T, P, F} <: AbstractSystem
 
         @info "Optimizing ODE Problem"
         sys = modelingtoolkitize(_prob)
-        prob = create_prob("Wilson-Cowan_full_$k", k, sys, u₀, tspan, p)
+        ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
+        prob = ODEProblem(ODEFunc, u₀, tspan, p)
 
         T = typeof(u₀)
         P = typeof(prob)
@@ -99,8 +100,8 @@ struct WC{T, P, F} <: AbstractSystem
 
         @info "Optimizing ODE Problem"
         sys = modelingtoolkitize(_prob)
-        prob = create_prob("Wilson-Cowan_$k", k, sys, u₀, tspan, p)
- 
+        ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
+        prob = ODEProblem(ODEFunc, u₀, tspan, p) 
 
         T = typeof(u₀)
         P = typeof(prob)
@@ -152,7 +153,8 @@ struct WC_identical_local{T, P,F} <: AbstractSystem
 
         @info "Optimizing ODE Problem"
         sys = modelingtoolkitize(_prob)
-        prob = create_prob("Wilson-Cowan_identical_local_$k", k, sys, u₀, tspan, p)
+        ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
+        prob = ODEProblem(ODEFunc, u₀, tspan, p)
 
         T = typeof(u₀)
         P = typeof(prob)
@@ -165,5 +167,4 @@ end
 
 import NNlib:σ
 
-# σ(x::Num) = ModelingToolkit.Constant(1) / ( ModelingToolkit.Constant(1) + exp(-x))
 σ(x::Num) = Num(1) / ( Num(1) + exp(-x))

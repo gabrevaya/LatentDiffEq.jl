@@ -75,7 +75,8 @@ struct Hopf{T,P,F} <: AbstractSystem
 
        @info "Optimizing ODE Problem"
        sys = modelingtoolkitize(_prob)
-       prob = create_prob("Hopf_$k", k, sys, u₀, tspan, p)
+       ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
+       prob = ODEProblem(ODEFunc, u₀, tspan, p)
 
        T = typeof(u₀)
        P = typeof(prob)
