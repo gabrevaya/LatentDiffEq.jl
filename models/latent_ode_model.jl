@@ -12,8 +12,8 @@ struct LODE_encoder <: AbstractEncoder
 
     linear
     rnn
-    μ
-    logσ²
+    rnn_μ
+    rnn_logσ²
 
     device
 
@@ -23,23 +23,21 @@ struct LODE_encoder <: AbstractEncoder
                        Dense(hidden_dim, rnn_input_dim, relu)) |> device
         rnn = Chain(RNN(rnn_input_dim, rnn_output_dim, relu),
                     RNN(rnn_output_dim, rnn_output_dim, relu)) |> device
-        μ = Dense(rnn_output_dim, latent_dim) |> device
-        logσ² = Dense(rnn_output_dim, latent_dim) |> device
+        rnn_μ = Dense(rnn_output_dim, latent_dim) |> device
+        rnn_logσ² = Dense(rnn_output_dim, latent_dim) |> device
 
-        new(linear, rnn, μ, logσ², device)
+        new(linear, rnn, rnn_μ, rnn_logσ², device)
     end
 end
 
-Flux.@functor LODE_encoder
-
 function (encoder::LODE_encoder)(x)
 
-    h1 = encoder.linear.(x)
+    h0 = encoder.linear.(x)
     # reverse time and pass to the rnn
-    h = encoder.rnn.(h1[end:-1:1])[end]
+    h0_rev = reverse(h0)
+    h = encoder.rnn.(h0_rev)[end]
     reset!(encoder.rnn)
-    encoder.μ(h), encoder.logσ²(h)
-    
+    encoder.rnn_μ(h), encoder.rnn_logσ²(h)
 end
 
 ################################################################################
@@ -52,30 +50,25 @@ struct LODE_decoder <: AbstractDecoder
 
     device
 
-    function LODE_decoder(input_dim, latent_dim, hidden_dim, hidden_dim_node, time_size, t_max, device)
+    function LODE_decoder(input_dim, latent_dim, hidden_dim_node, hidden_dim_linear, device)
 
         dudt = Chain(Dense(latent_dim, hidden_dim_node, relu),
                         Dense(hidden_dim_node, hidden_dim_node, relu),
                         Dense(hidden_dim_node, latent_dim)) |> device
-        # tspan = (zero(t_max), t_max)
-        # t = range(tspan[1], tspan[2], length=time_size)
-        #
-        # node = NeuralODE(dudt, tspan, Tsit5(), saveat = t)
-        linear = Chain(Dense(latent_dim, hidden_dim, relu),
-                       Dense(hidden_dim, input_dim)) |> device
+
+        linear = Chain(Dense(latent_dim, hidden_dim_linear, relu),
+                       Dense(hidden_dim_linear, input_dim)) |> device
 
         new(dudt, linear, device)
         end
 end
 
-Flux.@functor LODE_decoder
-
 function (decoder::LODE_decoder)(x, t)
 
     nODE = NeuralODE(decoder.dudt, (t[1], t[end]), Tsit5(), saveat = t)
-    h = Array(nODE(x)) |> decoder.device
-    h2 = Flux.unstack(h, 3)
-    decoder.linear.(h2)
+    ẑ = Array(nODE(x)) |> decoder.device
+    x̂ = decoder.linear.(Flux.unstack(ẑ, 3))
+    return x̂, ẑ
 end
 
 ################################################################################
@@ -88,10 +81,10 @@ struct Latent_ODE <: AbstractModel
 
     device
 
-    function Latent_ODE(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, hidden_dim_node, time_size, t_max, device)
+    function Latent_ODE(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, hidden_dim_node, device)
 
         encoder = LODE_encoder(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, device)
-        decoder = LODE_decoder(input_dim, latent_dim, hidden_dim, hidden_dim_node, time_size, t_max, device)
+        decoder = LODE_decoder(input_dim, latent_dim, hidden_dim, hidden_dim_node, device)
 
         new(encoder, decoder, device)
 
@@ -99,12 +92,14 @@ struct Latent_ODE <: AbstractModel
 
 end
 
-Flux.@functor Latent_ODE
-
 function (latent_ODE::Latent_ODE)(x, t)
 
     μ, logσ² = latent_ODE.encoder(x)
-    z = μ + latent_ODE.device(randn(Float32, size(logσ²))) .* exp.(logσ²/2f0)
-    ((μ, logσ²),), latent_ODE.decoder(z, t), (z)
-
+    ẑ₀ = μ + latent_ODE.device(randn(Float32, size(logσ²))) .* exp.(logσ²/2f0)
+    x̂, ẑ = latent_ODE.decoder(ẑ₀, t)
+    return ((μ, logσ²),), x̂, (ẑ₀,), ẑ
 end
+
+Flux.@functor LODE_encoder
+Flux.@functor LODE_decoder
+Flux.@functor Latent_ODE

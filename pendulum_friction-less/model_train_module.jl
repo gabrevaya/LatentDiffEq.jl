@@ -116,6 +116,9 @@ function train(model_name, system; kws...)
                 length(system.u₀), length(system.p), system.prob, system.transform,
                 Tsit5(), variational, SDE, device)
 
+    # model = Latent_ODE(input_dim, 2, hidden_dim1, rnn_input_dim,
+    #                         rnn_output_dim, hidden_dim2, device)
+
     # Get parameters
     ps = Flux.params(model)
     ############################################################################

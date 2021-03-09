@@ -28,7 +28,8 @@ export visualize_val_image
 
 ## Model definitions
 include("./models/GOKU.jl")
-export Goku
+include("./models/latent_ode_model.jl")
+export Goku, Latent_ODE
 
 ## Predefined systems
 include("./systems/pendulum.jl")

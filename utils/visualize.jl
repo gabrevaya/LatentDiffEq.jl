@@ -153,6 +153,7 @@ function visualize_val_image(model, val_set, t_val, h, w)
 
     lat_var, pred_x, pred, ẑ = model(x, t_val)
     plt = plot(ẑ[1,:,1])
+    # plt = plot(ẑ[1,1,:]) # for Latent ODE
     display(plt)
     @show pred
 
