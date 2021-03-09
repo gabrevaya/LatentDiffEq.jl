@@ -1,7 +1,8 @@
 
 
 ################################################################################
-## Problem Definition -- frictionless pendulum
+## Problem Definition -- "pendulum" with NN inside
+using DiffEqFlux
 
 struct pendulum_NN{T,P,F} <: AbstractSystem
     u₀::T
