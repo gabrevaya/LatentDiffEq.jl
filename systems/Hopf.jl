@@ -14,7 +14,6 @@ struct Hopf{T,P,F} <: AbstractSystem
 
     function Hopf(k::Int64)
         # Default parameters and initial conditions
-        Random.seed!(1)
         a = 0.2f0*randn(Float32,k)
         ω = (fill(0.055f0, k) + 0.03f0*randn(Float32,k))*2π  # f = ω/2π
         # Deco et al. (2017) uses G = 5.4 and max(abs.(C)) = 0.2. 5.4*0.2 = 1.08,
@@ -75,14 +74,9 @@ struct Hopf{T,P,F} <: AbstractSystem
        _prob = ODEProblem(f!, u₀, tspan, p)
 
        @info "Optimizing ODE Problem"
-       # prob,_ = auto_optimize(_prob, verbose = false, static = false)
        sys = modelingtoolkitize(_prob)
-       #prob = ODEProblem(sys,_prob.u0,_prob.tspan,_prob.p,
-       #                       jac = true, tgrad = true, simplify = true,
-       #                       sparse = true,
-       #                       parallel = ModelingToolkit.SerialForm(),
-       #                       eval_expression = false)
-       prob = create_prob("Hopf", k, sys, u₀, tspan, p)
+       ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
+       prob = ODEProblem(ODEFunc, u₀, tspan, p)
 
        T = typeof(u₀)
        P = typeof(prob)

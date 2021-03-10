@@ -12,7 +12,6 @@ struct Kuramoto_basic{T,P,F} <: AbstractSystem
 
     function Kuramoto_basic(N)
         # Default parameters and initial conditions
-        Random.seed!(1)
         θ₀ = randn(Float32, N)
         ω = rand(Float32, N)
         K = rand(Float32)
@@ -36,14 +35,9 @@ struct Kuramoto_basic{T,P,F} <: AbstractSystem
         _prob = ODEProblem(f!, θ₀, tspan, p)
 
         @info "Optimizing ODE Problem"
-        # prob,_ = auto_optimize(_prob, verbose = false, static = false)
         sys = modelingtoolkitize(_prob)
-        # prob = ODEProblem(sys,_prob.u0,_prob.tspan,_prob.p,
-        #                        jac = true, tgrad = true, simplify = true,
-        #                        sparse = false,
-        #                        parallel = ModelingToolkit.SerialForm(),
-        #                        eval_expression = false)
-        prob = create_prob("Kuramoto", N, sys, θ₀, tspan, p)
+        ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
+        prob = ODEProblem(ODEFunc, θ₀, tspan, p)
 
         T = typeof(θ₀)
         P = typeof(prob)
@@ -63,7 +57,6 @@ struct Kuramoto{T,P,F} <: AbstractSystem
 
     function Kuramoto(N)
         # Default parameters and initial conditions
-        Random.seed!(1)
         θ₀ = randn(Float32, N)
         ω = rand(Float32, N)
         C = rand(Float32)
@@ -89,15 +82,9 @@ struct Kuramoto{T,P,F} <: AbstractSystem
         _prob = ODEProblem(f!, θ₀, tspan, p)
 
         @info "Optimizing ODE Problem"
-        # prob,_ = auto_optimize(_prob, verbose = false, static = false)
         sys = modelingtoolkitize(_prob)
-        #prob = ODEProblem(sys,_prob.u0,_prob.tspan,_prob.p,
-        #                       jac = true, tgrad = true, simplify = true,
-        #                       sparse = false,
-        #                       parallel = ModelingToolkit.SerialForm(),
-        #                       eval_expression = false)
-
-        prob = create_prob("Kuramoto", N, sys, θ₀, tspan, p)
+        ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
+        prob = ODEProblem(ODEFunc, θ₀, tspan, p)
 
         T = typeof(θ₀)
         P = typeof(prob)

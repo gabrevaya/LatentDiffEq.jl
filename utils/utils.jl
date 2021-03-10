@@ -5,7 +5,7 @@
 KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
 
 # make it better for gpu
-CUDA.@cufunc KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
+# CUDA.@cufunc KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
 
 # the calculation via log(var) = log(σ²) is more numerically efficient than through log(σ)
 # KL(μ, logσ) = (exp(2f0 * logσ) + μ^2)/2f0 - 0.5f0 - logσ
@@ -176,21 +176,15 @@ function create_prob(sys_name, k, sys, u₀, tspan, p)
         jac = eval(computed_jac)
         tgrad = eval(computed_tgrad)
 
-        # JLD2.@save(f_file, f)
-        # JLD2.@save(jac_file, jac)
-        # JLD2.@save(tgrad_file, tgrad)
-        BSON.@save(f_file, f)
-        BSON.@save(jac_file, jac)
-        BSON.@save(tgrad_file, tgrad)
+        @save(f_file, f)
+        @save(jac_file, jac)
+        @save(tgrad_file, tgrad)
         
     else
         @info "Precomputed functions found for the system"
-        # JLD2.@load(f_file, f)
-        # JLD2.@load(jac_file, jac)
-        # JLD2.@load(tgrad_file, tgrad)
-        BSON.@load(f_file, f)
-        BSON.@load(jac_file, jac)
-        BSON.@load(tgrad_file, tgrad)
+        @load(f_file, f)
+        @load(jac_file, jac)
+        @load(tgrad_file, tgrad)
 
         # print(f)
     end
