@@ -22,44 +22,41 @@ using ModelingToolkit
     system = pendulum()         
 
     ## Training params
-    η = 1e-2                    # learning rate
-    λ = 0.01f0                  # regularization paramater
-    batch_size = 64             # minibatch size
-    seq_len = 50                # sampling size for output
-    epochs = 200                # number of epochs for training
-    seed = 1                    # random seed
-    cuda = false                # GPU usage
-    dt = 0.05                   # timestep for ode solve
-    start_af = 0.00001f0        # Annealing factor start value
-    end_af = 0.00001f0          # Annealing factor end value
-    ae = 200                    # Annealing factor epoch end
+    η = 1e-2                        # learning rate
+    λ = 0.01f0                      # regularization paramater
+    batch_size = 64                 # minibatch size
+    seq_len = 50                    # sampling size for output
+    epochs = 200                    # number of epochs for training
+    seed = 1                        # random seed
+    cuda = false                    # GPU usage
+    dt = 0.05                       # timestep for ode solve
+    start_af = 0.00001f0            # Annealing factor start value
+    end_af = 0.00001f0              # Annealing factor end value
+    ae = 200                        # Annealing factor epoch end
 
     ## Progressive observation training
-    progressive_training = false # progressive training usage
-    obs_seg_num = 20            # number of step to progressive training
-    start_seq_len = 10          # training sequence length at first step
+    progressive_training = false    # progressive training usage
+    obs_seg_num = 20                # number of step to progressive training
+    start_seq_len = 10              # training sequence length at first step
 
     ## Visualization
-    vis_len = 60                # number of frames to visualize after each epoch
+    vis_len = 60                    # number of frames to visualize after each epoch
 
     ## Model dimensions
-    # input_dim = 8             # input dimension
-    hidden_dim1 = 200
-    hidden_dim2 = 200
-    hidden_dim3 = 200
-    rnn_input_dim = 32          # rnn input dimension
-    rnn_output_dim = 16         # rnn output dimension
-    latent_dim = 16             # latent dimension
-    hidden_dim_latent_ode = 200 # hidden dimension
+    hidden_dim_resnet = 200
+    rnn_input_dim = 32              # rnn input dimension
+    rnn_output_dim = 16             # rnn output dimension
+    latent_dim = 16                 # latent dimension
+    hidden_dim_latent_to_ode = 200  # hidden dimension
 
     ## Model parameters
     variational = true
 
     ## SDE
-    SDE = false                  # working with SDEs instead of ODEs
+    SDE = false                     # working with SDEs instead of ODEs
 
     ## Save paths and keys
-    save_path = "output"        # results path
+    save_path = "output"            # results path
     
 end
 
@@ -104,13 +101,15 @@ function train(; kws...)
     ############################################################################
     ## initialize model object and parameter reference
     # Create model
-    model = LatentDE_model(input_dim, hidden_dim1, hidden_dim2, hidden_dim3,
-                rnn_input_dim, rnn_output_dim, latent_dim, hidden_dim_latent_ode,
-                length(system.u₀), length(system.p), system.prob, system.transform,
-                Tsit5(), variational, SDE, device)
+    model = LatentDE_model(input_dim, hidden_dim_resnet, rnn_input_dim,
+                            rnn_output_dim, latent_dim, hidden_dim_latent_to_ode,
+                            length(system.u₀), length(system.p), system.prob,
+                            system.transform, Tsit5(), variational, SDE, device)
 
-    # model = LatentODE(input_dim, 2, hidden_dim1, rnn_input_dim,
-    #                         rnn_output_dim, hidden_dim2, device)
+    # hidden_dim = hidden_dim_resnet
+    # hidden_dim_node = hidden_dim_resnet
+    # model = LatentODE(input_dim, 2, hidden_dim, rnn_input_dim,
+    #                         rnn_output_dim, hidden_dim_node, device)
 
     # Get parameters
     ps = Flux.params(model)

@@ -84,7 +84,7 @@ struct LatentODE <: AbstractModel
     function LatentODE(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, hidden_dim_node, device)
 
         encoder = LODE_encoder(input_dim, latent_dim, hidden_dim, rnn_input_dim, rnn_output_dim, device)
-        decoder = LODE_decoder(input_dim, latent_dim, hidden_dim, hidden_dim_node, device)
+        decoder = LODE_decoder(input_dim, latent_dim, hidden_dim_node, hidden_dim, device)
 
         new(encoder, decoder, device)
 

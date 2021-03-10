@@ -21,12 +21,13 @@ struct GOKU_encoder <: AbstractEncoder
 
     device
 
-    function GOKU_encoder(input_dim, hidden_dim1, hidden_dim2, hidden_dim3, rnn_input_dim, rnn_output_dim, latent_dim, device)
+    function GOKU_encoder(input_dim, hidden_dim_resnet, rnn_input_dim,
+                            rnn_output_dim, latent_dim, device)
 
-        l1 = Dense(input_dim, hidden_dim1, relu)
-        l2 = Dense(hidden_dim1, hidden_dim1, relu)
-        l3 = Dense(hidden_dim1, hidden_dim1, relu)
-        l4 = Dense(hidden_dim1, rnn_input_dim, relu)
+        l1 = Dense(input_dim, hidden_dim_resnet, relu)
+        l2 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
+        l3 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
+        l4 = Dense(hidden_dim_resnet, rnn_input_dim, relu)
 
         linear = Chain(l1,
                         SkipConnection(l2, +),
@@ -100,19 +101,19 @@ struct GOKU_decoder <: AbstractDecoder
 
     device
 
-    function GOKU_decoder(input_dim, hidden_dim1, hidden_dim2, hidden_dim3,
-                            latent_dim, hidden_dim_latent_ode, ode_dim, θ_dim,
+    function GOKU_decoder(input_dim, hidden_dim_resnet, latent_dim,
+                            hidden_dim_latent_to_ode, ode_dim, θ_dim,
                             ode_prob, transform, solver, SDE, device)
         
-        z₀_linear = Chain(Dense(latent_dim, hidden_dim_latent_ode, relu),
-                          Dense(hidden_dim_latent_ode, ode_dim)) |> device
-        θ_linear = Chain(Dense(latent_dim, hidden_dim_latent_ode, relu),
-                         Dense(hidden_dim_latent_ode, θ_dim, x -> 5*σ(x))) |> device
+        z₀_linear = Chain(Dense(latent_dim, hidden_dim_latent_to_ode, relu),
+                          Dense(hidden_dim_latent_to_ode, ode_dim)) |> device
+        θ_linear = Chain(Dense(latent_dim, hidden_dim_latent_to_ode, relu),
+                         Dense(hidden_dim_latent_to_ode, θ_dim, x -> 5*σ(x))) |> device
 
-        l1 = Dense(ode_dim, hidden_dim1, relu)
-        l2 = Dense(hidden_dim1, hidden_dim1, relu)
-        l3 = Dense(hidden_dim1, hidden_dim1, relu)
-        l4 = Dense(hidden_dim1, input_dim, σ)
+        l1 = Dense(ode_dim, hidden_dim_resnet, relu)
+        l2 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
+        l3 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
+        l4 = Dense(hidden_dim_resnet, input_dim, σ)
 
         gen_linear = Chain(l1,
                         SkipConnection(l2, +),
@@ -182,10 +183,10 @@ struct Goku <: AbstractModel
 
     device
 
-    function Goku(input_dim, hidden_dim1, hidden_dim2, hidden_dim3, rnn_input_dim, rnn_output_dim, latent_dim, hidden_dim_latent_ode, ode_dim, θ_dim, ode_prob, transform, solver, variational, SDE, device)
+    function Goku(input_dim, hidden_dim_resnet, rnn_input_dim, rnn_output_dim, latent_dim, hidden_dim_latent_to_ode, ode_dim, θ_dim, ode_prob, transform, solver, variational, SDE, device)
 
-        encoder = GOKU_encoder(input_dim, hidden_dim1, hidden_dim2, hidden_dim3, rnn_input_dim, rnn_output_dim, latent_dim, device)
-        decoder = GOKU_decoder(input_dim, hidden_dim1, hidden_dim2, hidden_dim3, latent_dim, hidden_dim_latent_ode, ode_dim, θ_dim, ode_prob, transform, solver, SDE, device)
+        encoder = GOKU_encoder(input_dim, hidden_dim_resnet, rnn_input_dim, rnn_output_dim, latent_dim, device)
+        decoder = GOKU_decoder(input_dim, hidden_dim_resnet, latent_dim, hidden_dim_latent_to_ode, ode_dim, θ_dim, ode_prob, transform, solver, SDE, device)
 
         new(encoder, decoder, variational, device)
     end
