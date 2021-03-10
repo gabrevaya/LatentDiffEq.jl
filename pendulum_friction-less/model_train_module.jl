@@ -83,6 +83,7 @@ function train(; kws...)
     
     root_dir = @__DIR__
     data_path = "pendulum_friction-less/data/jld/processed_data.jld2"
+    # data_path = "pendulum_friction/data/jld/processed_data.jld2"
     data_loaded = load(data_path, "processed_data")
     
     train_data = data_loaded["train"]
@@ -108,7 +109,7 @@ function train(; kws...)
                 length(system.u₀), length(system.p), system.prob, system.transform,
                 Tsit5(), variational, SDE, device)
 
-    # model = Latent_ODE(input_dim, 2, hidden_dim1, rnn_input_dim,
+    # model = LatentODE(input_dim, 2, hidden_dim1, rnn_input_dim,
     #                         rnn_output_dim, hidden_dim2, device)
 
     # Get parameters
