@@ -52,9 +52,6 @@ using ModelingToolkit
     ## Model parameters
     variational = true
 
-    ## SDE
-    SDE = false                     # working with SDEs instead of ODEs
-
     ## Save paths and keys
     save_path = "output"            # results path
     
@@ -104,7 +101,7 @@ function train(; kws...)
     model = LatentDE_model(input_dim, hidden_dim_resnet, rnn_input_dim,
                             rnn_output_dim, latent_dim, hidden_dim_latent_to_ode,
                             length(system.u₀), length(system.p), system.prob,
-                            system.transform, Tsit5(), variational, SDE, device)
+                            system.transform, Tsit5(), variational, device)
 
     # hidden_dim = hidden_dim_resnet
     # hidden_dim_node = hidden_dim_resnet

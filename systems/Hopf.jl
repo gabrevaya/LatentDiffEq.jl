@@ -1,4 +1,4 @@
-
+using StochasticDiffEq, DiffEqSensitivity
 
 ################################################################################
 ## Problem Definition -- Normal form of a supercritical Hopf bifurcation
@@ -82,5 +82,86 @@ struct Hopf{T,P,F} <: AbstractSystem
        P = typeof(prob)
        F = typeof(output_transform)
        new{T,P,F}(u₀, p, prob, output_transform)
+    end
+end
+
+
+
+struct Stoch_Hopf{T,P,F} <: AbstractSystem
+    
+    u₀::T
+    p::T
+    prob::P
+    transform::F
+
+    function Stoch_Hopf(k::Int64)
+        # Default parameters and initial conditions
+        a = 0.2f0*randn(Float32,k)
+        ω = (fill(0.055f0, k) + 0.03f0*randn(Float32,k))*2π  # f = ω/2π
+        # Deco et al. (2017) uses G = 5.4 and max(abs.(C)) = 0.2. 5.4*0.2 = 1.08,
+        # so we could use use just G = 1 and max(abs.(C)) = 1
+        G = 5.4f0
+        C = 0.2f0*rand(Float32,k^2)
+
+        # Let's make C sparse
+        # TODO: add C sparsity as a parameter when creating the problem
+
+        # sparsity = 0.95
+        # non_zero_connections = round(Int, (1 - sparsity)*k^2)
+        # connections = sample(1:k^2, non_zero_connections)
+        # C = zeros(Float32, k^2)
+        # C[connections] .= 0.2f0*rand(Float32, non_zero_connections)
+
+        u₀ = rand(Float32,2*k)
+        p = [a; ω; G; C]
+        tspan = (0.f0, 1.f0)
+
+
+        # Define differential equations
+        function f!(du,u,p,t)
+            k = length(u) ÷ 2
+            a = p[1:k]
+            ω = p[k+1:2*k]
+            G = p[2*k+1]
+            C_vec = p[2*k+2:end]
+            C = reshape(C_vec, (k,k))
+
+            x = u[1:k]
+            y = u[k+1:end]
+
+            for j ∈ 1:k
+                coupling_x = 0.f0
+                coupling_y = 0.f0
+                for i ∈ 1:k
+                    coupling_x += C[i,j]*(x[i] - x[j])
+                    coupling_y += C[i,j]*(y[i] - y[j])
+                end
+
+                du[j] = (a[j] - x[j]^2 - y[j]^2) * x[j] - ω[j]*y[j] + G*coupling_x
+                du[j+k] = (a[j] - x[j]^2 - y[j]^2) * y[j] + ω[j]*x[j] + G*coupling_y
+            end
+        end
+
+        output_transform(u) = u
+
+        # Build ODE Problem
+        _prob = ODEProblem(f!, u₀, tspan, p)
+
+        @info "Optimizing ODE Problem"
+        sys = modelingtoolkitize(_prob)
+        ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
+        prob = ODEProblem(ODEFunc, u₀, tspan, p)
+
+        function σ(du,u,p,t)
+            du .= 0.02f0
+        end
+
+        prob_sde = SDEProblem(prob.f.f, σ, prob.u0, prob.tspan, prob.p, jac = prob.f.jac, tgrad = prob.f.tgrad)
+
+
+        T = typeof(u₀)
+        P = typeof(prob_sde)
+        F = typeof(output_transform)
+        new{T,P,F}(u₀, p, prob_sde, output_transform)
     end
 end

@@ -97,13 +97,11 @@ struct GOKU_decoder <: AbstractDecoder
     θ_linear
     gen_linear
 
-    SDE::Bool
-
     device
 
     function GOKU_decoder(input_dim, hidden_dim_resnet, latent_dim,
                             hidden_dim_latent_to_ode, ode_dim, θ_dim,
-                            ode_prob, transform, solver, SDE, device)
+                            ode_prob, transform, solver, device)
         
         z₀_linear = Chain(Dense(latent_dim, hidden_dim_latent_to_ode, relu),
                           Dense(hidden_dim_latent_to_ode, ode_dim)) |> device
@@ -120,7 +118,7 @@ struct GOKU_decoder <: AbstractDecoder
                         SkipConnection(l3, +),
                         l4)  |> device
 
-        new(solver, ode_prob, transform, z₀_linear, θ_linear, gen_linear, SDE, device)
+        new(solver, ode_prob, transform, z₀_linear, θ_linear, gen_linear, device)
     end
 end
 
@@ -135,11 +133,9 @@ function (decoder::GOKU_decoder)(ẑ₀, θ̂, t)
     # Function definition for ensemble problem
     prob_func = (prob,i,repeat) -> remake(prob, u0=ẑ₀[:,i], p = θ̂[:,i]) # TODO: try using views and switching indexes to see if the performance improves
     function output_func(sol, i)
-        # Check if solve was successful, if not fill z_pred with zeros to avoid problems with dimensions matches
+        # Check if solve was successful, if not, return NaNs to avoid problems with dimensions matches
         if sol.retcode != :Success
-            # return (zeros(Float32, size(ẑ₀, 1), size(t,1)), false)
             return (fill(NaN32,(size(ẑ₀, 1), size(t,1))), false)
-            # return (1000*ones(Float32, size(ẑ₀, 1), size(t,1)), false)
         else
             return (Array(sol), false)
         end
@@ -151,26 +147,26 @@ function (decoder::GOKU_decoder)(ẑ₀, θ̂, t)
     ens_prob = EnsembleProblem(prob, prob_func = prob_func, output_func = output_func)
 
     ## Solve
-    if decoder.SDE
-        ẑ = solve(ens_prob, SOSRI(), EnsembleSerial(), sensealg=ForwardDiffSensitivity(), trajectories=size(θ̂, 2), saveat = t) |> decoder.device
-    else
-        ẑ = solve(ens_prob, decoder.solver, EnsembleSerial(), sensealg=BacksolveAdjoint(autojacvec=ReverseDiffVJP(true),checkpointing=true), trajectories=size(θ̂, 2), saveat = t) |> decoder.device
-    end
-    
-    # Zygote.ignore() do
-    #     plt = plot(ẑ[1,:,1])
-    #     display(plt)
-    # end
+    ẑ = solve_DE(ens_prob, decoder.solver, size(θ̂, 2), t, decoder.device)
 
     # Transform the resulting output (Mainly used for Kuramoto system to pass from phase -> time space)
     ẑ = decoder.transform(ẑ)
 
     ## Create output data shape
-    recon_batch = decoder.gen_linear.(Flux.unstack(ẑ, 2))
+    x̂ = decoder.gen_linear.(Flux.unstack(ẑ, 2))
 
-    return recon_batch, ẑ, ẑ₀, θ̂
+    return x̂, ẑ, ẑ₀, θ̂
 end
 
+# solve in case of SDEs
+function solve_DE(ens_prob::EnsembleProblem{<: SDEProblem}, solver, trajectories, t, device; sensealg = ForwardDiffSensitivity(), ensemble_parallel = EnsembleSerial())
+    ẑ = solve(ens_prob, SOSRI(), ensemble_parallel, sensealg = sensealg, trajectories = trajectories, saveat = t) |> device
+end
+
+# solve in case of ODEs
+function solve_DE(ens_prob::EnsembleProblem{<: ODEProblem}, solver, trajectories, t, device; sensealg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true)), ensemble_parallel = EnsembleSerial())
+    ẑ = solve(ens_prob, solver, ensemble_parallel, sensealg = sensealg, trajectories = trajectories, saveat = t) |> device
+end
 ################################################################################
 ## Goku definition (Encoder/decoder container)
 
@@ -183,10 +179,10 @@ struct Goku <: AbstractModel
 
     device
 
-    function Goku(input_dim, hidden_dim_resnet, rnn_input_dim, rnn_output_dim, latent_dim, hidden_dim_latent_to_ode, ode_dim, θ_dim, ode_prob, transform, solver, variational, SDE, device)
+    function Goku(input_dim, hidden_dim_resnet, rnn_input_dim, rnn_output_dim, latent_dim, hidden_dim_latent_to_ode, ode_dim, θ_dim, ode_prob, transform, solver, variational, device)
 
         encoder = GOKU_encoder(input_dim, hidden_dim_resnet, rnn_input_dim, rnn_output_dim, latent_dim, device)
-        decoder = GOKU_decoder(input_dim, hidden_dim_resnet, latent_dim, hidden_dim_latent_to_ode, ode_dim, θ_dim, ode_prob, transform, solver, SDE, device)
+        decoder = GOKU_decoder(input_dim, hidden_dim_resnet, latent_dim, hidden_dim_latent_to_ode, ode_dim, θ_dim, ode_prob, transform, solver, device)
 
         new(encoder, decoder, variational, device)
     end

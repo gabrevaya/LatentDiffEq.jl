@@ -41,6 +41,6 @@ include("./systems/Stochastic_van_der_Pol.jl")
 include("./systems/Stochastic_Lotka-Volterra.jl")
 export SLV, pendulum, Kuramoto, Kuramoto_basic, Hopf
 export LV, vdP_full, vdP_identical_local, WC_full
-export WC, WC_identical_local, SvdP_full
+export WC, WC_identical_local, SvdP_full, Stoch_Hopf
 
 end # end LatentDE module
