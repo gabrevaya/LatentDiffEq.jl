@@ -1,5 +1,5 @@
 # LatentDE
-A Latent Differential Equation implementation in Julia.
+Latent Differential Equation models in Julia.
 
 ## Installation
 
@@ -13,8 +13,8 @@ $ cd LatentDE
 
 3. Extract the archive, and move its content following this path “pendulum_friction-less/data/jld/“
 
-4. Instantiate and try it in Julia
-```
+4. Instantiate and try the GOKU-net model on a pendulum example
+```julia
 $ julia
 julia> ] activate .
 julia> ] instantiate
