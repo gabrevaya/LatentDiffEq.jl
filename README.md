@@ -20,7 +20,7 @@ julia> ] activate .
 julia> ] instantiate
 julia> include("LatentDE.jl")
 julia> include("pendulum_friction-less/model_train_module.jl")
-julia> train("GOKU", pendulum())
+julia> train()
 ```
 
 ## References
