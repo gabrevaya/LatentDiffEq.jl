@@ -152,13 +152,19 @@ function visualize_val_image(model, val_set, t_val, h, w)
     x = Flux.unstack(X_test, 2)
 
     lat_var, pred_x, pred, ẑ = model(x, t_val)
-    plt = plot(ẑ[1,:,1])
+    # gr(size = (700, 350))
+    plt = plot(ẑ[1,:,1], legend = false)
+    ylabel!("Angle")
+    xlabel!("time")
     # plt = plot(ẑ[1,1,:]) # for Latent ODE
     display(plt)
     @show pred
 
     pred_x = Flux.stack(pred_x, 2)
     frames_pred = [Gray.(reshape(x,h,w)) for x in eachslice(pred_x, dims=2)]
+
+    frames_test = frames_test[1:6:end]
+    frames_pred = frames_pred[1:6:end]
 
     plt = mosaicview(frames_test..., frames_pred..., nrow=2, rowmajor=true)
     display(plt)
@@ -175,8 +181,10 @@ function visualize_val_image(model, val_set, t_val, h, w, color_scheme)
     lat_var, pred_x, pred, ẑ = model(x, t_val)
     pred_x = Flux.stack(pred_x, 2)
 
-    frames_pred = [get.(Ref(color_scheme), reshape(x,h,w)) for x in eachslice(pred_x, dims=2)]
+    if !isnan(pred_x[1])
+        frames_pred = [get.(Ref(color_scheme), reshape(x,h,w)) for x in eachslice(pred_x, dims=2)]
 
-    plt = mosaicview(frames_test..., frames_pred..., nrow=2, rowmajor=true)
-    display(plt)
+        plt = mosaicview(frames_test..., frames_pred..., nrow=2, rowmajor=true)
+        display(plt)
+    end
 end
