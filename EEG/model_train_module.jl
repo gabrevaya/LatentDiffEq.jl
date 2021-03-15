@@ -21,7 +21,7 @@ using ColorSchemes
     LatentDE_model = Goku       # Available: Goku, LatentODE
 
     ## Latent model
-    system = Stoch_Hopf(3)
+    system = Stoch_Hopf(2)
     # system = Kuramoto(2)
 
     ## Training params
@@ -38,8 +38,8 @@ using ColorSchemes
     ae = 200                        # Annealing factor epoch end
 
     ## Progressive observation training
-    progressive_training = true    # progressive training usage
-    obs_seg_num = 200                # number of step to progressive training
+    progressive_training = true     # progressive training usage
+    prog_training_duration = 4      # number of eppchs to reach the final seq_len
     start_seq_len = 10              # training sequence length at first step
 
     ## Visualization
@@ -124,7 +124,13 @@ function train(; kws...)
     ############################################################################
     ## Various definitions
 
-    seq_step = (full_seq_len - start_seq_len) / obs_seg_num
+    if progressive_training
+        prog_seq_lengths = range(start_seq_len, seq_len, step=(seq_len-start_seq_len)/(prog_training_duration-1))
+        prog_seq_lengths = Int.(round.(prog_seq_lengths))
+    else
+        prog_training_duration = 0
+    end
+
     loss_mem = zeros(Float32, epochs)  # TODO : implement loss memorization
 
     best_val_loss::Float32 = Inf32
@@ -142,10 +148,8 @@ function train(; kws...)
     @info "Start Training of $(LatentDE_model.name)-net, total $epochs epochs"
     for epoch = 1:epochs
 
-        ## define seq_len according to training mode (progressive or not)
-        if progressive_training
-            seq_len = Int( round( start_seq_len + seq_step * floor( (epoch-1) / (epochs/obs_seg_num) ) ) )
-        end
+        ## set a sequence length for training samples
+        seq_len = epoch ≤ prog_training_duration ? prog_seq_lengths[epoch] : seq_len
 
         # Model evaluation length
         t = range(0.f0, step=dt, length=seq_len)
