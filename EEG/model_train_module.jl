@@ -21,8 +21,8 @@ using ColorSchemes
     LatentDE_model = Goku       # Available: Goku, LatentODE
 
     ## Latent model
-    # system = Stoch_Hopf(2)
-    system = Kuramoto(2)
+    system = Stoch_Hopf(3)
+    # system = Kuramoto(2)
 
     ## Training params
     η = 1e-2                        # learning rate
@@ -38,12 +38,12 @@ using ColorSchemes
     ae = 200                        # Annealing factor epoch end
 
     ## Progressive observation training
-    progressive_training = false    # progressive training usage
-    obs_seg_num = 20                # number of step to progressive training
+    progressive_training = true    # progressive training usage
+    obs_seg_num = 200                # number of step to progressive training
     start_seq_len = 10              # training sequence length at first step
 
     ## Visualization
-    vis_len = 20                    # number of frames to visualize after each epoch
+    vis_len = 72                    # number of frames to visualize after each epoch
     color_scheme = ColorSchemes.prism # color scheme for visualization
 
     ## Model dimensions

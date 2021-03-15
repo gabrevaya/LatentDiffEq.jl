@@ -184,6 +184,9 @@ function visualize_val_image(model, val_set, t_val, h, w, color_scheme)
     if !isnan(pred_x[1])
         frames_pred = [get.(Ref(color_scheme), reshape(x,h,w)) for x in eachslice(pred_x, dims=2)]
 
+        frames_test = frames_test[1:6:end]
+        frames_pred = frames_pred[1:6:end]
+        
         plt = mosaicview(frames_test..., frames_pred..., nrow=2, rowmajor=true)
         display(plt)
     end
