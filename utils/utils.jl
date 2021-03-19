@@ -40,13 +40,15 @@ function rec_ini_loss(x, pred)
     res = mean((pred[1] - x_stacked[:,:,1]).^2)
 end
 
-function loss_batch(model::AbstractModel, λ, x, t, af)
+# think how to dispatch this for GOKU related only and not any AbstractModel
+function loss_batch(model::LatentDiffEqModel, λ, x, t, af)
 
     # Make prediction
-    lat_var, pred_x, pred, ẑ = model(x, t)
+    X̂, μ, logσ² = model(x, t)
+    x̂, ẑ, ẑ₀, θ̂ = X̂
 
     # Compute reconstruction (and differential) loss
-    reconstruction_loss = rec_loss(x, pred_x)
+    reconstruction_loss = rec_loss(x, x̂)
     # rec_initial_condition_loss = rec_ini_loss(x, pred)
     # @show rec_initial_condition_loss
 
@@ -56,11 +58,12 @@ function loss_batch(model::AbstractModel, λ, x, t, af)
     #     μ, logσ² = lat_var[i]
     #     kl_loss += mean(sum(KL.(μ, logσ²), dims=1))
     # end
-
-    # Filthy one liner that does the for loop above # lit
-    kl_loss = sum( [ mean(sum(KL.(lat_var[i][1], lat_var[i][2]), dims=1)) for i in 1:length(lat_var) ] )
-    # @show reconstruction_loss + af*(kl_loss)
-    return reconstruction_loss + af*(kl_loss) #+ 0.000000000001f0*mean((pred[2]).^2)# + rec_initial_condition_loss
+    
+    kl_loss = sum( [ mean(sum(KL.(μ[i], logσ²[i]), dims=1)) for i in 1:length(μ) ] )
+    # REWRITE THIS
+    # kl_loss = sum( [ mean(sum(KL.(lat_var[i][1], lat_var[i][2]), dims=1)) for i in 1:length(lat_var) ] )
+    # return reconstruction_loss + af*(kl_loss) #+ 0.000000000001f0*mean((pred[2]).^2)# + rec_initial_condition_loss
+    return reconstruction_loss
 end
 
 ## annealing factor parameters

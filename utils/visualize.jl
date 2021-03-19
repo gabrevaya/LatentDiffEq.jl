@@ -151,17 +151,19 @@ function visualize_val_image(model, val_set, t_val, h, w)
     X_test = reshape(X_test, Val(3))
     x = Flux.unstack(X_test, 2)
 
-    lat_var, pred_x, pred, ẑ = model(x, t_val)
+    X̂, μ, logσ² = model(x, t_val)
+    x̂, ẑ, ẑ₀, θ̂ = X̂
+
     # gr(size = (700, 350))
     plt = plot(ẑ[1,:,1], legend = false)
     ylabel!("Angle")
     xlabel!("time")
     # plt = plot(ẑ[1,1,:]) # for Latent ODE
     display(plt)
-    @show pred
+    @show θ̂
 
-    pred_x = Flux.stack(pred_x, 2)
-    frames_pred = [Gray.(reshape(x,h,w)) for x in eachslice(pred_x, dims=2)]
+    x̂ = Flux.stack(x̂, 2)
+    frames_pred = [Gray.(reshape(x,h,w)) for x in eachslice(x̂, dims=2)]
 
     frames_test = frames_test[1:6:end]
     frames_pred = frames_pred[1:6:end]
@@ -178,11 +180,12 @@ function visualize_val_image(model, val_set, t_val, h, w, color_scheme)
     X_test = reshape(X_test, Val(3))
     x = Flux.unstack(X_test, 2)
 
-    lat_var, pred_x, pred, ẑ = model(x, t_val)
-    pred_x = Flux.stack(pred_x, 2)
+    X̂, μ, logσ² = model(x, t_val)
+    x̂, ẑ, ẑ₀, θ̂ = X̂
+    x̂ = Flux.stack(x̂, 2)
 
-    if !isnan(pred_x[1])
-        frames_pred = [get.(Ref(color_scheme), reshape(x,h,w)) for x in eachslice(pred_x, dims=2)]
+    if !isnan(x̂[1])
+        frames_pred = [get.(Ref(color_scheme), reshape(x,h,w)) for x in eachslice(x̂, dims=2)]
 
         frames_test = frames_test[1:6:end]
         frames_pred = frames_pred[1:6:end]

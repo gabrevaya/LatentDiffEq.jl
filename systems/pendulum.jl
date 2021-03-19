@@ -3,11 +3,11 @@
 ################################################################################
 ## Problem Definition -- frictionless pendulum
 
-struct pendulum{T,P,F} <: AbstractSystem
-    u₀::T
-    p::T
+struct pendulum{P,S,T}
+
     prob::P
-    transform::F
+    solver::S
+    sensealg::T
 
     function pendulum()
         # Default parameters and initial conditions
@@ -25,8 +25,6 @@ struct pendulum{T,P,F} <: AbstractSystem
                 du[2] =  -G/L*sin(x)
         end
 
-        output_transform(u) = u
-
         # Build ODE Problem
         _prob = ODEProblem(f!, u₀, tspan, p)
 
@@ -35,10 +33,13 @@ struct pendulum{T,P,F} <: AbstractSystem
         ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
         prob = ODEProblem(ODEFunc, u₀, tspan, p)
 
-        T = typeof(u₀)
+        solver = Tsit5()
+        sensalg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
+
         P = typeof(prob)
-        F = typeof(output_transform)
-        new{T,P,F}(u₀, p, prob, output_transform)
+        S = typeof(solver)
+        T = typeof(sensalg)
+        new{P,S,T}(prob, solver, sensalg)
     end
     
 end

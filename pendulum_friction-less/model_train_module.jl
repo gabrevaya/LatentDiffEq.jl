@@ -16,10 +16,10 @@ using ModelingToolkit
 ## Arguments for the train function
 @with_kw mutable struct Args
     ## Global model
-    LatentDE_model = Goku       # Available: Goku, LatentODE
+    model_type = GOKU()
 
-    ## Latent model
-    system = pendulum()         
+    ## Latent Differential Equations
+    diffeq = pendulum()
 
     ## Training params
     η = 1e-2                        # learning rate
@@ -41,16 +41,6 @@ using ModelingToolkit
 
     ## Visualization
     vis_len = 60                    # number of frames to visualize after each epoch
-
-    ## Model dimensions
-    hidden_dim_resnet = 200
-    rnn_input_dim = 32              # rnn input dimension
-    rnn_output_dim = 16             # rnn output dimension
-    latent_dim = 16                 # latent dimension
-    hidden_dim_latent_to_ode = 200  # hidden dimension
-
-    ## Model parameters
-    variational = true
 
     ## Save paths and keys
     save_path = "output"            # results path
@@ -98,21 +88,15 @@ function train(; kws...)
     ############################################################################
     ## initialize model object and parameter reference
     # Create model
-    model = LatentDE_model(input_dim, hidden_dim_resnet, rnn_input_dim,
-                            rnn_output_dim, latent_dim, hidden_dim_latent_to_ode,
-                            length(system.u₀), length(system.p), system.prob,
-                            system.transform, Tsit5(), variational, device)
 
-    # hidden_dim = hidden_dim_resnet
-    # hidden_dim_node = hidden_dim_resnet
-    # model = LatentODE(input_dim, 2, hidden_dim, rnn_input_dim,
-    #                         rnn_output_dim, hidden_dim_node, device)
+    encoder_layers, decoder_layers = deafault_layers(model_type, input_dim, diffeq, device)
+    model = LatentDiffEqModel(model_type, encoder_layers, diffeq, decoder_layers)
 
     # Get parameters
     ps = Flux.params(model)
+
     ############################################################################
     ## Define optimizer
-
     opt = ADAM(η)
 
     ############################################################################
@@ -139,7 +123,7 @@ function train(; kws...)
     
     ############################################################################
     ## Main train loop
-    @info "Start Training of $(LatentDE_model.name)-net, total $epochs epochs"
+    @info "Start Training of $(typeof(model_type))-net, total $epochs epochs"
     for epoch = 1:epochs
 
         ## set a sequence length for training samples
@@ -159,6 +143,7 @@ function train(; kws...)
 
             # Use only a random sequence of length seq_len for all sample in the minibatch
             x = time_loader(x, full_seq_len, seq_len)
+
             loss, back = Flux.pullback(ps) do
                 loss_batch(model, λ, x |> device, t, af)
             end
@@ -184,7 +169,7 @@ function train(; kws...)
         end
         if val_loss < best_val_loss
             best_val_loss = deepcopy(val_loss)
-            model_path = joinpath(save_path, "best_model_$(LatentDE_model.name).bson")
+            model_path = joinpath(save_path, "best_model_$(typeof(model_type)).bson")
 
             let
                 # model = cpu(model)

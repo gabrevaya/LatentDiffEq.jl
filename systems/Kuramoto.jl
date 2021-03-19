@@ -2,13 +2,14 @@
 
 ################################################################################
 ## Problem Definition -- Kuramoto Oscillators
+abstract type Kuramoto end
 
-struct Kuramoto_basic{T,P,F} <: AbstractSystem
 
-    u₀::T
-    p::T
+struct Kuramoto_basic{P,S,T} <: Kuramoto
+
     prob::P
-    transform::F
+    solver::S
+    sensealg::T
 
     function Kuramoto_basic(N)
         # Default parameters and initial conditions
@@ -29,8 +30,6 @@ struct Kuramoto_basic{T,P,F} <: AbstractSystem
             end
         end
 
-        output_transform(θ) = sin.(θ)
-
         # Build ODE Problem
         _prob = ODEProblem(f!, θ₀, tspan, p)
 
@@ -39,23 +38,25 @@ struct Kuramoto_basic{T,P,F} <: AbstractSystem
         ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
         prob = ODEProblem(ODEFunc, θ₀, tspan, p)
 
-        T = typeof(θ₀)
+        solver = Tsit5()
+        sensalg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
+
         P = typeof(prob)
-        F = typeof(output_transform)
-        new{T,P,F}(θ₀, p, prob, output_transform)
+        S = typeof(solver)
+        T = typeof(sensalg)
+        new{P,S,T}(P, S, T)
     end
 end
 
 
 
-struct Kuramoto{T,P,F} <: AbstractSystem
+struct Kuramoto_full{P,S,T} <: Kuramoto
 
-    u₀::T
-    p::T
     prob::P
-    transform::F
+    solver::S
+    sensealg::T
 
-    function Kuramoto(N)
+    function Kuramoto_full(N)
         # Default parameters and initial conditions
         θ₀ = randn(Float32, N)
         ω = rand(Float32, N)
@@ -76,8 +77,6 @@ struct Kuramoto{T,P,F} <: AbstractSystem
             end
         end
 
-        output_transform(θ) = sin.(θ)
-
         # Build ODE Problem
         _prob = ODEProblem(f!, θ₀, tspan, p)
 
@@ -86,10 +85,18 @@ struct Kuramoto{T,P,F} <: AbstractSystem
         ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
         prob = ODEProblem(ODEFunc, θ₀, tspan, p)
 
-        T = typeof(θ₀)
+        solver = Tsit5()
+        sensalg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
+
         P = typeof(prob)
-        F = typeof(output_transform)
-        new{T,P,F}(θ₀, p, prob, output_transform)
+        S = typeof(solver)
+        T = typeof(sensalg)
+        new{P,S,T}(P, S, T)
     end
 
+end
+
+function transform_after_diffeq!(θ, diffeq::Kuramoto)
+    θ = sin.(θ)
+    return nothing
 end
