@@ -5,46 +5,6 @@
 # https://arxiv.org/abs/1806.07366
 # https://arxiv.org/abs/2003.10775
 
-struct LatentDiffEqModel{T,E,D} <: AbstractModel
-
-    model_type::T
-    encoder::E
-    decoder::D
-
-    function LatentDiffEqModel(model_type, encoder_layers, diffeq, decoder_layers)
-
-        encoder = built_encoder(model_type, encoder_layers)
-        decoder = built_decoder(model_type, decoder_layers, diffeq)
-        T, E, D = typeof(model_type), typeof(encoder), typeof(decoder)
-        new{T, E, D}(model_type, encoder, decoder)
-    end
-end
-
-built_encoder(model_type::GOKU, encoder_layers) = GOKU_encoder(encoder_layers)
-built_decoder(model_type::GOKU, decoder_layers, diffeq) = GOKU_decoder(decoder_layers, diffeq)
-
-function (model::LatentDiffEqModel)(x,t)
-
-    ## Get encoded latent initial states and parameters
-    μ, logσ² = model.encoder(x)
-
-    # Sample from distributions
-    l̃ = variational(model.model_type, μ, logσ²)
-
-    ## Get predicted output
-    X̂ = model.decoder(l̃, t)
-
-    return X̂, μ, logσ²
-end
-
-# default non variational
-# variational(model, μ, logσ²) = _variational(model.model_type, μ, logσ²)
-# _variational(model_type, μ, logσ²) = μ
-variational(model_type, μ, logσ²) = μ
-
-Flux.@functor LatentDiffEqModel
-
-
 struct GOKU_encoder{L1,L2,L3,L4,L5,L6,L7,L8} <: AbstractEncoder
 
     layer1::L1
@@ -173,6 +133,8 @@ transform_after_diffeq!(x, diffeq) = nothing
 
 Flux.@functor GOKU_decoder
 
+built_encoder(model_type::GOKU, encoder_layers) = GOKU_encoder(encoder_layers)
+built_decoder(model_type::GOKU, decoder_layers, diffeq) = GOKU_decoder(decoder_layers, diffeq)
 
 function variational(model_type::GOKU, μ::T, logσ²::T) where T <: Flux.CUDA.CuArray
     z₀_μ, θ_μ = μ

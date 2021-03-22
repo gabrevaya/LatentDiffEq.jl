@@ -21,6 +21,7 @@ struct GOKU <: LatentDiffEq end
 export GOKU
 
 ## Model definitions
+include("./models/LatentDiffEqModel.jl")
 include("./models/GOKU.jl")
 # include("./models/LatentODE.jl")
 export LatentDiffEqModel, deafault_layers  #, LatentODE
@@ -37,7 +38,7 @@ include("./systems/Kuramoto.jl")
 # export SLV, pendulum, Kuramoto, Kuramoto_basic, Hopf
 # export LV, vdP_full, vdP_identical_local, WC_full
 # export WC, WC_identical_local, SvdP_full, Stoch_Hopf
-export pendulum, Kuramoto_full
+export pendulum, Kuramoto_full, Kuramoto_basic
 
 include("./utils/utils.jl")
 export KL, loss_batch, annealing_factor
