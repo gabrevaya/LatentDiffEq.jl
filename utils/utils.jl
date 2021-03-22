@@ -11,14 +11,14 @@ KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
 # KL(μ, logσ) = (exp(2f0 * logσ) + μ^2)/2f0 - 0.5f0 - logσ
 
 
-function rec_loss(x, pred_x)
+function rec_loss(x, x̂)
 
     # Data prep
-    pred_x_stacked = Flux.stack(pred_x, 3)
+    x̂_stacked = Flux.stack(x̂, 3)
     x_stacked = Flux.stack(x, 3)
 
     # Residual loss
-    res = pred_x_stacked - x_stacked
+    res = x̂_stacked - x_stacked
     # res_av1 = mean((res).^2, dims = 2)
     # @show typeof(res_av1)
     # res_av1[:,:,1] .*= 10.f0
@@ -31,7 +31,7 @@ function rec_loss(x, pred_x)
     # res_diff_average = sum(mean((res_diff).^2, dims = (2, 3)))
 
     # return (res_average + 1000f0*res_diff_average)/size(pred_x_stacked,1)
-    return res_average/size(pred_x_stacked,1)
+    return res_average/size(x̂_stacked,1)
 end
 
 function rec_ini_loss(x, pred)

@@ -33,6 +33,7 @@ function (model::LatentDiffEqModel)(x,t)
 
     ## Get predicted output
     X̂ = model.decoder(l̃, t)
+
     return X̂, μ, logσ²
 end
 
@@ -44,22 +45,22 @@ variational(model_type, μ, logσ²) = μ
 Flux.@functor LatentDiffEqModel
 
 
-struct GOKU_encoder <: AbstractEncoder
+struct GOKU_encoder{L1,L2,L3,L4,L5,L6,L7,L8} <: AbstractEncoder
 
-    layer1
-    layer2_z₀
-    layer2_θ_forward
-    layer2_θ_backward
-    layer3_μ_z₀
-    layer3_logσ²_z₀
-    layer3_μ_θ
-    layer3_logσ²_θ
+    layer1::L1
+    layer2_z₀::L2
+    layer2_θ_forward::L3
+    layer2_θ_backward::L4
+    layer3_μ_z₀::L5
+    layer3_logσ²_z₀::L6
+    layer3_μ_θ::L7
+    layer3_logσ²_θ::L8
 
     function GOKU_encoder(encoder_layers)
-        new(encoder_layers...)
+        L1,L2,L3,L4,L5,L6,L7,L8 = typeof.(encoder_layers)
+        new{L1,L2,L3,L4,L5,L6,L7,L8}(encoder_layers...)
     end
 end
-
 
 function (encoder::GOKU_encoder)(x)
 
@@ -102,21 +103,22 @@ end
 Flux.@functor GOKU_encoder
 
 
-struct GOKU_decoder <: AbstractDecoder
+struct GOKU_decoder{Z,T,O,D} <: AbstractDecoder
 
-    layer_z₀
-    layer_θ
+    layer_z₀::Z
+    layer_θ::T
 
-    layer_output
+    layer_output::O
 
-    diffeq
+    diffeq::D
 
     function GOKU_decoder(decoder_layers, diffeq)
-        new(decoder_layers..., diffeq)
+        Z,T,O = typeof.(decoder_layers)
+        # D = typeof(diffeq)
+        D = typeof(diffeq)
+        new{Z,T,O,D}(decoder_layers..., diffeq)
     end
 end
-
-
 
 function (decoder::GOKU_decoder)(l̃, t)
 
@@ -163,7 +165,7 @@ function diffeq_layer(decoder::GOKU_decoder, ẑ₀, θ̂, t)
     ẑ = solve_DE(ens_prob, solver, size(θ̂, 2), t, sensealg) # |> device I THINK THAT IF u0 IS A CuArray, then the solution will be a CuArray and there will be no need for this |> device. Although maybe the outer array is not a Cuda one and that would be needed.
     # Transform the resulting output (Mainly used for Kuramoto system to pass from phase -> time space)
     transform_after_diffeq!(ẑ, decoder.diffeq)
-    
+
     ẑ = Flux.unstack(ẑ, 2)
 
     return ẑ
