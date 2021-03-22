@@ -155,6 +155,8 @@ function visualize_val_image(model, val_set, t_val, h, w)
     x̂, ẑ, ẑ₀, θ̂ = X̂
 
     # gr(size = (700, 350))
+    ẑ = Flux.stack(ẑ, 2)
+
     plt = plot(ẑ[1,:,1], legend = false)
     ylabel!("Angle")
     xlabel!("time")

@@ -163,8 +163,9 @@ function diffeq_layer(decoder::GOKU_decoder, ẑ₀, θ̂, t)
     ẑ = solve_DE(ens_prob, solver, size(θ̂, 2), t, sensealg) # |> device I THINK THAT IF u0 IS A CuArray, then the solution will be a CuArray and there will be no need for this |> device. Although maybe the outer array is not a Cuda one and that would be needed.
     # Transform the resulting output (Mainly used for Kuramoto system to pass from phase -> time space)
     transform_after_diffeq!(ẑ, decoder.diffeq)
-
+    
     ẑ = Flux.unstack(ẑ, 2)
+
     return ẑ
 end
 

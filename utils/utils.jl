@@ -58,12 +58,10 @@ function loss_batch(model::LatentDiffEqModel, λ, x, t, af)
     #     μ, logσ² = lat_var[i]
     #     kl_loss += mean(sum(KL.(μ, logσ²), dims=1))
     # end
-    
+
     kl_loss = sum( [ mean(sum(KL.(μ[i], logσ²[i]), dims=1)) for i in 1:length(μ) ] )
-    # REWRITE THIS
-    # kl_loss = sum( [ mean(sum(KL.(lat_var[i][1], lat_var[i][2]), dims=1)) for i in 1:length(lat_var) ] )
-    # return reconstruction_loss + af*(kl_loss) #+ 0.000000000001f0*mean((pred[2]).^2)# + rec_initial_condition_loss
-    return reconstruction_loss
+    
+    return reconstruction_loss + kl_loss
 end
 
 ## annealing factor parameters
