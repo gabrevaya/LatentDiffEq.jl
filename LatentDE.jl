@@ -27,7 +27,7 @@ export LatentDiffEqModel, deafault_layers  #, LatentODE
 
 ## Predefined systems
 include("./systems/pendulum.jl")
-# include("./systems/Kuramoto.jl")
+include("./systems/Kuramoto.jl")
 # include("./systems/Hopf.jl")
 # include("./systems/Lotka-Volterra.jl")
 # include("./systems/van_der_Pol.jl")
@@ -37,7 +37,7 @@ include("./systems/pendulum.jl")
 # export SLV, pendulum, Kuramoto, Kuramoto_basic, Hopf
 # export LV, vdP_full, vdP_identical_local, WC_full
 # export WC, WC_identical_local, SvdP_full, Stoch_Hopf
-export pendulum
+export pendulum, Kuramoto_full
 
 include("./utils/utils.jl")
 export KL, loss_batch, annealing_factor

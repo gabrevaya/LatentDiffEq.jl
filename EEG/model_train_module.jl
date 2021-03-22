@@ -18,11 +18,11 @@ using ColorSchemes
 ## Arguments for the train function
 @with_kw mutable struct Args
     ## Global model
-    LatentDE_model = Goku       # Available: Goku, LatentODE
+    model_type = GOKU()
 
-    ## Latent model
-    system = Stoch_Hopf(2)
-    # system = Kuramoto(2)
+    ## Latent Differential Equations
+    # diffeq = Stoch_Hopf(2)
+    diffeq = Kuramoto_full(20)
 
     ## Training params
     η = 1e-2                        # learning rate
@@ -45,13 +45,6 @@ using ColorSchemes
     ## Visualization
     vis_len = 72                    # number of frames to visualize after each epoch
     color_scheme = ColorSchemes.prism # color scheme for visualization
-
-    ## Model dimensions
-    hidden_dim_resnet = 200
-    rnn_input_dim = 32              # rnn input dimension
-    rnn_output_dim = 16             # rnn output dimension
-    latent_dim = 16                 # latent dimension
-    hidden_dim_latent_to_ode = 200  # hidden dimension
 
     ## Model parameters
     variational = true
@@ -109,16 +102,14 @@ function train(; kws...)
     ############################################################################
     ## initialize model object and parameter reference
     # Create model
-    model = LatentDE_model(input_dim, hidden_dim_resnet, rnn_input_dim,
-                            rnn_output_dim, latent_dim, hidden_dim_latent_to_ode,
-                            length(system.u₀), length(system.p), system.prob,
-                            system.transform, Tsit5(), variational, device)
-
+    encoder_layers, decoder_layers = deafault_layers(model_type, input_dim, diffeq, device)
+    model = LatentDiffEqModel(model_type, encoder_layers, diffeq, decoder_layers)
+                        
     # Get parameters
     ps = Flux.params(model)
+    
     ############################################################################
     ## Define optimizer
-
     opt = ADAM(η)
 
     ############################################################################
@@ -145,7 +136,7 @@ function train(; kws...)
     
     ############################################################################
     ## Main train loop
-    @info "Start Training of $(LatentDE_model.name)-net, total $epochs epochs"
+    @info "Start Training of $(typeof(model_type))-net, total $epochs epochs"
     for epoch = 1:epochs
 
         ## set a sequence length for training samples
@@ -189,7 +180,7 @@ function train(; kws...)
         end
         if val_loss < best_val_loss
             best_val_loss = deepcopy(val_loss)
-            model_path = joinpath(save_path, "best_model_$(LatentDE_model.name).bson")
+            model_path = joinpath(save_path, "best_model_$(typeof(model_type)).bson")
 
             let
                 # model = cpu(model)

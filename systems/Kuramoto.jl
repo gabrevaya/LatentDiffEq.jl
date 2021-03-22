@@ -44,7 +44,7 @@ struct Kuramoto_basic{P,S,T} <: Kuramoto
         P = typeof(prob)
         S = typeof(solver)
         T = typeof(sensalg)
-        new{P,S,T}(P, S, T)
+        new{P,S,T}(prob, solver, sensalg)
     end
 end
 
@@ -91,7 +91,7 @@ struct Kuramoto_full{P,S,T} <: Kuramoto
         P = typeof(prob)
         S = typeof(solver)
         T = typeof(sensalg)
-        new{P,S,T}(P, S, T)
+        new{P,S,T}(prob, solver, sensalg)
     end
 
 end
