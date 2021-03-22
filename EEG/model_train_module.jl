@@ -22,7 +22,7 @@ using ColorSchemes
 
     ## Latent Differential Equations
     # diffeq = Stoch_Hopf(2)
-    diffeq = Kuramoto_full(20)
+    diffeq = Kuramoto_full(5)
 
     ## Training params
     η = 1e-2                        # learning rate

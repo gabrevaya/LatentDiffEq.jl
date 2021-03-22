@@ -142,27 +142,17 @@ function diffeq_layer(decoder::GOKU_decoder, ẑ₀, θ̂, t)
     sensealg = decoder.diffeq.sensealg
 
     # Function definition for ensemble problem
-    prob_func = (prob,i,repeat) -> remake(prob, u0=ẑ₀[:,i], p = θ̂[:,i]) # TODO: try using views and switching indexes to see if the performance improves
+    prob_func(prob,i,repeat) = remake(prob, u0=ẑ₀[:,i], p = θ̂[:,i]) # TODO: try using views and switching indexes to see if the performance improves
     
-    # rewrite the following function trying to use u0 and t from inside sol instead of ẑ₀ and t
-    # so that we can define it outside this diffeq_layer function
-    # Also check if this is compatible with CUDA (probably not)
-    function output_func(sol, i)
-        # Check if solve was successful, if not, return NaNs to avoid problems with dimensions matches
-        if sol.retcode != :Success
-            return (fill(NaN32,(size(ẑ₀, 1), size(t,1))), false)
-        else
-            return (Array(sol), false)
-        end
-    end
-    #####
+    # Check if solve was successful, if not, return NaNs to avoid problems with dimensions matches
+    output_func(sol, i) = sol.retcode == :Success ? (Array(sol), false) : (fill(NaN32,(size(ẑ₀, 1), length(t))), false)  # check if this is compatible with CUDA (probably not)
 
     ## Adapt problem to given time span and create ensemble problem definition
     prob = remake(prob; tspan = (t[1],t[end]))
     ens_prob = EnsembleProblem(prob, prob_func = prob_func, output_func = output_func)
 
     ## Solve
-    ẑ = solve_DE(ens_prob, solver, size(θ̂, 2), t, sensealg) # |> device I THINK THAT IF u0 IS A CuArray, then the solution will be a CuArray and there will be no need for this |> device. Although maybe the outer array is not a Cuda one and that would be needed.
+    ẑ = solve(ens_prob, solver, EnsembleSerial(), sensealg = sensealg, trajectories = size(θ̂, 2), saveat = t) # |> device I THINK THAT IF u0 IS A CuArray, then the solution will be a CuArray and there will be no need for this |> device. Although maybe the outer array is not a Cuda one and that would be needed.
     # Transform the resulting output (Mainly used for Kuramoto system to pass from phase -> time space)
     transform_after_diffeq!(ẑ, decoder.diffeq)
 
@@ -176,24 +166,12 @@ end
 # ensemble_parallel(u0::CuArray) = EnsembleGPUArray()
 # ensemble_parallel(u0::Array) = EnsembleSerial()
 
-# solve in case of SDEs
-function solve_DE(ens_prob::EnsembleProblem{<: SDEProblem}, solver, trajectories, t, sensealg = ForwardDiffSensitivity(); ensemble_parallel = EnsembleSerial())
-    ẑ = solve(ens_prob, solver, ensemble_parallel, sensealg = sensealg, trajectories = trajectories, saveat = t)
-end
-
-# solve in case of ODEs
-function solve_DE(ens_prob::EnsembleProblem{<: ODEProblem}, solver, trajectories, t, sensealg; ensemble_parallel = EnsembleSerial())
-    ẑ = solve(ens_prob, solver, ensemble_parallel, sensealg = sensealg, trajectories = trajectories, saveat = t)
-end
-
 # nothing by default (different method for Kuramoto)
 transform_after_diffeq!(x, diffeq) = nothing
 
 # has_transform(x) = error("Not implemented.")
 
 Flux.@functor GOKU_decoder
-
-
 
 
 function variational(model_type::GOKU, μ::T, logσ²::T) where T <: Flux.CUDA.CuArray
