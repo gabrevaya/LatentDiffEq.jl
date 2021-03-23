@@ -17,14 +17,16 @@ abstract type AbstractEncoder end
 abstract type AbstractDecoder end
 
 abstract type LatentDiffEq end
+abstract type nDE <: LatentDiffEq end
 struct GOKU <: LatentDiffEq end
+struct LatentODE <: nDE end
 export GOKU
 
 ## Model definitions
 include("./models/LatentDiffEqModel.jl")
 include("./models/GOKU.jl")
 # include("./models/LatentODE.jl")
-export LatentDiffEqModel, deafault_layers  #, LatentODE
+export LatentDiffEqModel, deafault_layers
 
 ## Predefined systems
 include("./systems/pendulum.jl")

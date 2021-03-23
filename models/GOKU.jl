@@ -1,7 +1,6 @@
 # GOKU-NET MODEL
 #
 # Based on
-# https://github.com/FluxML/model-zoo/blob/master/vision/vae_mnist/vae_mnist.jl
 # https://arxiv.org/abs/1806.07366
 # https://arxiv.org/abs/2003.10775
 
@@ -47,12 +46,13 @@ function apply_layers2(encoder::GOKU_encoder, l1_out)
     # reverse sequence
     l1_out_rev = reverse(l1_out)
 
-    # pass the 
+    # pass it through the recurrent layer
     l2_z₀_out = encoder.layer2_z₀.(l1_out_rev)[end]
     l2_θ_out_f = encoder.layer2_θ_forward.(l1_out)[end]
     l2_θ_out_b = encoder.layer2_θ_backward.(l1_out_rev)[end]
     l2_θ_out = vcat(l2_θ_out_f, l2_θ_out_b)
 
+    # reset hidden states
     reset!(encoder.layer2_z₀)
     reset!(encoder.layer2_θ_forward)
     reset!(encoder.layer2_θ_backward)
@@ -74,7 +74,6 @@ struct GOKU_decoder{Z,T,O,D} <: AbstractDecoder
 
     function GOKU_decoder(decoder_layers, diffeq)
         Z,T,O = typeof.(decoder_layers)
-        # D = typeof(diffeq)
         D = typeof(diffeq)
         new{Z,T,O,D}(decoder_layers..., diffeq)
     end

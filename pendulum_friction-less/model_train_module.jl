@@ -19,7 +19,8 @@ using ModelingToolkit
     model_type = GOKU()
 
     ## Latent Differential Equations
-    diffeq = pendulum()
+    # diffeq = pendulum()
+    diffeq = nODE
 
     ## Training params
     η = 1e-2                        # learning rate
@@ -88,6 +89,8 @@ function train(; kws...)
     ############################################################################
     ## initialize model object and parameter reference
     # Create model
+    diffeq = model_type isa nDE ? diffeq(input_dim, device) : diffeq
+
     encoder_layers, decoder_layers = deafault_layers(model_type, input_dim, diffeq, device)
     model = LatentDiffEqModel(model_type, encoder_layers, diffeq, decoder_layers)
 
