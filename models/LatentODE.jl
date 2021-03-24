@@ -5,6 +5,8 @@
 # https://arxiv.org/abs/1806.07366
 # https://arxiv.org/abs/2003.10775
 
+struct LatentODE <: LatentDiffEq end
+
 struct LatentODE_encoder{L1,L2,L3,L4} <: AbstractEncoder
 
     layer1::L1
@@ -63,7 +65,7 @@ end
 
 function (decoder::LatentODE_decoder)(l̃, t)
 
-    z̃₀ = l̃
+    ẑ₀ = l̃
 
     ẑ = diffeq_layer(decoder, ẑ₀, t)
 
@@ -80,8 +82,8 @@ function diffeq_layer(decoder::LatentODE_decoder, ẑ₀, t)
     # sensealg = decoder.diffeq.sensealg
 
     # nODE = NeuralODE(dudt, (t[1], t[end]), solver, sensealg = sensealg, saveat = t)
-    nODE = NeuralODE(dudt, (t[1], t[end]), solver, saveat = t)
-    ẑ = Array(nODE(x))
+    nODE = neural_model(dudt, (t[1], t[end]), solver, saveat = t)
+    ẑ = Array(nODE(ẑ₀))
 
     # Transform the resulting output (Mainly used for Kuramoto system to pass from phase -> time space)
     transform_after_diffeq!(ẑ, decoder.diffeq)
@@ -95,7 +97,7 @@ Flux.@functor LatentODE_decoder
 built_encoder(model_type::LatentODE, encoder_layers) = LatentODE_encoder(encoder_layers)
 built_decoder(model_type::LatentODE, decoder_layers, diffeq) = LatentODE_decoder(decoder_layers, diffeq)
 
-function variational(model_type::LatentODE, μ::T, logσ²::T) where T <: Flux.CUDA.CuArray
+function variational(model_type::LatentODE, μ::T, logσ²::T) where T <: Tuple{Flux.CUDA.CuArray}
     z₀_μ, = μ
     z₀_logσ², = logσ²
 
@@ -104,7 +106,7 @@ function variational(model_type::LatentODE, μ::T, logσ²::T) where T <: Flux.C
     return ẑ₀
 end
 
-function variational(model_type::LatentODE, μ::T, logσ²::T) where T <: Array
+function variational(model_type::LatentODE, μ::T, logσ²::T) where T <: Tuple{Array}
     z₀_μ, = μ
     z₀_logσ², = logσ²
 
@@ -115,12 +117,12 @@ end
 
 
 function default_layers(model_type::LatentODE, input_dim, diffeq, device;
-                            hidden_dim_resnet = 200, rnn_input_dim = 32,
-                            rnn_output_dim = 16, latent_dim = 16,
+                            hidden_dim = 200, rnn_input_dim = 32,
+                            rnn_output_dim = 16,
                             latent_to_diffeq_dim = 200, θ_activation = x -> 5*σ(x),
                             output_activation = σ)
 
-    z_dim = length(diffeq.prob.u0)
+    latent_dim = diffeq.latent_dim
 
     ######################
     ### Encoder layers ###
@@ -139,10 +141,15 @@ function default_layers(model_type::LatentODE, input_dim, diffeq, device;
     ### Decoder layers ###
     ######################
 
-    layer_output = Chain(Dense(latent_dim, hidden_dim_linear, relu),
-                    Dense(hidden_dim_linear, input_dim)) |> device
+    layer_output = Chain(Dense(latent_dim, hidden_dim, relu),
+                    Dense(hidden_dim, input_dim)) |> device
 
     decoder_layers = layer_output
-
+    # should we do:
+    # diffeq.dudt = diffeq.dudt |> device
+    # so that we control here the usage of GPU
+    # instead of during the definition of the system
+    # However, we are supposed to use ! in the name
+    # of the function but that bring troubles with the other calls of default_layers
     return encoder_layers, decoder_layers
 end

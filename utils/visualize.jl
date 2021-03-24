@@ -152,7 +152,12 @@ function visualize_val_image(model, val_set, t_val, h, w)
     x = Flux.unstack(X_test, 2)
 
     X̂, μ, logσ² = model(x, t_val)
-    x̂, ẑ, ẑ₀, θ̂ = X̂
+    x̂, ẑ, ẑ₀, = X̂
+
+    if length(X̂) == 4
+        θ̂ = X̂[4]
+        @show θ̂
+    end
 
     # gr(size = (700, 350))
     ẑ = Flux.stack(ẑ, 2)
@@ -162,7 +167,6 @@ function visualize_val_image(model, val_set, t_val, h, w)
     xlabel!("time")
     # plt = plot(ẑ[1,1,:]) # for Latent ODE
     display(plt)
-    @show θ̂
 
     x̂ = Flux.stack(x̂, 2)
     frames_pred = [Gray.(reshape(x,h,w)) for x in eachslice(x̂, dims=2)]

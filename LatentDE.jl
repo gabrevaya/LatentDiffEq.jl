@@ -17,20 +17,19 @@ abstract type AbstractEncoder end
 abstract type AbstractDecoder end
 
 abstract type LatentDiffEq end
-abstract type nDE <: LatentDiffEq end
-struct GOKU <: LatentDiffEq end
-struct LatentODE <: nDE end
-export GOKU
+export GOKU, LatentODE
 
 ## Model definitions
 include("./models/LatentDiffEqModel.jl")
 include("./models/GOKU.jl")
-# include("./models/LatentODE.jl")
-export LatentDiffEqModel, default_layers
+include("./models/LatentODE.jl")
+export LatentDiffEqModel, GOKU, LatentODE
+export default_layers
 
 ## Predefined systems
 include("./systems/pendulum.jl")
 include("./systems/Kuramoto.jl")
+include("./systems/nODE.jl")
 # include("./systems/Hopf.jl")
 # include("./systems/Lotka-Volterra.jl")
 # include("./systems/van_der_Pol.jl")
@@ -40,7 +39,7 @@ include("./systems/Kuramoto.jl")
 # export SLV, pendulum, Kuramoto, Kuramoto_basic, Hopf
 # export LV, vdP_full, vdP_identical_local, WC_full
 # export WC, WC_identical_local, SvdP_full, Stoch_Hopf
-export pendulum, Kuramoto_full, Kuramoto_basic
+export pendulum, Kuramoto_full, Kuramoto_basic, nODE
 
 include("./utils/utils.jl")
 export KL, loss_batch, annealing_factor

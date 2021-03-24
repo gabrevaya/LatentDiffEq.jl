@@ -45,7 +45,8 @@ function loss_batch(model::LatentDiffEqModel, λ, x, t, af)
 
     # Make prediction
     X̂, μ, logσ² = model(x, t)
-    x̂, ẑ, ẑ₀, θ̂ = X̂
+ 
+    x̂, ẑ, ẑ₀, = X̂
 
     # Compute reconstruction (and differential) loss
     reconstruction_loss = rec_loss(x, x̂)

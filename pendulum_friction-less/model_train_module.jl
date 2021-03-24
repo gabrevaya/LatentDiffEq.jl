@@ -16,11 +16,12 @@ using ModelingToolkit
 ## Arguments for the train function
 @with_kw mutable struct Args
     ## Global model
-    model_type = GOKU()
+    # model_type = GOKU()
+    model_type = LatentODE()
 
     ## Latent Differential Equations
     # diffeq = pendulum()
-    diffeq = nODE
+    diffeq = nODE(2)
 
     ## Training params
     η = 1e-2                        # learning rate
@@ -89,7 +90,6 @@ function train(; kws...)
     ############################################################################
     ## initialize model object and parameter reference
     # Create model
-    diffeq = model_type isa nDE ? diffeq(input_dim, device) : diffeq
 
     encoder_layers, decoder_layers = default_layers(model_type, input_dim, diffeq, device)
     model = LatentDiffEqModel(model_type, encoder_layers, diffeq, decoder_layers)
@@ -145,7 +145,7 @@ function train(; kws...)
 
             # Use only a random sequence of length seq_len for all sample in the minibatch
             x = time_loader(x, full_seq_len, seq_len)
-
+            
             loss, back = Flux.pullback(ps) do
                 loss_batch(model, λ, x |> device, t, af)
             end

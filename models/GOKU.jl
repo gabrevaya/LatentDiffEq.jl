@@ -4,6 +4,8 @@
 # https://arxiv.org/abs/1806.07366
 # https://arxiv.org/abs/2003.10775
 
+struct GOKU <: LatentDiffEq end
+
 struct GOKU_encoder{L1,L2,L3,L4,L5,L6,L7,L8} <: AbstractEncoder
 
     layer1::L1
@@ -135,7 +137,7 @@ Flux.@functor GOKU_decoder
 built_encoder(model_type::GOKU, encoder_layers) = GOKU_encoder(encoder_layers)
 built_decoder(model_type::GOKU, decoder_layers, diffeq) = GOKU_decoder(decoder_layers, diffeq)
 
-function variational(model_type::GOKU, μ::T, logσ²::T) where T <: Flux.CUDA.CuArray
+function variational(model_type::GOKU, μ::T, logσ²::T) where T <: Tuple{Flux.CUDA.CuArray}
     z₀_μ, θ_μ = μ
     z₀_logσ², θ_logσ² = logσ²
 
@@ -145,7 +147,7 @@ function variational(model_type::GOKU, μ::T, logσ²::T) where T <: Flux.CUDA.C
     return ẑ₀, θ̂
 end
 
-function variational(model_type::GOKU, μ::T, logσ²::T) where T <: Array
+function variational(model_type::GOKU, μ::T, logσ²::T) where T <: Tuple{Array}
     z₀_μ, θ_μ = μ
     z₀_logσ², θ_logσ² = logσ²
 
