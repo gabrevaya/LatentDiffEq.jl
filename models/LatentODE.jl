@@ -114,7 +114,7 @@ function variational(model_type::LatentODE, μ::T, logσ²::T) where T <: Array
 end
 
 
-function deafault_layers(model_type::LatentODE, input_dim, diffeq, device;
+function default_layers(model_type::LatentODE, input_dim, diffeq, device;
                             hidden_dim_resnet = 200, rnn_input_dim = 32,
                             rnn_output_dim = 16, latent_dim = 16,
                             latent_to_diffeq_dim = 200, θ_activation = x -> 5*σ(x),

@@ -26,7 +26,7 @@ export GOKU
 include("./models/LatentDiffEqModel.jl")
 include("./models/GOKU.jl")
 # include("./models/LatentODE.jl")
-export LatentDiffEqModel, deafault_layers
+export LatentDiffEqModel, default_layers
 
 ## Predefined systems
 include("./systems/pendulum.jl")

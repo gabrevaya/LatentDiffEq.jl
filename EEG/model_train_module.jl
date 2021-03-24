@@ -102,7 +102,7 @@ function train(; kws...)
     ############################################################################
     ## initialize model object and parameter reference
     # Create model
-    encoder_layers, decoder_layers = deafault_layers(model_type, input_dim, diffeq, device)
+    encoder_layers, decoder_layers = default_layers(model_type, input_dim, diffeq, device)
     model = LatentDiffEqModel(model_type, encoder_layers, diffeq, decoder_layers)
                         
     # Get parameters
