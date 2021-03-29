@@ -5,7 +5,7 @@
 # https://arxiv.org/abs/1806.07366
 # https://arxiv.org/abs/2003.10775
 
-struct LatentODE <: LatentDiffEq end
+struct LatentODE <: LatentDE end
 
 struct LatentODE_encoder{L1,L2,L3,L4} <: AbstractEncoder
 

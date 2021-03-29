@@ -1,4 +1,4 @@
-using .LatentDE
+using .LatentDiffEq
 using FileIO
 using DrWatson: struct2dict
 using Logging: with_logger
@@ -16,18 +16,18 @@ using ModelingToolkit
 ## Arguments for the train function
 @with_kw mutable struct Args
     ## Global model
-    # model_type = GOKU()
-    model_type = LatentODE()
+    model_type = GOKU()
+    # model_type = LatentODE()
 
     ## Latent Differential Equations
-    # diffeq = pendulum()
-    diffeq = nODE(2)
+    diffeq = pendulum()
+    # diffeq = nODE(2)
 
     ## Training params
-    η = 1e-2                        # learning rate
+    η = 2e-2                        # learning rate
     λ = 0.01f0                      # regularization paramater
     batch_size = 64                 # minibatch size
-    seq_len = 50                    # sampling size for output
+    seq_len = 50                    # sequence length for training samples
     epochs = 200                    # number of epochs for training
     seed = 1                        # random seed
     cuda = false                    # GPU usage
@@ -38,7 +38,7 @@ using ModelingToolkit
 
     ## Progressive observation training
     progressive_training = false    # progressive training usage
-    prog_training_duration = 20     # number of eppchs to reach the final seq_len
+    prog_training_duration = 5      # number of eppchs to reach the final seq_len
     start_seq_len = 10              # training sequence length at first step
 
     ## Visualization

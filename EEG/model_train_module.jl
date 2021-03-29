@@ -1,4 +1,4 @@
-using .LatentDE
+using .LatentDiffEq
 using Images, FileIO
 using DrWatson: struct2dict
 using Logging: with_logger

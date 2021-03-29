@@ -4,7 +4,7 @@
 # https://arxiv.org/abs/1806.07366
 # https://arxiv.org/abs/2003.10775
 
-struct GOKU <: LatentDiffEq end
+struct GOKU <: LatentDE end
 
 struct GOKU_encoder{L1,L2,L3,L4,L5,L6,L7,L8} <: AbstractEncoder
 
