@@ -4,11 +4,11 @@
 ## Problem Definition -- "pendulum" with NN inside
 using DiffEqFlux
 
-struct pendulum_NN{T,P,F} <: AbstractSystem
-    u₀::T
-    p::T
+struct pendulum_NN{P,S,T}
+
     prob::P
-    transform::F
+    solver::S
+    sensealg::T
 
     function pendulum_NN()
         # Default parameters and initial conditions
@@ -30,8 +30,6 @@ struct pendulum_NN{T,P,F} <: AbstractSystem
                 du[2] = model_univ(u, p)[1]
         end
 
-        output_transform(u) = u
-
         # Build ODE Problem
         _prob = ODEProblem(f!, u₀, tspan, p)
 
@@ -41,10 +39,13 @@ struct pendulum_NN{T,P,F} <: AbstractSystem
         # prob = ODEProblem(ODEFunc, u₀, tspan, p)
         prob = _prob
 
-        T = typeof(u₀)
+        solver = Tsit5()
+        sensalg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
+
         P = typeof(prob)
-        F = typeof(output_transform)
-        new{T,P,F}(u₀, p, prob, output_transform)
+        S = typeof(solver)
+        T = typeof(sensalg)
+        new{P,S,T}(prob, solver, sensalg)
     end
     
 end

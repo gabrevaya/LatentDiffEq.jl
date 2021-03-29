@@ -3,11 +3,11 @@
 ################################################################################
 ## Problem Definition -- z-switch model for bird larynx
 
-struct z_switch{T,P,F} <: AbstractSystem
-    u₀::T
-    p::T
+struct z_switch{P,S,T}
+
     prob::P
-    transform::F
+    solver::S
+    sensealg::T
 
     function z_switch()
         # Default parameters and initial conditions
@@ -23,8 +23,6 @@ struct z_switch{T,P,F} <: AbstractSystem
                 du[2] = (zₒ + α*y - z)*(-zₒ + α*y - z)*(m*y + b - z)/ϵ - c*z
         end
 
-        output_transform(u) = u
-
         # Build ODE Problem
         _prob = ODEProblem(f!, u₀, tspan, p)
 
@@ -33,10 +31,13 @@ struct z_switch{T,P,F} <: AbstractSystem
         ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
         prob = ODEProblem(ODEFunc, u₀, tspan, p)
 
-        T = typeof(u₀)
+        solver = Tsit5()
+        sensalg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
+
         P = typeof(prob)
-        F = typeof(output_transform)
-        new{T,P,F}(u₀, p, prob, output_transform)
+        S = typeof(solver)
+        T = typeof(sensalg)
+        new{P,S,T}(prob, solver, sensalg)
     end
     
 end

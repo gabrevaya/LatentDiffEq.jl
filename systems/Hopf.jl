@@ -1,16 +1,13 @@
-using StochasticDiffEq, DiffEqSensitivity
-
 ################################################################################
 ## Problem Definition -- Normal form of a supercritical Hopf bifurcation
 # Deco et al. (2017), https://www.nature.com/articles/s41598-017-03073-5
 # Ipiña et al. (2019), https://arxiv.org/abs/1907.04412 & https://www.sciencedirect.com/science/article/pii/S1053811920303207
 
-struct Hopf{T,P,F} <: AbstractSystem
-    
-    u₀::T
-    p::T
+struct Hopf{P,S,T}
+
     prob::P
-    transform::F
+    solver::S
+    sensealg::T
 
     function Hopf(k::Int64)
         # Default parameters and initial conditions
@@ -68,8 +65,6 @@ struct Hopf{T,P,F} <: AbstractSystem
             # @. du[k+1:end] = (a - x^2 - y^2) * y - ω*x + G*coupling_y
         end
 
-        output_transform(u) = u
-
         # Build ODE Problem
        _prob = ODEProblem(f!, u₀, tspan, p)
 
@@ -78,21 +73,25 @@ struct Hopf{T,P,F} <: AbstractSystem
        ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
        prob = ODEProblem(ODEFunc, u₀, tspan, p)
 
-       T = typeof(u₀)
+       solver = Tsit5()
+       sensalg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
+
        P = typeof(prob)
-       F = typeof(output_transform)
-       new{T,P,F}(u₀, p, prob, output_transform)
-    end
+       S = typeof(solver)
+       T = typeof(sensalg)
+       new{P,S,T}(prob, solver, sensalg)
 end
 
 
+################################################################################
+## Problem Definition -- Stochastic Hopf
+using StochasticDiffEq, DiffEqSensitivity
 
-struct Stoch_Hopf{T,P,F} <: AbstractSystem
-    
-    u₀::T
-    p::T
+struct Stoch_Hopf{P,S,T}
+
     prob::P
-    transform::F
+    solver::S
+    sensealg::T
 
     function Stoch_Hopf(k::Int64)
         # Default parameters and initial conditions
@@ -142,8 +141,6 @@ struct Stoch_Hopf{T,P,F} <: AbstractSystem
             end
         end
 
-        output_transform(u) = u
-
         # Build ODE Problem
         _prob = ODEProblem(f!, u₀, tspan, p)
 
@@ -158,10 +155,12 @@ struct Stoch_Hopf{T,P,F} <: AbstractSystem
 
         prob_sde = SDEProblem(prob.f.f, σ, prob.u0, prob.tspan, prob.p, jac = prob.f.jac, tgrad = prob.f.tgrad)
 
+        solver = SOSRI()
+        sensalg = ForwardDiffSensitivity()
 
-        T = typeof(u₀)
         P = typeof(prob_sde)
-        F = typeof(output_transform)
-        new{T,P,F}(u₀, p, prob_sde, output_transform)
+        S = typeof(solver)
+        T = typeof(sensalg)
+        new{P,S,T}(prob_sde, solver, sensalg)
     end
 end

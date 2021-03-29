@@ -3,12 +3,11 @@
 ################################################################################
 ## Problem Definition -- Wilson-Cowan
 
-struct WC_full{T, P, F} <: AbstractSystem
+struct WC_full{P,S,T}
 
-    u₀::T
-    p::T
     prob::P
-    transform::F
+    solver::S
+    sensealg::T
 
     function WC_full(k::Int64)
         # Default parameters and initial conditions
@@ -39,8 +38,6 @@ struct WC_full{T, P, F} <: AbstractSystem
             @. dx[k+1:end] = -x₂ + σ(α₄*x₁)
         end
 
-        output_transform(x) = x
-
             # Build ODE Problem
         _prob = ODEProblem(f!, u₀, tspan, p)
 
@@ -49,22 +46,23 @@ struct WC_full{T, P, F} <: AbstractSystem
         ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
         prob = ODEProblem(ODEFunc, u₀, tspan, p)
 
-        T = typeof(u₀)
+        solver = Tsit5()
+        sensalg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
+ 
         P = typeof(prob)
-        F = typeof(output_transform)
-
-        new{T,P,F}(u₀, p, prob, output_transform)
+        S = typeof(solver)
+        T = typeof(sensalg)
+        new{P,S,T}(prob, solver, sensalg)
     end
 end
 
 
 
-struct WC{T, P, F} <: AbstractSystem
+struct WC{P,S,T}
 
-    u₀::T
-    p::T
     prob::P
-    transform::F
+    solver::S
+    sensealg::T
 
     function WC(k::Int64)
         # Default parameters and initial conditions
@@ -74,7 +72,6 @@ struct WC{T, P, F} <: AbstractSystem
         W = rand(Float32, k^2)
         u₀ = rand(Float32,2*k)
         p = [α₁; α₂; α₃; W]
-
 
         # Define differential equations
         function f!(dx,x,p,t)
@@ -93,8 +90,6 @@ struct WC{T, P, F} <: AbstractSystem
             @. dx[k+1:end] = -x₂ + σ(α₃*x₁)
         end
 
-        output_transform(x) = x
-
         # Build ODE Problem
         _prob = ODEProblem(f!, u₀, tspan, p)
 
@@ -103,21 +98,23 @@ struct WC{T, P, F} <: AbstractSystem
         ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
         prob = ODEProblem(ODEFunc, u₀, tspan, p) 
 
-        T = typeof(u₀)
+        solver = Tsit5()
+        sensalg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
+ 
         P = typeof(prob)
-        F = typeof(output_transform)
-        new{T,P,F}(u₀, p, prob, output_transform)
+        S = typeof(solver)
+        T = typeof(sensalg)
+        new{P,S,T}(prob, solver, sensalg)
     end
 end
 
 
 
-struct WC_identical_local{T, P,F} <: AbstractSystem
+struct WC_identical_local{P,S,T}
 
-    u₀::T
-    p::T
     prob::P
-    transform::F
+    solver::S
+    sensealg::T
 
     function WC_identical_local(k::Int64)
         # Default parameters and initial conditions
@@ -127,7 +124,6 @@ struct WC_identical_local{T, P,F} <: AbstractSystem
         W = rand(Float32, k^2)
         u₀ = rand(Float32,2*k)
         p = [α₁; α₂; α₃; W]
-
 
         # Define differential equations
         function f!(dx,x,p,t)
@@ -146,8 +142,6 @@ struct WC_identical_local{T, P,F} <: AbstractSystem
             @. dx[k+1:end] = -x₂ + σ(α₃*x₁)
         end
 
-        output_transform(x) = x
-
         # Build ODE Problem
         _prob = ODEProblem(f!, u₀, tspan, p)
 
@@ -156,10 +150,13 @@ struct WC_identical_local{T, P,F} <: AbstractSystem
         ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
         prob = ODEProblem(ODEFunc, u₀, tspan, p)
 
-        T = typeof(u₀)
+        solver = Tsit5()
+        sensalg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
+ 
         P = typeof(prob)
-        F = typeof(output_transform)
-        new{T,P, F}(u₀, p, prob, output_transform)
+        S = typeof(solver)
+        T = typeof(sensalg)
+        new{P,S,T}(prob, solver, sensalg)
     end
 end
 
