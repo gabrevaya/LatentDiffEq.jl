@@ -33,14 +33,14 @@ include("./systems/nODE.jl")
 # include("./systems/Lotka-Volterra.jl")
 # include("./systems/van_der_Pol.jl")
 # include("./systems/Wilson-Cowan.jl")
-# export SLV, pendulum, Kuramoto, Kuramoto_basic, Hopf
+# export SLV, Pendulum, Kuramoto, Kuramoto_basic, Hopf
 # export LV, vdP_full, vdP_identical_local, WC_full
 # export WC, WC_identical_local, SvdP_full, Stoch_Hopf
-export pendulum, Kuramoto_full, Kuramoto_basic, nODE
+export Pendulum, Kuramoto_full, Kuramoto_basic, NODE
 
 include("./utils/utils.jl")
-export KL, loss_batch, annealing_factor
-export NormalizeToUnitSegment, time_loader
+export kl, loss_batch, annealing_factor
+export normalize_to_unit_segment, time_loader
 
 include("./utils/visualize.jl")
 export visualize_val_image

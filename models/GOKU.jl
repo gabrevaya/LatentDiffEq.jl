@@ -126,6 +126,7 @@ end
 # maybe with a function like
 # ensemble_parallel(u0::CuArray) = EnsembleGPUArray()
 # ensemble_parallel(u0::Array) = EnsembleSerial()
+# SOLUTION: SEE https://github.com/SciML/DiffEqFlux.jl/blob/master/src/require.jl
 
 # nothing by default (different method for Kuramoto)
 transform_after_diffeq!(x, diffeq) = nothing

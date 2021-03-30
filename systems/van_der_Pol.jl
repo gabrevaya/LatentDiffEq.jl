@@ -1,13 +1,13 @@
 ################################################################################
 ## Problem Definition -- van der Pol
 
-struct vdP_full{P,S,T}
+struct VdP_full{P,S,T}
 
     prob::P
     solver::S
     sensealg::T
 
-    function vdP_full(k::Int64)
+    function VdP_full(k::Int64)
         # Default parameters and initial conditions
         α₁ = fill(0.6f0, k) + 0.1f0*randn(Float32,k)
         α₂ = fill(10.f0, k) + 0.1f0*randn(Float32,k)
@@ -52,13 +52,13 @@ end
 
 
 
-struct vdP_identical_local{P,S,T}
+struct VdP_identical_local{P,S,T}
 
     prob::P
     solver::S
     sensealg::T
 
-    function vdP_identical_local(k::Int64)
+    function VdP_identical_local(k::Int64)
         # Default parameters and initial conditions
         α₁ = 0.6f0
         α₂ = 10.f0

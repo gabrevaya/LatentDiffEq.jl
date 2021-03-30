@@ -2,13 +2,13 @@
 ################################################################################
 ## Loss definitions
 
-KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
+kl(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
 
 # make it better for gpu
-# CUDA.@cufunc KL(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
+# CUDA.@cufunc kl(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
 
 # the calculation via log(var) = log(σ²) is more numerically efficient than through log(σ)
-# KL(μ, logσ) = (exp(2f0 * logσ) + μ^2)/2f0 - 0.5f0 - logσ
+# kl(μ, logσ) = (exp(2f0 * logσ) + μ^2)/2f0 - 0.5f0 - logσ
 
 
 function rec_loss(x, x̂)
@@ -52,10 +52,10 @@ function loss_batch(model::LatentDiffEqModel, λ, x, t, af)
     # kl_loss = 0
     # for i in 1:length(lat_var)
     #     μ, logσ² = lat_var[i]
-    #     kl_loss += mean(sum(KL.(μ, logσ²), dims=1))
+    #     kl_loss += mean(sum(kl.(μ, logσ²), dims=1))
     # end
 
-    kl_loss = sum( [ mean(sum(KL.(μ[i], logσ²[i]), dims=1)) for i in 1:length(μ) ] )
+    kl_loss = sum( [ mean(sum(kl.(μ[i], logσ²[i]), dims=1)) for i in 1:length(μ) ] )
     
     return reconstruction_loss + kl_loss
 end
@@ -106,7 +106,7 @@ function normalize_Z(data)
 end
 
 
-function NormalizeToUnitSegment(X)
+function normalize_to_unit_segment(X)
     min_val = minimum(X)
     max_val = maximum(X)
 
@@ -114,7 +114,7 @@ function NormalizeToUnitSegment(X)
     return X̂, min_val, max_val
 end
 
-DenormalizeUnitSegment(X̂, min_val, max_val) = X̂ .* (max_val .- min_val) .+ min_val
+denormalize_unit_segment(X̂, min_val, max_val) = X̂ .* (max_val .- min_val) .+ min_val
 
 
 ################################################################################

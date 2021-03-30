@@ -20,8 +20,8 @@ using ModelingToolkit
     # model_type = LatentODE()
 
     ## Latent Differential Equations
-    diffeq = pendulum()
-    # diffeq = nODE(2)
+    diffeq = Pendulum()
+    # diffeq = NODE(2)
 
     ## Training params
     η = 1e-2                        # learning rate

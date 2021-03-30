@@ -145,7 +145,7 @@ function default_layers(model_type::LatentODE, input_dim, diffeq, device;
                     Dense(hidden_dim, input_dim)) |> device
 
     decoder_layers = layer_output
-    # should we do:
+    # we should do:
     # diffeq.dudt = diffeq.dudt |> device
     # so that we control here the usage of GPU
     # instead of during the definition of the system

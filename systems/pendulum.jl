@@ -3,13 +3,13 @@
 ################################################################################
 ## Problem Definition -- frictionless pendulum
 
-struct pendulum{P,S,T}
+struct Pendulum{P,S,T}
 
     prob::P
     solver::S
     sensealg::T
 
-    function pendulum()
+    function Pendulum()
         # Default parameters and initial conditions
         u₀ = Float32[1.0, 1.0]
         p = Float32[1.]

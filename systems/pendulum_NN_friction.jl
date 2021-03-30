@@ -4,13 +4,13 @@
 ## Problem Definition -- "pendulum" with NN inside
 using DiffEqFlux
 
-struct pendulum_NN_friction{P,S,T}
+struct Pendulum_NN_friction{P,S,T}
 
     prob::P
     solver::S
     sensealg::T
 
-    function pendulum_NN_friction()
+    function Pendulum_NN_friction()
         # Default parameters and initial conditions
         u₀ = Float32[1.0, 1.0]
         p_ODE = Float32[1.]

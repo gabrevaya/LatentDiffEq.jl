@@ -85,7 +85,7 @@ function train(; kws...)
     # 104 => channels (sensors on the head)
     # 97 => epochs (1 second chunk of data) 
 
-    data_norm, min_val, max_val = NormalizeToUnitSegment(EC)
+    data_norm, min_val, max_val = normalize_to_unit_segment(EC)
     full_seq_len, input_dim, observations = size(data_norm)
 
     # for visualization reshaping

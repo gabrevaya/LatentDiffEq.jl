@@ -3,13 +3,13 @@
 ################################################################################
 ## Problem Definition -- z-switch model for bird larynx
 
-struct z_switch{P,S,T}
+struct Z_switch{P,S,T}
 
     prob::P
     solver::S
     sensealg::T
 
-    function z_switch()
+    function Z_switch()
         # Default parameters and initial conditions
         u₀ = Float32[1.0, 1.0]
         p = Float32[1., 1., 1., 1., 1., 1., 0.01]
