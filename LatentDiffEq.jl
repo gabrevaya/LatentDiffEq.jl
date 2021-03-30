@@ -41,8 +41,6 @@ export Pendulum, Kuramoto_full, Kuramoto_basic, NODE
 include("./utils/utils.jl")
 export kl, loss_batch, annealing_factor
 export normalize_to_unit_segment, time_loader
-
-include("./utils/visualize.jl")
 export visualize_val_image
 
 end # end LatentDiffEq module

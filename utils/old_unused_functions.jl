@@ -1,6 +1,139 @@
+function rec_ini_loss(x, x̂)
+    # Data prep
+    x_stacked = Flux.stack(x, 3)
+    res = mean((x̂[1] - x_stacked[:,:,1]).^2)
+end
 
-################################################################################
-## Forward passing and visualization of results
+function rand_time(full_seq_len, seq_len)
+    start_time = rand(1:full_seq_len - seq_len)
+    idxs = start_time:start_time+seq_len-1
+    return idxs
+end
+
+function time_loader2(x, full_seq_len, seq_len)
+
+    x_ = Array{Float32, 3}(undef, (size(x,1), seq_len, size(x,3)))
+
+    for i in 1:size(x,3)
+        x_[:,:,i] = x[:,rand_time(full_seq_len, seq_len),i]
+    end
+
+    x_samples_unstacked = Flux.unstack(x_, 3)
+    return x_samples_unstacked
+
+end
+
+
+# make it better for gpu
+CUDA.@cufunc kl(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
+
+# the calculation via log(var) = log(σ²) is more numerically efficient than through log(σ)
+kl(μ, logσ) = (exp(2f0 * logσ) + μ^2)/2f0 - 0.5f0 - logσ
+
+
+
+function create_prob(sys_name, k, sys, u₀, tspan, p)
+
+    func_folder = mkpath(joinpath("precomputed_systems", sys_name))
+    osc_folder = mkpath(joinpath(func_folder, "oscillators_"*string(k)))
+    # f_file = joinpath(osc_folder, "generated_f.jld2")
+    # jac_file = joinpath(osc_folder, "generated_jac.jld2")
+    # tgrad_file = joinpath(osc_folder, "generated_tgrad.jld2")
+    f_file = joinpath(osc_folder, "generated_f.bson")
+    jac_file = joinpath(osc_folder, "generated_jac.bson")
+    tgrad_file = joinpath(osc_folder, "generated_tgrad.bson")
+
+    generate_functions = ~(isfile(f_file) && isfile(jac_file) && isfile(tgrad_file))
+
+    if generate_functions
+        computed_f = generate_function(sys, sparse = true)[2]
+        computed_jac = generate_jacobian(sys, sparse = true)[2]
+        computed_tgrad = generate_tgrad(sys, sparse = true)[2]
+
+        f = eval(computed_f)
+        jac = eval(computed_jac)
+        tgrad = eval(computed_tgrad)
+
+        @save(f_file, f)
+        @save(jac_file, jac)
+        @save(tgrad_file, tgrad)
+        
+    else
+        @info "Precomputed functions found for the system"
+        @load(f_file, f)
+        @load(jac_file, jac)
+        @load(tgrad_file, tgrad)
+
+        # print(f)
+    end
+    prob = ODEProblem(f, u₀, tspan, p, jac = jac, tgrad = tgrad)
+    return prob
+end
+
+
+
+# normalize raw data passed as a 3D array (input_dim, time, trajectories)
+function normalize_Z(data)
+
+    data = Flux.unstack(data, 3)
+
+    μ = 0.
+    σ = 0.
+    for i in 1:size(data,1)
+          for j in 1:size(data[1],1)
+                μ = mean(data[i][j,:])
+                σ = std(data[i][j,:])
+                data[i][j,:] = ( data[i][j,:] .- μ ) ./ σ
+          end
+    end
+
+    data = Flux.stack(data, 3)
+
+    return norm_data
+
+end
+
+
+
+## for ILC
+
+
+function rec_loss(x::Array{T,2}, pred_x) where T
+    pred_stacked = Flux.stack(pred_x, 2)
+    # Residual loss
+    res = x - pred_stacked
+    res_average = mean((res).^2, dims = (1, 2))
+    return res_average[1]
+end
+
+function ilc_train(x, model, λ, t, af, device, ILC_threshold, ps)
+    grads = Zygote.Grads[]
+    for sample in x
+        loss, back = Flux.pullback(ps) do
+            # Compute loss
+            loss_batch(model, λ, sample |> device, t, af)
+        end
+        # Backpropagate
+        grad = back(1f0)
+        push!(grads, grad)
+    end
+
+    masking!.(ps, Ref(grads), ILC_threshold)
+    return grads[1]
+end
+
+function masking!(p, grads, threshold)
+    if ~(grads[1][p] == nothing)
+        mean_signs = mean([sign.(el[p]) for el in grads])
+        mask = mean_signs .< threshold
+        mean_grads = mean([el[p] for el in grads])
+        mean_grads[mask] .= 0.f0
+        grads[1][p][:] = mean_grads[:]
+    end
+end
+
+rec_ini_loss(x::Array{T,2}, pred) where T = mean((pred[1] - x[:,1]).^2)
+
 
 function visualize_training(model::AbstractModel, x, t)
 
@@ -16,6 +149,11 @@ function visualize_training(model::AbstractModel, x, t)
     display(plt)
     # png(plt, "figure/Training_sample.png")
 end
+
+
+## Loading and using trained models
+
+
 
 function import_model_ode(model_path, input_dim, device)
 
@@ -140,63 +278,4 @@ function predict_within()
 
     png(plt, "figure/prediction_outside_train.png")
 
-end
-
-
-
-function visualize_val_image(model, val_set, t_val, h, w)
-    j = rand(1:size(val_set,3))
-    X_test = val_set[:,:,j]
-    frames_test = [Gray.(reshape(x,h,w)) for x in eachcol(X_test)]
-    X_test = reshape(X_test, Val(3))
-    x = Flux.unstack(X_test, 2)
-
-    X̂, μ, logσ² = model(x, t_val)
-    x̂, ẑ, ẑ₀, = X̂
-
-    if length(X̂) == 4
-        θ̂ = X̂[4]
-        @show θ̂
-    end
-
-    # gr(size = (700, 350))
-    ẑ = Flux.stack(ẑ, 2)
-
-    plt = plot(ẑ[1,:,1], legend = false)
-    ylabel!("Angle")
-    xlabel!("time")
-    # plt = plot(ẑ[1,1,:]) # for Latent ODE
-    display(plt)
-
-    x̂ = Flux.stack(x̂, 2)
-    frames_pred = [Gray.(reshape(x,h,w)) for x in eachslice(x̂, dims=2)]
-
-    frames_test = frames_test[1:6:end]
-    frames_pred = frames_pred[1:6:end]
-
-    plt = mosaicview(frames_test..., frames_pred..., nrow=2, rowmajor=true)
-    display(plt)
-end
-
-
-function visualize_val_image(model, val_set, t_val, h, w, color_scheme)
-    j = rand(1:size(val_set,3))
-    X_test = val_set[:,:,j]
-    frames_test = [get.(Ref(color_scheme), reshape(x,h,w)) for x in eachcol(X_test)]
-    X_test = reshape(X_test, Val(3))
-    x = Flux.unstack(X_test, 2)
-
-    X̂, μ, logσ² = model(x, t_val)
-    x̂, ẑ, ẑ₀, θ̂ = X̂
-    x̂ = Flux.stack(x̂, 2)
-
-    if !isnan(x̂[1])
-        frames_pred = [get.(Ref(color_scheme), reshape(x,h,w)) for x in eachslice(x̂, dims=2)]
-
-        frames_test = frames_test[1:6:end]
-        frames_pred = frames_pred[1:6:end]
-        
-        plt = mosaicview(frames_test..., frames_pred..., nrow=2, rowmajor=true)
-        display(plt)
-    end
 end
