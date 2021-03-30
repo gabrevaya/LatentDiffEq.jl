@@ -19,25 +19,20 @@ function rec_loss(x, x̂)
 
     # Residual loss
     res = x̂_stacked - x_stacked
-    # res_av1 = mean((res).^2, dims = 2)
-    # @show typeof(res_av1)
-    # res_av1[:,:,1] .*= 10.f0
-    # res_average = sum(mean(res_av1, dims = 3))
-
     res_average = sum(mean((res).^2, dims = (2, 3)))
 
     # Differential residual loss
-    # res_diff = diff(pred_x_stacked, dims = 3) - diff(x_stacked, dims = 3)
+    # res_diff = diff(x̂_stacked, dims = 3) - diff(x_stacked, dims = 3)
     # res_diff_average = sum(mean((res_diff).^2, dims = (2, 3)))
 
     # return (res_average + 1000f0*res_diff_average)/size(pred_x_stacked,1)
     return res_average/size(x̂_stacked,1)
 end
 
-function rec_ini_loss(x, pred)
+function rec_ini_loss(x, x̂)
     # Data prep
     x_stacked = Flux.stack(x, 3)
-    res = mean((pred[1] - x_stacked[:,:,1]).^2)
+    res = mean((x̂[1] - x_stacked[:,:,1]).^2)
 end
 
 # think how to dispatch this for GOKU related only and not any AbstractModel

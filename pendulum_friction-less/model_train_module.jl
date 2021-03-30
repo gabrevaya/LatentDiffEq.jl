@@ -24,7 +24,7 @@ using ModelingToolkit
     # diffeq = nODE(2)
 
     ## Training params
-    η = 2e-2                        # learning rate
+    η = 1e-2                        # learning rate
     λ = 0.01f0                      # regularization paramater
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
@@ -66,10 +66,8 @@ function train(; kws...)
     ############################################################################
     ## Prepare training data
 
-    
     root_dir = @__DIR__
-    data_path = "pendulum_friction-less/data/jld/processed_data.jld2"
-    # data_path = "pendulum_friction/data/jld/processed_data.jld2"
+    data_path = "pendulum_friction-less/data/processed_data.jld2"
     data_loaded = load(data_path, "processed_data")
     
     train_data = data_loaded["train"]
@@ -111,8 +109,6 @@ function train(; kws...)
         prog_training_duration = 0
     end
     
-    loss_mem = zeros(Float32, epochs)  # TODO : implement loss memorization
-
     best_val_loss::Float32 = Inf32
     val_loss::Float32 = 0
 
@@ -143,7 +139,7 @@ function train(; kws...)
             af = annealing_factor(start_af, end_af, ae, epoch, mb_id, length(loader_train))
             mb_id += 1
 
-            # Use only a random sequence of length seq_len for all sample in the minibatch
+            # Use only random sequences of length seq_len for the current minibatch
             x = time_loader(x, full_seq_len, seq_len)
             
             loss, back = Flux.pullback(ps) do
@@ -154,7 +150,6 @@ function train(; kws...)
             Flux.Optimise.update!(opt, ps, grad)
 
             # Use validation set to get loss and visualisation
-            # val_set = time_loader(first(loader_val), full_seq_len, seq_len)
             val_set = Flux.unstack(first(loader_val), 2)
             t_val = range(0.f0, step=dt, length=length(val_set))
             val_loss = loss_batch(model, λ, val_set |> device, t_val, af)
@@ -163,7 +158,6 @@ function train(; kws...)
             next!(progress; showvalues=[(:loss, loss),(:val_loss, val_loss)])
         end
 
-        loss_mem[epoch] = val_loss
         if device != gpu
             val_set = first(loader_val)
             t_val = range(0.f0, step=dt, length=vis_len)
