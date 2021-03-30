@@ -1,4 +1,3 @@
-
 struct LatentDiffEqModel{T,E,D} <: AbstractModel
 
     model_type::T
@@ -16,21 +15,19 @@ end
 
 function (model::LatentDiffEqModel)(x,t)
 
-    ## Get encoded latent initial states and parameters
+    # Get encoded latent initial states and parameters
     μ, logσ² = model.encoder(x)
 
     # Sample from distributions
-    l̃ = variational(model.model_type, μ, logσ²)
+    l̃ = variational(μ, logσ², model)
 
-    ## Get predicted output
+    # Get predicted output
     X̂ = model.decoder(l̃, t)
 
     return X̂, μ, logσ²
 end
 
 # default non variational
-# variational(model, μ, logσ²) = _variational(model.model_type, μ, logσ²)
-# _variational(model_type, μ, logσ²) = μ
-variational(model_type, μ, logσ²) = μ
+variational(μ, logσ², model) = μ
 
 Flux.@functor LatentDiffEqModel

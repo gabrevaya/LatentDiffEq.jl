@@ -72,7 +72,7 @@ function train(; kws...)
     
     train_data = data_loaded["train"]
 
-    train_data_norm, min_val, max_val = NormalizeToUnitSegment(train_data)
+    train_data_norm, min_val, max_val = normalize_to_unit_segment(train_data)
     observations, full_seq_len, h, w = size(train_data_norm)
 
     train_data = reshape(train_data_norm, observations, full_seq_len, :)

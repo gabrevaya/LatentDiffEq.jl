@@ -1,7 +1,6 @@
 # Latent ODE
 #
 # Based on
-# https://arxiv.org/pdf/1806.07366.pdf
 # https://arxiv.org/abs/1806.07366
 # https://arxiv.org/abs/2003.10775
 
@@ -50,7 +49,6 @@ end
 
 Flux.@functor LatentODE_encoder
 
-
 struct LatentODE_decoder{D,O} <: AbstractDecoder
 
     diffeq::D
@@ -97,7 +95,7 @@ Flux.@functor LatentODE_decoder
 built_encoder(model_type::LatentODE, encoder_layers) = LatentODE_encoder(encoder_layers)
 built_decoder(model_type::LatentODE, decoder_layers, diffeq) = LatentODE_decoder(decoder_layers, diffeq)
 
-function variational(model_type::LatentODE, μ::T, logσ²::T) where T <: Tuple{Flux.CUDA.CuArray}
+function variational(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) where T <: Tuple{Flux.CUDA.CuArray}
     z₀_μ, = μ
     z₀_logσ², = logσ²
 
@@ -106,7 +104,7 @@ function variational(model_type::LatentODE, μ::T, logσ²::T) where T <: Tuple{
     return ẑ₀
 end
 
-function variational(model_type::LatentODE, μ::T, logσ²::T) where T <: Tuple{Array}
+function variational(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) where T <: Tuple{Array}
     z₀_μ, = μ
     z₀_logσ², = logσ²
 
@@ -114,7 +112,6 @@ function variational(model_type::LatentODE, μ::T, logσ²::T) where T <: Tuple{
 
     return ẑ₀
 end
-
 
 function default_layers(model_type::LatentODE, input_dim, diffeq, device;
                             hidden_dim = 200, rnn_input_dim = 32,

@@ -95,9 +95,13 @@ function time_loader(x, full_seq_len, seq_len)
     for i in 1:size(x,3)
         x_[:,:,i] = x[:,rand_time(full_seq_len, seq_len),i]
     end
-
     return Flux.unstack(x_, 2)
+end
 
+function rand_time(full_seq_len, seq_len)
+    start_time = rand(1:full_seq_len - seq_len)
+    idxs = start_time:start_time+seq_len-1
+    return idxs
 end
 
 ################################################################################

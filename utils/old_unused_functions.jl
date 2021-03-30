@@ -4,12 +4,6 @@ function rec_ini_loss(x, x̂)
     res = mean((x̂[1] - x_stacked[:,:,1]).^2)
 end
 
-function rand_time(full_seq_len, seq_len)
-    start_time = rand(1:full_seq_len - seq_len)
-    idxs = start_time:start_time+seq_len-1
-    return idxs
-end
-
 function time_loader2(x, full_seq_len, seq_len)
 
     x_ = Array{Float32, 3}(undef, (size(x,1), seq_len, size(x,3)))
