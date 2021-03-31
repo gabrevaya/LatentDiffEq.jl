@@ -11,15 +11,15 @@ $ cd LatentDE
 
 2. Download the training data from [this link](https://drive.google.com/file/d/1Td7zvvFk5An9DqcaCXAPjeKDqc05dB_R/view?usp=sharing).
 
-3. Extract the archive, and move its content following this path “pendulum_friction-less/data/jld/“
+3. Extract the archive, and move its content following this path “pendulum_friction-less/data/“
 
 4. Instantiate and try the GOKU-net model on a pendulum example
 ```julia
 $ julia
 julia> ] activate .
 julia> ] instantiate
-julia> include("LatentDE.jl")
-julia> include("pendulum_friction-less/model_train_module.jl")
+julia> include("LatentDiffEq.jl")
+julia> include("pendulum_friction-less/model_train.jl")
 julia> train()
 ```
 
