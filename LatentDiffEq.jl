@@ -27,16 +27,8 @@ export default_layers
 
 ## Predefined systems
 include("./systems/pendulum.jl")
-include("./systems/Kuramoto.jl")
 include("./systems/nODE.jl")
-# include("./systems/Hopf.jl")
-# include("./systems/Lotka-Volterra.jl")
-# include("./systems/van_der_Pol.jl")
-# include("./systems/Wilson-Cowan.jl")
-# export SLV, Pendulum, Kuramoto, Kuramoto_basic, Hopf
-# export LV, vdP_full, vdP_identical_local, WC_full
-# export WC, WC_identical_local, SvdP_full, Stoch_Hopf
-export Pendulum, Kuramoto_full, Kuramoto_basic, NODE
+export Pendulum, NODE
 
 include("./utils/utils.jl")
 export kl, loss_batch, annealing_factor
