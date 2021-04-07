@@ -1,4 +1,4 @@
-# LatentDE
+# LatentDiffEq
 Latent Differential Equation models in Julia.
 
 ## Installation
