@@ -1,5 +1,6 @@
 *.bson
 *.png
+*.DS_Store
 other
 output
 
