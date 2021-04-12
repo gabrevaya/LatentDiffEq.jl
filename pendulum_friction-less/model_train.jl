@@ -77,6 +77,7 @@ function train(; kws...)
 
     train_data = reshape(train_data_norm, observations, full_seq_len, :)
     train_data = permutedims(train_data, [3, 2, 1]) # input_dim, time_size, observations
+    train_data = Float32.(train_data)
 
     train_set, val_set = splitobs(train_data, 0.9)
 
@@ -112,12 +113,13 @@ function train(; kws...)
     best_val_loss::Float32 = Inf32
     val_loss::Float32 = 0
 
-    let
-        mkpath(save_path)
-        saving_path = joinpath(save_path, "Args.bson")
-        args=struct2dict(args)
-        @save saving_path args
-    end
+    # FIX NEEDED. NOT WORKING AFTER PACKAGES UPDATES
+    # let
+    #     mkpath(save_path)
+    #     saving_path = joinpath(save_path, "Args.bson")
+    #     args=struct2dict(args)
+    #     @save saving_path args
+    # end
     
     ############################################################################
     ## Main train loop
@@ -167,11 +169,12 @@ function train(; kws...)
             best_val_loss = deepcopy(val_loss)
             model_path = joinpath(save_path, "best_model_$(typeof(model_type)).bson")
 
-            let
-                # model = cpu(model)
-                @save model_path model
-                @info "Model saved: $model_path"
-            end
+            # FIX NEEDED. NOT WORKING AFTER PACKAGES UPDATES
+            # let
+            #     # model = cpu(model)
+            #     @save model_path model
+            #     @info "Model saved: $model_path"
+            # end
 
         end
     end
