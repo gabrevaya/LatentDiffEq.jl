@@ -1,6 +1,10 @@
 # LatentDiffEq
 Latent Differential Equation models in Julia.
 
+#### Note: This repo is still experimental!
+Confirmed to work with Julia 1.5.3
+Using Julia 1.6 causes a bad learning (mean blurry pendulum). We are working to fix it.
+
 ## Installation
 
 1. Clone the repository and enter the folder:
