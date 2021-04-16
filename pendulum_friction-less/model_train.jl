@@ -11,6 +11,8 @@ using Flux.Data: DataLoader
 using Flux
 using OrdinaryDiffEq
 using ModelingToolkit
+using Images
+using Plots
 
 ################################################################################
 ## Arguments for the train function
@@ -179,6 +181,45 @@ function train(; kws...)
         end
     end
 end
+
+################################################################################
+## Visualization function
+
+function visualize_val_image(model, val_set, t_val, h, w)
+    j = rand(1:size(val_set,3))
+    X_test = val_set[:,:,j]
+    frames_test = [Gray.(reshape(x,h,w)) for x in eachcol(X_test)]
+    X_test = reshape(X_test, Val(3))
+    x = Flux.unstack(X_test, 2)
+
+    X̂, μ, logσ² = model(x, t_val)
+    x̂, ẑ, ẑ₀, = X̂
+
+    if length(X̂) == 4
+        θ̂ = X̂[4]
+        @show θ̂
+    end
+
+    # gr(size = (700, 350))
+    ẑ = Flux.stack(ẑ, 2)
+
+    plt1 = plot(ẑ[1,:,1], legend = false)
+    ylabel!("Angle")
+    xlabel!("time")
+    # plt1 = plot(ẑ[1,1,:]) # for Latent ODE
+
+    x̂ = Flux.stack(x̂, 2)
+    frames_pred = [Gray.(reshape(x,h,w)) for x in eachslice(x̂, dims=2)]
+
+    frames_test = frames_test[1:6:end]
+    frames_pred = frames_pred[1:6:end]
+
+    plt2 = mosaicview(frames_test..., frames_pred..., nrow=2, rowmajor=true)
+    plt2 = plot(plt2, leg = false, ticks = nothing, border = :none)
+    plt = plot(plt1, plt2, layout = @layout([a; b]))
+    display(plt)
+end
+
 
 if abspath(PROGRAM_FILE) == @__FILE__
     train()

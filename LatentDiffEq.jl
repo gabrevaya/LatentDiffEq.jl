@@ -8,8 +8,6 @@ using Flux
 using Flux: reset!
 using Statistics
 using ModelingToolkit
-using Images
-using Plots
 
 ## Defining types
 abstract type AbstractModel end
