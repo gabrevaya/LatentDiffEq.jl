@@ -11,6 +11,8 @@ using Flux.Data: DataLoader
 using Flux
 using OrdinaryDiffEq
 using ModelingToolkit
+using Images
+using Plots
 
 ################################################################################
 ## Arguments for the train function
@@ -29,7 +31,7 @@ using ModelingToolkit
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
     epochs = 200                    # number of epochs for training
-    seed = 1                        # random seed
+    seed = 3                        # random seed
     cuda = false                    # GPU usage
     dt = 0.05                       # timestep for ode solve
     start_af = 0.00001f0            # Annealing factor start value
@@ -77,6 +79,7 @@ function train(; kws...)
 
     train_data = reshape(train_data_norm, observations, full_seq_len, :)
     train_data = permutedims(train_data, [3, 2, 1]) # input_dim, time_size, observations
+    train_data = Float32.(train_data)
 
     train_set, val_set = splitobs(train_data, 0.9)
 
@@ -112,12 +115,13 @@ function train(; kws...)
     best_val_loss::Float32 = Inf32
     val_loss::Float32 = 0
 
-    let
-        mkpath(save_path)
-        saving_path = joinpath(save_path, "Args.bson")
-        args=struct2dict(args)
-        @save saving_path args
-    end
+    # FIX NEEDED. NOT WORKING AFTER PACKAGES UPDATES
+    # let
+    #     mkpath(save_path)
+    #     saving_path = joinpath(save_path, "Args.bson")
+    #     args=struct2dict(args)
+    #     @save saving_path args
+    # end
     
     ############################################################################
     ## Main train loop
@@ -167,15 +171,55 @@ function train(; kws...)
             best_val_loss = deepcopy(val_loss)
             model_path = joinpath(save_path, "best_model_$(typeof(model_type)).bson")
 
-            let
-                # model = cpu(model)
-                @save model_path model
-                @info "Model saved: $model_path"
-            end
+            # FIX NEEDED. NOT WORKING AFTER PACKAGES UPDATES
+            # let
+            #     # model = cpu(model)
+            #     @save model_path model
+            #     @info "Model saved: $model_path"
+            # end
 
         end
     end
 end
+
+################################################################################
+## Visualization function
+
+function visualize_val_image(model, val_set, t_val, h, w)
+    j = rand(1:size(val_set,3))
+    X_test = val_set[:,:,j]
+    frames_test = [Gray.(reshape(x,h,w)) for x in eachcol(X_test)]
+    X_test = reshape(X_test, Val(3))
+    x = Flux.unstack(X_test, 2)
+
+    X̂, μ, logσ² = model(x, t_val)
+    x̂, ẑ, ẑ₀, = X̂
+
+    if length(X̂) == 4
+        θ̂ = X̂[4]
+        @show θ̂
+    end
+
+    # gr(size = (700, 350))
+    ẑ = Flux.stack(ẑ, 2)
+
+    plt1 = plot(ẑ[1,:,1], legend = false)
+    ylabel!("Angle")
+    xlabel!("time")
+    # plt1 = plot(ẑ[1,1,:]) # for Latent ODE
+
+    x̂ = Flux.stack(x̂, 2)
+    frames_pred = [Gray.(reshape(x,h,w)) for x in eachslice(x̂, dims=2)]
+
+    frames_test = frames_test[1:6:end]
+    frames_pred = frames_pred[1:6:end]
+
+    plt2 = mosaicview(frames_test..., frames_pred..., nrow=2, rowmajor=true)
+    plt2 = plot(plt2, leg = false, ticks = nothing, border = :none)
+    plt = plot(plt1, plt2, layout = @layout([a; b]))
+    display(plt)
+end
+
 
 if abspath(PROGRAM_FILE) == @__FILE__
     train()
