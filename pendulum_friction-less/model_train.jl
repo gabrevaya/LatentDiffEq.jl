@@ -31,7 +31,7 @@ using Plots
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
     epochs = 200                    # number of epochs for training
-    seed = 1                        # random seed
+    seed = 3                        # random seed
     cuda = false                    # GPU usage
     dt = 0.05                       # timestep for ode solve
     start_af = 0.00001f0            # Annealing factor start value
