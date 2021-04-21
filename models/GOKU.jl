@@ -112,7 +112,7 @@ function diffeq_layer(decoder::GOKU_decoder, ẑ₀, θ̂, t)
     ens_prob = EnsembleProblem(prob, prob_func = prob_func, output_func = output_func)
 
     ## Solve
-    ẑ = solve(ens_prob, solver, EnsembleSerial(), sensealg = sensealg, trajectories = size(θ̂, 2), saveat = t) # |> device I THINK THAT IF u0 IS A CuArray, then the solution will be a CuArray and there will be no need for this |> device. Although maybe the outer array is not a Cuda one and that would be needed.
+    ẑ = solve(ens_prob, solver, EnsembleThreads(), sensealg = sensealg, trajectories = size(θ̂, 2), saveat = t) # |> device I THINK THAT IF u0 IS A CuArray, then the solution will be a CuArray and there will be no need for this |> device. Although maybe the outer array is not a Cuda one and that would be needed.
     # Transform the resulting output (Mainly used for Kuramoto system to pass from phase -> time space)
     transform_after_diffeq!(ẑ, decoder.diffeq)
 
