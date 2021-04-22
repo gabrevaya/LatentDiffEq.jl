@@ -10,6 +10,7 @@ using BSON: @save
 using Flux.Data: DataLoader
 using Flux
 using OrdinaryDiffEq
+using DiffEqSensitivity
 using ModelingToolkit
 using Images
 using Plots
@@ -95,12 +96,20 @@ function train(; kws...)
     encoder_layers, decoder_layers = default_layers(model_type, input_dim, diffeq, device)
     model = LatentDiffEqModel(model_type, encoder_layers, diffeq, decoder_layers)
 
+    hidden_dim = 200
+    discriminator = Chain(Dense(input_dim, hidden_dim, relu),
+                            Dense(hidden_dim, hidden_dim, relu),
+                            Dense(hidden_dim, hidden_dim, relu),
+                            Dense(hidden_dim, hidden_dim, relu),
+                            Dense(hidden_dim, 1, σ))
+
     # Get parameters
     ps = Flux.params(model)
+    p_D = Flux.params(discriminator)
 
     ############################################################################
     ## Define optimizer
-    opt = ADAM(η)
+    opt = Adam(η)
 
     ############################################################################
     ## Various definitions
@@ -146,8 +155,17 @@ function train(; kws...)
             # Use only random sequences of length seq_len for the current minibatch
             x = time_loader(x, full_seq_len, seq_len)
             
+            # Train discriminator
+            loss, back = Flux.pullback(p_D) do
+                loss_batch(model, discriminator, λ, x |> device, t, af)
+            end
+            # Backpropagate and update
+            grad = back(1f0)
+            Flux.Optimise.update!(opt, p_D, grad)
+
+            # Train generator
             loss, back = Flux.pullback(ps) do
-                loss_batch(model, λ, x |> device, t, af)
+                loss_batch(model, discriminator, λ, x |> device, t, af)
             end
             # Backpropagate and update
             grad = back(1f0)
@@ -156,7 +174,7 @@ function train(; kws...)
             # Use validation set to get loss and visualisation
             val_set = Flux.unstack(first(loader_val), 2)
             t_val = range(0.f0, step=dt, length=length(val_set))
-            val_loss = loss_batch(model, λ, val_set |> device, t_val, af)
+            val_loss = loss_batch(model, discriminator, λ, val_set |> device, t_val, af)
 
             # progress meter
             next!(progress; showvalues=[(:loss, loss),(:val_loss, val_loss)])

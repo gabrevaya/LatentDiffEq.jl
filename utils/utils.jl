@@ -22,6 +22,42 @@ kl(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
 # make it better for gpu
 # CUDA.@cufunc kl(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
 
+function loss_batch(model::LatentDiffEqModel, discriminator, λ, x, t, af)
+
+    # Make prediction
+    X̂, μ, logσ² = model(x, t)
+    x̂, ẑ, ẑ₀, = X̂
+
+    # Discriminator loss
+    d_x = discriminator.(x)
+    d_x̂ = discriminator.(x̂)
+
+    discriminator_loss = dis_loss(d_x, d_x̂)
+
+    # Compute reconstruction (and differential) loss
+    reconstruction_loss = rec_loss(x, x̂)
+
+    # Compute KL losses from parameter and initial value estimation
+    kl_loss = sum( [ mean(sum(kl.(μ[i], logσ²[i]), dims=1)) for i in 1:length(μ) ] )
+    
+    return reconstruction_loss + kl_loss + 0.003f0*discriminator_loss
+end
+
+function dis_loss(d_x, d_x̂)
+
+    # Data prep
+    d_x_stacked = Flux.stack(d_x, 3)
+    d_x̂_stacked = Flux.stack(d_x̂, 3)
+
+    d1 = (d_x_stacked .- 1f0).^2
+    d2 = d_x̂_stacked.^2
+
+    m1 = mean(d1, dims = (2, 3))
+    m2 = mean(d1, dims = (2, 3))
+
+    loss = m1[1] + m2[1]
+end
+
 function rec_loss(x, x̂)
 
     # Data prep
