@@ -52,23 +52,46 @@ function loss_batch(model::LatentDiffEqModel, discriminator_img, discriminator_s
     # Discriminator for images
     Dimg_x = discriminator_img.(x)
     Dimg_x̂ = discriminator_img.(x̂)
-    discriminator_img_loss = rec_loss(Dimg_x, Dimg_x̂)
+    discriminator_img_loss = vector_mse(Dimg_x, Dimg_x̂)
 
     # Discriminator for images
     Dseq_x = discriminator_seq.(x)[end]
     reset!(discriminator_seq)
     Dseq_x̂ = discriminator_seq.(x̂)[end]
     reset!(discriminator_seq)
-
     discriminator_seq_loss = vector_mse(Dseq_x, Dseq_x̂)
 
-    # Compute reconstruction (and differential) loss
+    # Reconstruction loss
     reconstruction_loss = vector_mse(x, x̂)
+
+    # Difference loss
+    difference_loss = vector_mse(diff(x), diff(x̂))
 
     # Compute KL losses from parameter and initial value estimation
     kl_loss = sum( [ mean(sum(kl.(μ[i], logσ²[i]), dims=1)) for i in 1:length(μ) ] )
     
-    return reconstruction_loss + kl_loss + 0.003f0*discriminator_img_loss + 0.003f0*discriminator_seq_loss
+    return reconstruction_loss + kl_loss + 0.003f0*discriminator_img_loss + 0.003f0*discriminator_seq_loss + difference_loss
+end
+
+function loss_batch_discriminator(model::LatentDiffEqModel, discriminator_img, discriminator_seq, λ, x, t, af)
+
+    # Make prediction
+    X̂, μ, logσ² = model(x, t)
+    x̂, ẑ, ẑ₀, = X̂
+
+    # Discriminator for images
+    Dimg_x = discriminator_img.(x)
+    Dimg_x̂ = discriminator_img.(x̂)
+    discriminator_img_loss = vector_mse(Dimg_x, Dimg_x̂)
+
+    # Discriminator for images
+    Dseq_x = discriminator_seq.(x)[end]
+    reset!(discriminator_seq)
+    Dseq_x̂ = discriminator_seq.(x̂)[end]
+    reset!(discriminator_seq)
+    discriminator_seq_loss = vector_mse(Dseq_x, Dseq_x̂)
+
+    return discriminator_img_loss + discriminator_seq_loss
 end
 
 function vector_mse(x, x̂)
@@ -78,7 +101,6 @@ function vector_mse(x, x̂)
     end
     res /= length(x)
 end
-
 
 ## annealing factor parameters
 # start_af: start value of annealing factor

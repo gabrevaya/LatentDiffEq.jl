@@ -31,7 +31,7 @@ using Plots
     λ = 0.01f0                      # regularization paramater
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
-    epochs = 200                    # number of epochs for training
+    epochs = 500                    # number of epochs for training
     seed = 3                        # random seed
     cuda = false                    # GPU usage
     dt = 0.05                       # timestep for ode solve
@@ -41,8 +41,8 @@ using Plots
 
     ## Progressive observation training
     progressive_training = false    # progressive training usage
-    prog_training_duration = 5      # number of eppchs to reach the final seq_len
-    start_seq_len = 10              # training sequence length at first step
+    prog_training_duration = 450    # number of eppchs to reach the final seq_len
+    start_seq_len = 5               # training sequence length at first step
 
     ## Visualization
     vis_len = 60                    # number of frames to visualize after each epoch
@@ -160,7 +160,7 @@ function train(; kws...)
             
             # Train discriminator
             loss, back = Flux.pullback(p_D) do
-                loss_batch(generator, discriminator_img, discriminator_seq, λ, x |> device, t, af)
+                loss_batch_discriminator(generator, discriminator_img, discriminator_seq, λ, x |> device, t, af)
             end
             # Backpropagate and update
             grad = back(1f0)
