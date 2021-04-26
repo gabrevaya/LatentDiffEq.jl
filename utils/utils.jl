@@ -8,8 +8,8 @@ function loss_batch(model::LatentDiffEqModel, λ, x, t, af)
     X̂, μ, logσ² = model(x, t)
     x̂, ẑ, ẑ₀, = X̂
 
-    # Compute reconstruction (and differential) loss
-    reconstruction_loss = rec_loss(x, x̂)
+    # Compute reconstruction loss
+    reconstruction_loss = vector_mse(x, x̂)
 
     # Compute KL losses from parameter and initial value estimation
     kl_loss = sum( [ mean(sum(kl.(μ[i], logσ²[i]), dims=1)) for i in 1:length(μ) ] )
@@ -22,17 +22,12 @@ kl(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
 # make it better for gpu
 # CUDA.@cufunc kl(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
 
-function rec_loss(x, x̂)
-
-    # Data prep
-    x̂_stacked = Flux.stack(x̂, 3)
-    x_stacked = Flux.stack(x, 3)
-
-    # Residual loss
-    res = x̂_stacked - x_stacked
-    res_average = sum(mean((res).^2, dims = (2, 3)))
-
-    return res_average/size(x̂_stacked,1)
+function vector_mse(x, x̂)
+    res = zero(eltype(x[1]))
+    for i in eachindex(x)
+        res += mean((x[i] .- x̂[i]).^2)
+    end
+    res /= length(x)
 end
 
 ## annealing factor parameters
