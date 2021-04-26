@@ -9,11 +9,11 @@ function loss_batch(model::LatentDiffEqModel, λ, x, t, af)
     x̂, ẑ, ẑ₀, = X̂
 
     # Compute reconstruction (and differential) loss
-    reconstruction_loss = rec_loss(x, x̂)
+    reconstruction_loss = vector_mse(x, x̂)
 
     # Compute KL losses from parameter and initial value estimation
     kl_loss = sum( [ mean(sum(kl.(μ[i], logσ²[i]), dims=1)) for i in 1:length(μ) ] )
-    
+
     return reconstruction_loss + kl_loss
 end
 
@@ -32,10 +32,10 @@ function loss_batch(model::LatentDiffEqModel, discriminator, λ, x, t, af)
     d_x = discriminator.(x)
     d_x̂ = discriminator.(x̂)
 
-    discriminator_loss = dis_loss(d_x, d_x̂)
+    discriminator_loss = vector_mse(d_x, d_x̂)
 
     # Compute reconstruction (and differential) loss
-    reconstruction_loss = rec_loss(x, x̂)
+    reconstruction_loss = vector_mse(x, x̂)
 
     # Compute KL losses from parameter and initial value estimation
     kl_loss = sum( [ mean(sum(kl.(μ[i], logσ²[i]), dims=1)) for i in 1:length(μ) ] )
@@ -43,33 +43,42 @@ function loss_batch(model::LatentDiffEqModel, discriminator, λ, x, t, af)
     return reconstruction_loss + kl_loss + 0.003f0*discriminator_loss
 end
 
-function dis_loss(d_x, d_x̂)
+function loss_batch(model::LatentDiffEqModel, discriminator_img, discriminator_seq, λ, x, t, af)
 
-    # Data prep
-    d_x_stacked = Flux.stack(d_x, 3)
-    d_x̂_stacked = Flux.stack(d_x̂, 3)
+    # Make prediction
+    X̂, μ, logσ² = model(x, t)
+    x̂, ẑ, ẑ₀, = X̂
 
-    d1 = (d_x_stacked .- 1f0).^2
-    d2 = d_x̂_stacked.^2
+    # Discriminator for images
+    Dimg_x = discriminator_img.(x)
+    Dimg_x̂ = discriminator_img.(x̂)
+    discriminator_img_loss = rec_loss(Dimg_x, Dimg_x̂)
 
-    m1 = mean(d1, dims = (2, 3))
-    m2 = mean(d1, dims = (2, 3))
+    # Discriminator for images
+    Dseq_x = discriminator_seq.(x)[end]
+    reset!(discriminator_seq)
+    Dseq_x̂ = discriminator_seq.(x̂)[end]
+    reset!(discriminator_seq)
 
-    loss = m1[1] + m2[1]
+    discriminator_seq_loss = vector_mse(Dseq_x, Dseq_x̂)
+
+    # Compute reconstruction (and differential) loss
+    reconstruction_loss = vector_mse(x, x̂)
+
+    # Compute KL losses from parameter and initial value estimation
+    kl_loss = sum( [ mean(sum(kl.(μ[i], logσ²[i]), dims=1)) for i in 1:length(μ) ] )
+    
+    return reconstruction_loss + kl_loss + 0.003f0*discriminator_img_loss + 0.003f0*discriminator_seq_loss
 end
 
-function rec_loss(x, x̂)
-
-    # Data prep
-    x̂_stacked = Flux.stack(x̂, 3)
-    x_stacked = Flux.stack(x, 3)
-
-    # Residual loss
-    res = x̂_stacked - x_stacked
-    res_average = sum(mean((res).^2, dims = (2, 3)))
-
-    return res_average/size(x̂_stacked,1)
+function vector_mse(x, x̂)
+    res = zero(eltype(x[1]))
+    for i in eachindex(x)
+        res += mean((x[i] .- x̂[i]).^2)
+    end
+    res /= length(x)
 end
+
 
 ## annealing factor parameters
 # start_af: start value of annealing factor

@@ -10,6 +10,7 @@ using BSON: @save
 using Flux.Data: DataLoader
 using Flux
 using OrdinaryDiffEq
+using DiffEqSensitivity
 using ModelingToolkit
 using Images
 using Plots
@@ -93,10 +94,21 @@ function train(; kws...)
     # Create model
 
     encoder_layers, decoder_layers = default_layers(model_type, input_dim, diffeq, device)
-    model = LatentDiffEqModel(model_type, encoder_layers, diffeq, decoder_layers)
+    generator = LatentDiffEqModel(model_type, encoder_layers, diffeq, decoder_layers)
+
+    hidden_dim = 200
+    discriminator_img = Chain(Dense(input_dim, hidden_dim, relu),
+                            Dense(hidden_dim, hidden_dim, relu),
+                            Dense(hidden_dim, hidden_dim, relu),
+                            Dense(hidden_dim, 1, σ)) |> device
+
+    discriminator_seq = Chain(LSTM(input_dim, hidden_dim),
+                            LSTM(hidden_dim, hidden_dim),
+                            Dense(hidden_dim, 1, σ)) |> device
 
     # Get parameters
-    ps = Flux.params(model)
+    p_G = Flux.params(generator)
+    p_D = Flux.params(discriminator_img, discriminator_seq)
 
     ############################################################################
     ## Define optimizer
@@ -146,17 +158,26 @@ function train(; kws...)
             # Use only random sequences of length seq_len for the current minibatch
             x = time_loader(x, full_seq_len, seq_len)
             
-            loss, back = Flux.pullback(ps) do
-                loss_batch(model, λ, x |> device, t, af)
+            # Train discriminator
+            loss, back = Flux.pullback(p_D) do
+                loss_batch(generator, discriminator_img, discriminator_seq, λ, x |> device, t, af)
             end
             # Backpropagate and update
             grad = back(1f0)
-            Flux.Optimise.update!(opt, ps, grad)
+            Flux.Optimise.update!(opt, p_D, grad)
+
+            # Train generator
+            loss, back = Flux.pullback(p_G) do
+                loss_batch(generator, discriminator_img, discriminator_seq, λ, x |> device, t, af)
+            end
+            # Backpropagate and update
+            grad = back(1f0)
+            Flux.Optimise.update!(opt, p_G, grad)
 
             # Use validation set to get loss and visualisation
             val_set = Flux.unstack(first(loader_val), 2)
             t_val = range(0.f0, step=dt, length=length(val_set))
-            val_loss = loss_batch(model, λ, val_set |> device, t_val, af)
+            val_loss = loss_batch(generator, discriminator_img, discriminator_seq, λ, val_set |> device, t_val, af)
 
             # progress meter
             next!(progress; showvalues=[(:loss, loss),(:val_loss, val_loss)])
@@ -165,7 +186,7 @@ function train(; kws...)
         if device != gpu
             val_set = first(loader_val)
             t_val = range(0.f0, step=dt, length=vis_len)
-            visualize_val_image(model, val_set[:,1:vis_len,:] |> device, t_val, h, w)
+            visualize_val_image(generator, val_set[:,1:vis_len,:] |> device, t_val, h, w)
         end
         if val_loss < best_val_loss
             best_val_loss = deepcopy(val_loss)
