@@ -10,6 +10,7 @@ using BSON: @save
 using Flux.Data: DataLoader
 using Flux
 using OrdinaryDiffEq
+using DiffEqSensitivity
 using ModelingToolkit
 using Images
 using Plots
@@ -26,12 +27,12 @@ using Plots
     # diffeq = NODE(2)
 
     ## Training params
-    η = 1e-2                        # learning rate
+    η = 1e-3                        # learning rate
     λ = 0.01f0                      # regularization paramater
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
-    epochs = 200                    # number of epochs for training
-    seed = 3                        # random seed
+    epochs = 500                    # number of epochs for training
+    seed = 1                        # random seed
     cuda = false                    # GPU usage
     dt = 0.05                       # timestep for ode solve
     start_af = 0.00001f0            # Annealing factor start value
@@ -39,9 +40,9 @@ using Plots
     ae = 200                        # Annealing factor epoch end
 
     ## Progressive observation training
-    progressive_training = false    # progressive training usage
-    prog_training_duration = 5      # number of eppchs to reach the final seq_len
-    start_seq_len = 10              # training sequence length at first step
+    progressive_training = true    # progressive training usage
+    prog_training_duration = 450      # number of eppchs to reach the final seq_len
+    start_seq_len = 5              # training sequence length at first step
 
     ## Visualization
     vis_len = 60                    # number of frames to visualize after each epoch
@@ -146,9 +147,11 @@ function train(; kws...)
             # Use only random sequences of length seq_len for the current minibatch
             x = time_loader(x, full_seq_len, seq_len)
             
+            # Calculate gradients
             loss, back = Flux.pullback(ps) do
                 loss_batch(model, λ, x |> device, t, af)
             end
+
             # Backpropagate and update
             grad = back(1f0)
             Flux.Optimise.update!(opt, ps, grad)
