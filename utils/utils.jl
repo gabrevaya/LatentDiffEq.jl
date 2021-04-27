@@ -52,14 +52,18 @@ function loss_batch(model::LatentDiffEqModel, discriminator_img, discriminator_s
     # Discriminator for images
     Dimg_x = discriminator_img.(x)
     Dimg_x̂ = discriminator_img.(x̂)
-    discriminator_img_loss = vector_mse(Dimg_x, Dimg_x̂)
+    discr_img_loss1 = vector_mse(Dimg_x, one)
+    discr_img_loss2 = vector_mse(Dimg_x̂, zero)
+    discriminator_img_loss = discr_img_loss1 + discr_img_loss2
 
     # Discriminator for images
     Dseq_x = discriminator_seq.(x)[end]
     reset!(discriminator_seq)
     Dseq_x̂ = discriminator_seq.(x̂)[end]
     reset!(discriminator_seq)
-    discriminator_seq_loss = vector_mse(Dseq_x, Dseq_x̂)
+    discr_seq_loss1 = vector_mse(Dseq_x, one)
+    discr_seq_loss2 = vector_mse(Dseq_x̂, zero)
+    discriminator_seq_loss = discr_seq_loss1 + discr_seq_loss2
 
     # Reconstruction loss
     reconstruction_loss = vector_mse(x, x̂)
@@ -82,14 +86,19 @@ function loss_batch_discriminator(model::LatentDiffEqModel, discriminator_img, d
     # Discriminator for images
     Dimg_x = discriminator_img.(x)
     Dimg_x̂ = discriminator_img.(x̂)
-    discriminator_img_loss = vector_mse(Dimg_x, Dimg_x̂)
+    discr_img_loss1 = vector_mse(Dimg_x, one)
+    discr_img_loss2 = vector_mse(Dimg_x̂, zero)
+    discriminator_img_loss = discr_img_loss1 + discr_img_loss2
 
     # Discriminator for images
     Dseq_x = discriminator_seq.(x)[end]
     reset!(discriminator_seq)
     Dseq_x̂ = discriminator_seq.(x̂)[end]
     reset!(discriminator_seq)
-    discriminator_seq_loss = vector_mse(Dseq_x, Dseq_x̂)
+    discr_seq_loss1 = vector_mse(Dseq_x, one)
+    discr_seq_loss2 = vector_mse(Dseq_x̂, zero)
+    discriminator_seq_loss = discr_seq_loss1 + discr_seq_loss2
+
 
     return discriminator_img_loss + discriminator_seq_loss
 end
@@ -100,6 +109,28 @@ function vector_mse(x, x̂)
         res += mean((x[i] .- x̂[i]).^2)
     end
     res /= length(x)
+end
+
+function vector_mse(x, target::Function)
+    T = eltype(x[1])
+    res = zero(T)
+    for i in eachindex(x)
+        res += mean((x[i] .- target(T)).^2)
+    end
+    res /= length(x)
+end
+
+function vector_mse2(x, target::Function)
+    T = eltype(x[1])
+    res = zero(T)
+    n = zero(T)
+    for i in eachindex(x)
+        for j in eachindex(i)
+            res += (x[i][j] - target(T))^2
+            n += one(T)
+        end
+    end
+    res /= n
 end
 
 ## annealing factor parameters
