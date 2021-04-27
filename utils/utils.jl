@@ -99,8 +99,7 @@ function loss_batch_discriminator(model::LatentDiffEqModel, discriminator_img, d
     discr_seq_loss2 = vector_mse(Dseq_x̂, zero)
     discriminator_seq_loss = discr_seq_loss1 + discr_seq_loss2
 
-
-    return discriminator_img_loss + discriminator_seq_loss
+    discriminator_loss = discriminator_img_loss + discriminator_seq_loss
 end
 
 function vector_mse(x, x̂)
