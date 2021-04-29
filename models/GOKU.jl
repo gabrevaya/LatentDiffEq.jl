@@ -25,7 +25,8 @@ end
 function (encoder::GOKU_encoder)(x)
 
     # Pass all states in the time series in dense layer
-    l1_out = encoder.layer1.(x)
+    # l1_out = encoder.layer1.(x)
+    l1_out = [encoder.layer1(el) for el in x]
 
     # Pass an RNN and an BiLSTM through latent states
     l2_z₀_out, l2_θ_out = apply_layers2(encoder, l1_out)
@@ -48,9 +49,12 @@ function apply_layers2(encoder::GOKU_encoder, l1_out)
     l1_out_rev = reverse(l1_out)
 
     # pass it through the recurrent layer
-    l2_z₀_out = encoder.layer2_z₀.(l1_out_rev)[end]
-    l2_θ_out_f = encoder.layer2_θ_forward.(l1_out)[end]
-    l2_θ_out_b = encoder.layer2_θ_backward.(l1_out_rev)[end]
+    # l2_z₀_out = encoder.layer2_z₀.(l1_out_rev)[end]
+    # l2_θ_out_f = encoder.layer2_θ_forward.(l1_out)[end]
+    # l2_θ_out_b = encoder.layer2_θ_backward.(l1_out_rev)[end]
+    l2_z₀_out = [encoder.layer2_z₀(el) for el in l1_out_rev][end]
+    l2_θ_out_f = [encoder.layer2_θ_forward(el) for el in l1_out][end]
+    l2_θ_out_b = [encoder.layer2_θ_backward(el) for el in l1_out_rev][end]
     l2_θ_out = vcat(l2_θ_out_f, l2_θ_out_b)
 
     # reset hidden states
@@ -91,7 +95,8 @@ function (decoder::GOKU_decoder)(l̃, t)
     ẑ = diffeq_layer(decoder, ẑ₀, θ̂, t)
 
     ## Create output data shape
-    x̂ = decoder.layer_output.(ẑ)
+    # x̂ = decoder.layer_output.(ẑ)
+    x̂ = [decoder.layer_output(el) for el in ẑ]
 
     return x̂, ẑ, ẑ₀, θ̂
 end
@@ -117,9 +122,44 @@ function diffeq_layer(decoder::GOKU_decoder, ẑ₀, θ̂, t)
     transform_after_diffeq!(ẑ, decoder.diffeq)
 
     ẑ = Flux.unstack(ẑ, 2)
-
     return ẑ
 end
+
+
+# function diffeq_layer(decoder::GOKU_decoder, ẑ₀, θ̂, t)
+#     prob = decoder.diffeq.prob
+#     solver = decoder.diffeq.solver
+#     sensealg = decoder.diffeq.sensealg
+
+#     prob = remake(prob; tspan = (t[1],t[end]))
+#     ẑ = Matrix{eltype(ẑ₀)}[]
+
+#     for i in 1:size(ẑ₀,2)
+#         prob = remake(prob, u0=ẑ₀[:,i], p = θ̂[:,i])
+#         sol = solve(prob, solver, sensealg = sensealg, saveat = t)
+#         if i == size(ẑ₀,2)
+#             Zygote.ignore() do
+#                 plt = plot(sol)
+#                 display(plt)
+#             end
+#         end
+#         # out = sol.retcode == :Success ? Array(sol) : fill(NaN32,(size(ẑ₀, 1), length(t)))
+#         out = Array(sol)
+#         push!(ẑ, out)
+#     end
+
+#     ẑ = Flux.stack(ẑ, 3)
+#     Zygote.ignore() do
+#     z1 = ẑ[1,:,64]
+#     z2 = ẑ[2,:,64]
+#     plt = plot(collect(t), z1)
+#     plot!(collect(t), z2)
+#     display(plt)
+#     end
+#     ẑ = Flux.unstack(ẑ, 2)
+
+#     return ẑ
+# end
 
 # Think how pass the ensemble_parallel argument
 # maybe with a function like
@@ -141,8 +181,10 @@ function variational(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T 
     z₀_μ, θ_μ = μ
     z₀_logσ², θ_logσ² = logσ²
 
-    ẑ₀ = z₀_μ + gpu(randn(Float32, size(z₀_logσ²))) .* exp.(z₀_logσ²/2f0)
-    θ̂ =  θ_μ + gpu(randn(Float32, size( θ_logσ²))) .* exp.(θ_logσ²/2f0)
+    # ẑ₀ = z₀_μ + gpu(randn(Float32, size(z₀_logσ²))) .* exp.(z₀_logσ²/2f0)
+    # θ̂ =  θ_μ + gpu(randn(Float32, size( θ_logσ²))) .* exp.(θ_logσ²/2f0)
+    ẑ₀ = z₀_μ + gpu(randn(Float32, size(z₀_logσ²))) .* [exp(el/2f0) for el in z₀_logσ²]
+    θ̂ =  θ_μ + gpu(randn(Float32, size( θ_logσ²))) .* [exp(el/2f0) for el in θ_logσ²]
 
     return ẑ₀, θ̂
 end
@@ -151,8 +193,15 @@ function variational(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T 
     z₀_μ, θ_μ = μ
     z₀_logσ², θ_logσ² = logσ²
 
-    ẑ₀ = z₀_μ + randn(Float32, size(z₀_logσ²)) .* exp.(z₀_logσ²/2f0)
-    θ̂ =  θ_μ + randn(Float32, size( θ_logσ²)) .* exp.(θ_logσ²/2f0)
+    # ẑ₀ = z₀_μ + randn(Float32, size(z₀_logσ²)) .* exp.(z₀_logσ²/2f0)
+    # θ̂ =  θ_μ + randn(Float32, size( θ_logσ²)) .* exp.(θ_logσ²/2f0)
+    z1 = randn(Float32, size(z₀_logσ²))
+    z2 = [exp(el/2f0) for el in z₀_logσ²]
+    ẑ₀ = z₀_μ + [z1[i]*z2[i] for i in 1:length(z1)]
+
+    θ1 = randn(Float32, size( θ_logσ²))
+    θ2 = [exp(el/2f0) for el in θ_logσ²]
+    θ̂ =  θ_μ + [θ1[i]*θ2[i] for i in 1:length(θ1)]
 
     return ẑ₀, θ̂
 end

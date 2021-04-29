@@ -12,7 +12,9 @@ function loss_batch(model::LatentDiffEqModel, λ, x, t, af)
     reconstruction_loss = vector_mse(x, x̂)
 
     # Compute KL losses from parameter and initial value estimation
-    kl_loss = sum( [ mean(sum(kl.(μ[i], logσ²[i]), dims=1)) for i in 1:length(μ) ] )
+    # kl_loss = sum( [ mean(sum(kl.(μ[i], logσ²[i]), dims=1)) for i in 1:length(μ) ] )
+    kl_loss = sum( [ mean(sum([kl(μ[i][j], logσ²[i][j]) for j in 1:length(μ[i])], dims=1)) for i in 1:length(μ) ] )
+
     
     return reconstruction_loss + kl_loss
 end
@@ -25,7 +27,8 @@ kl(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0
 function vector_mse(x, x̂)
     res = zero(eltype(x[1]))
     for i in eachindex(x)
-        res += mean((x[i] .- x̂[i]).^2)
+        # res += mean((x[i] .- x̂[i]).^2)
+        res += mean([(x[i][j] - x̂[i][j])^2 for j in 1:length(x[i])])
     end
     res /= length(x)
 end
