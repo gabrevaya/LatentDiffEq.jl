@@ -30,8 +30,8 @@ using Plots
     λ = 0.01f0                      # regularization paramater
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
-    epochs = 200                    # number of epochs for training
-    seed = 3                        # random seed
+    epochs = 1500                    # number of epochs for training
+    seed = 1                        # random seed
     cuda = false                    # GPU usage
     dt = 0.05                       # timestep for ode solve
     start_af = 0.00001f0            # Annealing factor start value
@@ -217,7 +217,8 @@ function visualize_val_image(model, val_set, t_val, h, w)
     plt2 = mosaicview(frames_test..., frames_pred..., nrow=2, rowmajor=true)
     plt2 = plot(plt2, leg = false, ticks = nothing, border = :none)
     plt = plot(plt1, plt2, layout = @layout([a; b]))
-    display(plt)
+    # display(plt)
+    savefig(plt, "output/fig.pdf")
 end
 
 
