@@ -120,42 +120,6 @@ function diffeq_layer(decoder::GOKU_decoder, ẑ₀, θ̂, t)
     return ẑ
 end
 
-
-# function diffeq_layer(decoder::GOKU_decoder, ẑ₀, θ̂, t)
-#     prob = decoder.diffeq.prob
-#     solver = decoder.diffeq.solver
-#     sensealg = decoder.diffeq.sensealg
-
-#     prob = remake(prob; tspan = (t[1],t[end]))
-#     ẑ = Matrix{eltype(ẑ₀)}[]
-
-#     for i in 1:size(ẑ₀,2)
-#         prob = remake(prob, u0=ẑ₀[:,i], p = θ̂[:,i])
-#         sol = solve(prob, solver, sensealg = sensealg, saveat = t)
-#         if i == size(ẑ₀,2)
-#             Zygote.ignore() do
-#                 plt = plot(sol)
-#                 display(plt)
-#             end
-#         end
-#         # out = sol.retcode == :Success ? Array(sol) : fill(NaN32,(size(ẑ₀, 1), length(t)))
-#         out = Array(sol)
-#         push!(ẑ, out)
-#     end
-
-#     ẑ = Flux.stack(ẑ, 3)
-#     Zygote.ignore() do
-#     z1 = ẑ[1,:,64]
-#     z2 = ẑ[2,:,64]
-#     plt = plot(collect(t), z1)
-#     plot!(collect(t), z2)
-#     display(plt)
-#     end
-#     ẑ = Flux.unstack(ẑ, 2)
-
-#     return ẑ
-# end
-
 # Think how pass the ensemble_parallel argument
 # maybe with a function like
 # ensemble_parallel(u0::CuArray) = EnsembleGPUArray()

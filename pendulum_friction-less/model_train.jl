@@ -101,12 +101,7 @@ function train(; kws...)
 
     ############################################################################
     ## Define optimizer
-    # opt = AdaMax(η)
-    # opt = ADAM(η)
-    # opt = Momentum()
-    # opt = AdaBelief()
-    opt = ADAMW()
-    schedule = Cos(λ0 = 1e-4, λ1 = η, period = 10)
+    opt = ADAM(η)
 
     ############################################################################
     ## Various definitions
@@ -132,10 +127,7 @@ function train(; kws...)
     ############################################################################
     ## Main train loop
     @info "Start Training of $(typeof(model_type))-net, total $epochs epochs"
-    # for epoch = 1:epochs
-    for (eta, epoch) in zip(schedule, 1:epochs)
-    #     opt.eta = eta
-        opt.os[1].eta = eta
+    for epoch = 1:epochs
 
         ## set a sequence length for training samples
         seq_len = epoch ≤ prog_training_duration ? prog_seq_lengths[epoch] : seq_len
