@@ -27,7 +27,7 @@ using Plots
     # diffeq = NODE(2)
 
     ## Training params
-    η = 1e-3                        # learning rate
+    η = 1e-2                        # learning rate
     λ = 0.01f0                      # regularization paramater
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples

@@ -56,10 +56,10 @@ function loss_batch(model::LatentDiffEqModel, discriminator_img, discriminator_s
     discr_img_loss2 = vector_mse(Dimg_x̂, zero)
     discriminator_img_loss = discr_img_loss1 + discr_img_loss2
 
-    # Discriminator for images
-    Dseq_x = discriminator_seq.(x)[end]
+    # Discriminator for sequences
+    Dseq_x = map(discriminator_seq, x)[end]
     reset!(discriminator_seq)
-    Dseq_x̂ = discriminator_seq.(x̂)[end]
+    Dseq_x̂ = map(discriminator_seq, x̂)[end]
     reset!(discriminator_seq)
     discr_seq_loss1 = vector_mse(Dseq_x, one)
     discr_seq_loss2 = vector_mse(Dseq_x̂, zero)
@@ -90,10 +90,10 @@ function loss_batch_discriminator(model::LatentDiffEqModel, discriminator_img, d
     discr_img_loss2 = vector_mse(Dimg_x̂, zero)
     discriminator_img_loss = discr_img_loss1 + discr_img_loss2
 
-    # Discriminator for images
-    Dseq_x = discriminator_seq.(x)[end]
+    # Discriminator for sequences
+    Dseq_x = map(discriminator_seq, x)[end]
     reset!(discriminator_seq)
-    Dseq_x̂ = discriminator_seq.(x̂)[end]
+    Dseq_x̂ = map(discriminator_seq, x̂)[end]
     reset!(discriminator_seq)
     discr_seq_loss1 = vector_mse(Dseq_x, one)
     discr_seq_loss2 = vector_mse(Dseq_x̂, zero)

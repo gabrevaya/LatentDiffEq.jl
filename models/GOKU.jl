@@ -48,9 +48,9 @@ function apply_layers2(encoder::GOKU_encoder, l1_out)
     l1_out_rev = reverse(l1_out)
 
     # pass it through the recurrent layer
-    l2_z₀_out = encoder.layer2_z₀.(l1_out_rev)[end]
-    l2_θ_out_f = encoder.layer2_θ_forward.(l1_out)[end]
-    l2_θ_out_b = encoder.layer2_θ_backward.(l1_out_rev)[end]
+    l2_z₀_out = map(encoder.layer2_z₀, l1_out_rev)[end]
+    l2_θ_out_f = map(encoder.layer2_θ_forward, l1_out)[end]
+    l2_θ_out_b = map(encoder.layer2_θ_backward, l1_out_rev)[end]
     l2_θ_out = vcat(l2_θ_out_f, l2_θ_out_b)
 
     # reset hidden states
@@ -113,7 +113,7 @@ function diffeq_layer(decoder::GOKU_decoder, ẑ₀, θ̂, t)
     ens_prob = EnsembleProblem(prob, prob_func = prob_func, output_func = output_func)
 
     ## Solve
-    ẑ = solve(ens_prob, solver, EnsembleSerial(), sensealg = sensealg, trajectories = size(θ̂, 2), saveat = t) # |> device I THINK THAT IF u0 IS A CuArray, then the solution will be a CuArray and there will be no need for this |> device. Although maybe the outer array is not a Cuda one and that would be needed.
+    ẑ = solve(ens_prob, solver, EnsembleThreads(), sensealg = sensealg, trajectories = size(θ̂, 2), saveat = t) # |> device I THINK THAT IF u0 IS A CuArray, then the solution will be a CuArray and there will be no need for this |> device. Although maybe the outer array is not a Cuda one and that would be needed.
     # Transform the resulting output (Mainly used for Kuramoto system to pass from phase -> time space)
 
     transform_after_diffeq!(ẑ, decoder.diffeq)

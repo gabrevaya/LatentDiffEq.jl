@@ -27,12 +27,12 @@ using Plots
     # diffeq = NODE(2)
 
     ## Training params
-    η = 1e-3                        # learning rate
+    η = 1e-2                        # learning rate
     λ = 0.01f0                      # regularization paramater
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
     epochs = 500                    # number of epochs for training
-    seed = 3                        # random seed
+    seed = 1                        # random seed
     cuda = false                    # GPU usage
     dt = 0.05                       # timestep for ode solve
     start_af = 0.00001f0            # Annealing factor start value
@@ -136,58 +136,58 @@ function train(; kws...)
     # end
     
 # ###########################################################################
-#     ## Initial training
-#     @info "Start Initial Training of $(typeof(model_type))-net, for 10 epochs"
-#     for epoch = 1:10
+    ## Initial training
+    @info "Start Initial Training of $(typeof(model_type))-net, for 10 epochs"
+    for epoch = 1:10
 
-#         ## set a sequence length for training samples
-#         seq_len = epoch ≤ prog_training_duration ? prog_seq_lengths[epoch] : seq_len
+        ## set a sequence length for training samples
+        seq_len = epoch ≤ prog_training_duration ? prog_seq_lengths[epoch] : seq_len
 
-#         # Model evaluation length
-#         t = range(0.f0, step=dt, length=seq_len)
+        # Model evaluation length
+        t = range(0.f0, step=dt, length=seq_len)
 
-#         mb_id = 1   # Minibatch id
-#         @info "Epoch $epoch .. (Sequence training length $seq_len)"
-#         progress = Progress(length(loader_train))
-#         for x in loader_train
+        mb_id = 1   # Minibatch id
+        @info "Epoch $epoch .. (Sequence training length $seq_len)"
+        progress = Progress(length(loader_train))
+        for x in loader_train
 
-#             # Comput annealing factor
-#             af = annealing_factor(start_af, end_af, ae, epoch, mb_id, length(loader_train))
-#             mb_id += 1
+            # Comput annealing factor
+            af = annealing_factor(start_af, end_af, ae, epoch, mb_id, length(loader_train))
+            mb_id += 1
 
-#             # Use only random sequences of length seq_len for the current minibatch
-#             x = time_loader(x, full_seq_len, seq_len)
+            # Use only random sequences of length seq_len for the current minibatch
+            x = time_loader(x, full_seq_len, seq_len)
             
-#             # Train discriminator
-#             loss, back = Flux.pullback(p_D) do
-#                 loss_batch_discriminator(generator, discriminator_img, discriminator_seq, λ, x |> device, t, af)
-#             end
-#             # Backpropagate and update
-#             grad = back(1f0)
-#             Flux.Optimise.update!(opt, p_D, grad)
+            # Train discriminator
+            loss, back = Flux.pullback(p_D) do
+                loss_batch_discriminator(generator, discriminator_img, discriminator_seq, λ, x |> device, t, af)
+            end
+            # Backpropagate and update
+            grad = back(1f0)
+            Flux.Optimise.update!(opt, p_D, grad)
 
-#             # Train generator
-#             loss, back = Flux.pullback(p_G) do
-#                 loss_batch(generator, discriminator_img, discriminator_seq, λ, x |> device, t, af)
-#             end
-#             # Backpropagate and update
-#             grad = back(1f0)
-#             Flux.Optimise.update!(opt, p_G, grad)
+            # Train generator
+            loss, back = Flux.pullback(p_G) do
+                loss_batch(generator, discriminator_img, discriminator_seq, λ, x |> device, t, af)
+            end
+            # Backpropagate and update
+            grad = back(1f0)
+            Flux.Optimise.update!(opt, p_G, grad)
 
-#             # Use validation set to get loss and visualisation
-#             val_set = Flux.unstack(first(loader_val), 2)
-#             t_val = range(0.f0, step=dt, length=length(val_set))
-#             val_loss = loss_batch(generator, discriminator_img, discriminator_seq, λ, val_set |> device, t_val, af)
+            # Use validation set to get loss and visualisation
+            val_set = Flux.unstack(first(loader_val), 2)
+            t_val = range(0.f0, step=dt, length=length(val_set))
+            val_loss = loss_batch(generator, discriminator_img, discriminator_seq, λ, val_set |> device, t_val, af)
 
-#             # progress meter
-#             next!(progress; showvalues=[(:loss, loss),(:val_loss, val_loss)])
-#         end
-#         if device != gpu
-#             val_set = first(loader_val)
-#             t_val = range(0.f0, step=dt, length=vis_len)
-#             visualize_val_image(generator, val_set[:,1:vis_len,:] |> device, t_val, h, w)
-#         end
-#     end
+            # progress meter
+            next!(progress; showvalues=[(:loss, loss),(:val_loss, val_loss)])
+        end
+        if device != gpu
+            val_set = first(loader_val)
+            t_val = range(0.f0, step=dt, length=vis_len)
+            visualize_val_image(generator, val_set[:,1:vis_len,:] |> device, t_val, h, w)
+        end
+    end
 
     ############################################################################
     ## Discriminator initial training
