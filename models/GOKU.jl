@@ -160,7 +160,7 @@ end
 function default_layers(model_type::GOKU, input_dim, diffeq, device;
                             hidden_dim_resnet = 200, rnn_input_dim = 32,
                             rnn_output_dim = 16, latent_dim = 16,
-                            latent_to_diffeq_dim = 200, θ_activation = x -> 5*σ(x),
+                            latent_to_diffeq_dim = 200, θ_activation = softplus,
                             output_activation = σ)
 
     z_dim = length(diffeq.prob.u0)
