@@ -1,7 +1,6 @@
 using .LatentDiffEq
 using FileIO
 using DrWatson: struct2dict
-using Logging: with_logger
 using Parameters: @with_kw
 using ProgressMeter: Progress, next!
 using Random
@@ -13,6 +12,7 @@ using OrdinaryDiffEq
 using ModelingToolkit
 using Images
 using Plots
+import GR
 
 ################################################################################
 ## Arguments for the train function
@@ -30,9 +30,9 @@ using Plots
     λ = 0.01f0                      # regularization paramater
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
-    epochs = 200                    # number of epochs for training
-    seed = 3                        # random seed
-    cuda = false                    # GPU usage
+    epochs = 1500                   # number of epochs for training
+    seed = 1                        # random seed
+    cuda = false                    # GPU usage (not working well yet)
     dt = 0.05                       # timestep for ode solve
     start_af = 0.00001f0            # Annealing factor start value
     end_af = 0.00001f0              # Annealing factor end value
@@ -45,10 +45,8 @@ using Plots
 
     ## Visualization
     vis_len = 60                    # number of frames to visualize after each epoch
-
-    ## Save paths and keys
-    save_path = "output"            # results path
-    
+    save_figure = true              # true: save visualization figure in save_path folder
+                                    # false: display image instead of saving it    
 end
 
 ################################################################################
@@ -100,7 +98,7 @@ function train(; kws...)
 
     ############################################################################
     ## Define optimizer
-    opt = ADAM(η)
+    opt = AdaMax(η)
 
     ############################################################################
     ## Various definitions
@@ -115,6 +113,7 @@ function train(; kws...)
     best_val_loss::Float32 = Inf32
     val_loss::Float32 = 0
 
+    mkpath("output")
     # FIX NEEDED. NOT WORKING AFTER PACKAGES UPDATES
     # let
     #     mkpath(save_path)
@@ -123,6 +122,11 @@ function train(; kws...)
     #     @save saving_path args
     # end
     
+    ## Visualization options
+    if save_figure
+        mkpath("output/visualization")
+        GR.inline("pdf")
+    end
     ############################################################################
     ## Main train loop
     @info "Start Training of $(typeof(model_type))-net, total $epochs epochs"
@@ -165,11 +169,11 @@ function train(; kws...)
         if device != gpu
             val_set = first(loader_val)
             t_val = range(0.f0, step=dt, length=vis_len)
-            visualize_val_image(model, val_set[:,1:vis_len,:] |> device, t_val, h, w)
+            visualize_val_image(model, val_set[:,1:vis_len,:] |> device, t_val, h, w, save_figure)
         end
         if val_loss < best_val_loss
             best_val_loss = deepcopy(val_loss)
-            model_path = joinpath(save_path, "best_model_$(typeof(model_type)).bson")
+            model_path = joinpath("output/best_model_$(typeof(model_type)).bson")
 
             # FIX NEEDED. NOT WORKING AFTER PACKAGES UPDATES
             # let
@@ -185,7 +189,7 @@ end
 ################################################################################
 ## Visualization function
 
-function visualize_val_image(model, val_set, t_val, h, w)
+function visualize_val_image(model, val_set, t_val, h, w, save_figure)
     j = rand(1:size(val_set,3))
     X_test = val_set[:,:,j]
     frames_test = [Gray.(reshape(x,h,w)) for x in eachcol(X_test)]
@@ -217,7 +221,7 @@ function visualize_val_image(model, val_set, t_val, h, w)
     plt2 = mosaicview(frames_test..., frames_pred..., nrow=2, rowmajor=true)
     plt2 = plot(plt2, leg = false, ticks = nothing, border = :none)
     plt = plot(plt1, plt2, layout = @layout([a; b]))
-    display(plt)
+    save_figure ? savefig(plt, "output/visualization/fig.pdf") : display(plt)
 end
 
 

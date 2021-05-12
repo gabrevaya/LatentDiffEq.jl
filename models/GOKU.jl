@@ -48,9 +48,9 @@ function apply_layers2(encoder::GOKU_encoder, l1_out)
     l1_out_rev = reverse(l1_out)
 
     # pass it through the recurrent layer
-    l2_z₀_out = encoder.layer2_z₀.(l1_out_rev)[end]
-    l2_θ_out_f = encoder.layer2_θ_forward.(l1_out)[end]
-    l2_θ_out_b = encoder.layer2_θ_backward.(l1_out_rev)[end]
+    l2_z₀_out = map(encoder.layer2_z₀, l1_out_rev)[end]
+    l2_θ_out_f = map(encoder.layer2_θ_forward, l1_out)[end]
+    l2_θ_out_b = map(encoder.layer2_θ_backward, l1_out_rev)[end]
     l2_θ_out = vcat(l2_θ_out_f, l2_θ_out_b)
 
     # reset hidden states
@@ -117,7 +117,6 @@ function diffeq_layer(decoder::GOKU_decoder, ẑ₀, θ̂, t)
     transform_after_diffeq!(ẑ, decoder.diffeq)
 
     ẑ = Flux.unstack(ẑ, 2)
-
     return ẑ
 end
 
@@ -161,7 +160,7 @@ end
 function default_layers(model_type::GOKU, input_dim, diffeq, device;
                             hidden_dim_resnet = 200, rnn_input_dim = 32,
                             rnn_output_dim = 16, latent_dim = 16,
-                            latent_to_diffeq_dim = 200, θ_activation = x -> 5*σ(x),
+                            latent_to_diffeq_dim = 200, θ_activation = softplus,
                             output_activation = σ)
 
     z_dim = length(diffeq.prob.u0)
