@@ -26,11 +26,11 @@ import GR
     # diffeq = NODE(2)
 
     ## Training params
-    η = 1e-2                        # learning rate
+    η = 1e-3                        # learning rate
     λ = 0.01f0                      # regularization paramater
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
-    epochs = 1500                   # number of epochs for training
+    epochs = 800                    # number of epochs for training
     seed = 1                        # random seed
     cuda = false                    # GPU usage (not working well yet)
     dt = 0.05                       # timestep for ode solve
@@ -98,7 +98,7 @@ function train(; kws...)
 
     ############################################################################
     ## Define optimizer
-    opt = AdaMax(η)
+    opt = AdaBelief(η)
 
     ############################################################################
     ## Various definitions
