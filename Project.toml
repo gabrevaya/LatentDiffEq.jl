@@ -1,3 +1,17 @@
+name = "LatentDiffEq"
+uuid = "5e00f16f-4024-4869-80ca-bd64fdfff9b1"
+authors = ["Germán Abrevaya <gabrevaya@df.uba.ar> and contributors"]
+version = "0.1.0"
+
+[compat]
+julia = "1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
+
 [deps]
 BSON = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
 DiffEqFlux = "aae7a2af-3d4f-5e19-a356-7da93b79d9d0"
