@@ -67,9 +67,15 @@ function train(; kws...)
     ## Prepare training data
 
     root_dir = @__DIR__
-    data_path = "pendulum_friction-less/data/processed_data.jld2"
+    data_path = "$root_dir/data/processed_data.jld2"
+
+    if ~isfile(data_path)
+        @info "Downloading pendulum data"
+        mkpath("$root_dir/data")
+        download("https://ndownloader.figshare.com/files/27986997", data_path)
+    end
+
     data_loaded = load(data_path, "processed_data")
-    
     train_data = data_loaded["train"]
 
     train_data_norm, min_val, max_val = normalize_to_unit_segment(train_data)
@@ -87,7 +93,6 @@ function train(; kws...)
     input_dim = size(train_set,1)
 
     ############################################################################
-    ## initialize model object and parameter reference
     # Create model
 
     encoder_layers, decoder_layers = default_layers(model_type, input_dim, diffeq, device)
@@ -113,18 +118,13 @@ function train(; kws...)
     best_val_loss::Float32 = Inf32
     val_loss::Float32 = 0
 
-    mkpath("output")
-    # FIX NEEDED. NOT WORKING AFTER PACKAGES UPDATES
-    # let
-    #     mkpath(save_path)
-    #     saving_path = joinpath(save_path, "Args.bson")
-    #     args=struct2dict(args)
-    #     @save saving_path args
-    # end
-    
+    # mkpath("$root_dir/output")
+    # args = struct2dict(args)
+    # @save "$root_dir/output/args.bson" args
+
     ## Visualization options
     if save_figure
-        mkpath("output/visualization")
+        mkpath("$root_dir/output/visualization")
         GR.inline("pdf")
     end
     ############################################################################
@@ -171,18 +171,11 @@ function train(; kws...)
             t_val = range(0.f0, step=dt, length=vis_len)
             visualize_val_image(model, val_set[:,1:vis_len,:] |> device, t_val, h, w, save_figure)
         end
-        if val_loss < best_val_loss
-            best_val_loss = deepcopy(val_loss)
-            model_path = joinpath("output/best_model_$(typeof(model_type)).bson")
-
-            # FIX NEEDED. NOT WORKING AFTER PACKAGES UPDATES
-            # let
-            #     # model = cpu(model)
-            #     @save model_path model
-            #     @info "Model saved: $model_path"
-            # end
-
-        end
+        # if val_loss < best_val_loss
+            # best_val_loss = deepcopy(val_loss)
+            # @save "$root_dir/output/best_model.bson" model
+            # @info "Model saved"
+        # end
     end
 end
 
