@@ -4,22 +4,31 @@ Latent Differential Equation models in Julia.
 
 #### Note: This repo is still experimental!
 
-## Installation
-
+## GOKU-net model on a pendulum example
 1. Clone the repository and enter the folder:
 ```
-$ git clone git@github.com:gabrevaya/LatentDE.git
-$ cd LatentDE
+$ git clone git@github.com:gabrevaya/LatentDiffEq.git
+$ cd LatentDiffEq/examples/pendulum_friction-less
 ```
-2. Instantiate and try the GOKU-net model on a pendulum example
+2. Activate and instantiate the project
 ```julia
 $ julia
-julia> ] activate .
-julia> ] instantiate
-julia> include("LatentDiffEq.jl")
-julia> include("pendulum_friction-less/model_train.jl")
-julia> train()
+julia> ]
+pkg> activate .
+pkg> instantiate
 ```
+3. Run the training script
+```julia
+julia> include("model_train.jl")
+```
+
+## Installation
+
+```julia
+julia> ]
+pkg> add https://github.com/gabrevaya/LatentDiffEq.git
+```
+
 
 ## References
 

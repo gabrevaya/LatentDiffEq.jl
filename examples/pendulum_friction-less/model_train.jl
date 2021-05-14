@@ -1,9 +1,9 @@
-using .LatentDiffEq
+using LatentDiffEq
 using FileIO
-using DrWatson: struct2dict
 using Parameters: @with_kw
 using ProgressMeter: Progress, next!
 using Random
+using Statistics
 using MLDataUtils
 using BSON: @save
 using Flux.Data: DataLoader
@@ -179,6 +179,26 @@ function train(; kws...)
     end
 end
 
+
+################################################################################
+## Loss definition
+
+function loss_batch(model, λ, x, t, af)
+
+    # Make prediction
+    X̂, μ, logσ² = model(x, t)
+    x̂, ẑ, ẑ₀, = X̂
+
+    # Compute reconstruction loss
+    reconstruction_loss = vector_mse(x, x̂)
+
+    # Compute KL losses from parameter and initial value estimation
+    kl_loss = sum( [ mean(sum(kl.(μ[i], logσ²[i]), dims=1)) for i in 1:length(μ) ] )
+    
+    return reconstruction_loss + kl_loss
+end
+
+
 ################################################################################
 ## Visualization function
 
@@ -217,9 +237,4 @@ function visualize_val_image(model, val_set, t_val, h, w, save_figure)
     save_figure ? savefig(plt, "output/visualization/fig.pdf") : display(plt)
 end
 
-
-if abspath(PROGRAM_FILE) == @__FILE__
-    train()
-end
-
-# train()
+train()

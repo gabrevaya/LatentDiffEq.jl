@@ -1,7 +1,9 @@
 *.bson
+*.jld2
 *.png
+*.pdf
 *.DS_Store
 other
-output
 
-pendulum_friction-less/data/*
+pendulum_friction-less/data
+pendulum_friction-less/output

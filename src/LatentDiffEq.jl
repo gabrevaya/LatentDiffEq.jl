@@ -1,7 +1,6 @@
 module LatentDiffEq
 
 using OrdinaryDiffEq
-using BSON:@save, @load
 using DiffEqFlux
 using DiffEqSensitivity
 using Flux
@@ -29,8 +28,7 @@ include("./systems/nODE.jl")
 export Pendulum, NODE
 
 include("./utils/utils.jl")
-export kl, loss_batch, annealing_factor
+export kl, vector_mse, annealing_factor
 export normalize_to_unit_segment, time_loader
-export visualize_val_image
 
 end # end LatentDiffEq module

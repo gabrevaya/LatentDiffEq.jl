@@ -63,7 +63,6 @@ end
 
 Flux.@functor GOKU_encoder
 
-
 struct GOKU_decoder{Z,T,O,D} <: AbstractDecoder
 
     layer_z₀::Z
@@ -102,17 +101,17 @@ function diffeq_layer(decoder::GOKU_decoder, ẑ₀, θ̂, t)
     sensealg = decoder.diffeq.sensealg
 
     # Function definition for ensemble problem
-    prob_func(prob,i,repeat) = remake(prob, u0=ẑ₀[:,i], p = θ̂[:,i]) # TODO: try using views and switching indexes to see if the performance improves
+    prob_func(prob,i,repeat) = remake(prob, u0=ẑ₀[:,i], p = θ̂[:,i])
     
     # Check if solve was successful, if not, return NaNs to avoid problems with dimensions matches
-    output_func(sol, i) = sol.retcode == :Success ? (Array(sol), false) : (fill(NaN32,(size(ẑ₀, 1), length(t))), false)  # check if this is compatible with CUDA (probably not)
+    output_func(sol, i) = sol.retcode == :Success ? (Array(sol), false) : (fill(NaN32,(size(ẑ₀, 1), length(t))), false)
 
     ## Adapt problem to given time span and create ensemble problem definition
     prob = remake(prob; tspan = (t[1],t[end]))
     ens_prob = EnsembleProblem(prob, prob_func = prob_func, output_func = output_func)
 
     ## Solve
-    ẑ = solve(ens_prob, solver, EnsembleThreads(), sensealg = sensealg, trajectories = size(θ̂, 2), saveat = t) # |> device I THINK THAT IF u0 IS A CuArray, then the solution will be a CuArray and there will be no need for this |> device. Although maybe the outer array is not a Cuda one and that would be needed.
+    ẑ = solve(ens_prob, solver, EnsembleThreads(), sensealg = sensealg, trajectories = size(θ̂, 2), saveat = t)
     # Transform the resulting output (Mainly used for Kuramoto system to pass from phase -> time space)
     transform_after_diffeq!(ẑ, decoder.diffeq)
 
@@ -120,16 +119,8 @@ function diffeq_layer(decoder::GOKU_decoder, ẑ₀, θ̂, t)
     return ẑ
 end
 
-# Think how pass the ensemble_parallel argument
-# maybe with a function like
-# ensemble_parallel(u0::CuArray) = EnsembleGPUArray()
-# ensemble_parallel(u0::Array) = EnsembleSerial()
-# SOLUTION: SEE https://github.com/SciML/DiffEqFlux.jl/blob/master/src/require.jl
-
 # nothing by default (different method for Kuramoto)
 transform_after_diffeq!(x, diffeq) = nothing
-
-# has_transform(x) = error("Not implemented.")
 
 Flux.@functor GOKU_decoder
 
@@ -155,7 +146,6 @@ function variational(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T 
 
     return ẑ₀, θ̂
 end
-
 
 function default_layers(model_type::GOKU, input_dim, diffeq, device;
                             hidden_dim_resnet = 200, rnn_input_dim = 32,
