@@ -28,7 +28,7 @@ include("./systems/nODE.jl")
 export Pendulum, NODE
 
 include("./utils/utils.jl")
-export kl, vector_mse, annealing_factor
+export vector_mse, kl, vector_kl, annealing_factor
 export normalize_to_unit_segment, time_loader
 
 end # end LatentDiffEq module

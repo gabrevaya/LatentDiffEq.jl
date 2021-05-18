@@ -45,7 +45,7 @@ import GR
 
     ## Visualization
     vis_len = 60                    # number of frames to visualize after each epoch
-    save_figure = true              # true: save visualization figure in save_path folder
+    save_figure = false             # true: save visualization figure in save_path folder
                                     # false: display image instead of saving it    
 end
 
@@ -193,8 +193,8 @@ function loss_batch(model, λ, x, t, af)
     reconstruction_loss = vector_mse(x, x̂)
 
     # Compute KL losses from parameter and initial value estimation
-    kl_loss = sum( [ mean(sum(kl.(μ[i], logσ²[i]), dims=1)) for i in 1:length(μ) ] )
-    
+    kl_loss = vector_kl(μ, logσ²)
+
     return reconstruction_loss + kl_loss
 end
 
