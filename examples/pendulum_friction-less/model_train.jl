@@ -193,7 +193,7 @@ function loss_batch(model, λ, x, t, af)
     reconstruction_loss = vector_mse(x, x̂)
 
     # Compute KL losses from parameter and initial value estimation
-    kl_loss = vector_kl(μ, logσ²)
+    kl_loss = sum( [ mean(sum(kl.(μ[i], logσ²[i]), dims=1)) for i in 1:length(μ) ] )
 
     return reconstruction_loss + kl_loss
 end
