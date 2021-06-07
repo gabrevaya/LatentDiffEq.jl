@@ -1,4 +1,4 @@
-# LatentDiffEq [![Build Status](https://travis-ci.com/gabrevaya/LatentDiffEq.jl.svg?branch=master)](https://travis-ci.com/gabrevaya/LatentDiffEq.jl)
+# LatentDiffEq [![Build Status](https://api.travis-ci.com/gabrevaya/LatentDiffEq.svg?branch=master)](https://travis-ci.com/github/gabrevaya/LatentDiffEq)
 
 Latent Differential Equation models in Julia.
 
