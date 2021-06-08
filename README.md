@@ -1,13 +1,13 @@
-# LatentDiffEq [![Build Status](https://travis-ci.com/gabrevaya/LatentDiffEq.jl.svg?branch=master)](https://travis-ci.com/gabrevaya/LatentDiffEq.jl)
+# LatentDiffEq [![Build Status](https://api.travis-ci.com/gabrevaya/LatentDiffEq.svg?branch=master)](https://travis-ci.com/github/gabrevaya/LatentDiffEq)
 
-Latent Differential Equation models in Julia.
+Latent Differential Equations models in Julia.
 
 #### Note: This repo is still experimental!
 
 ## GOKU-net model on a pendulum example
 1. Clone the repository and enter the folder:
 ```
-$ git clone git@github.com:gabrevaya/LatentDiffEq.git
+$ git clone https://github.com/gabrevaya/LatentDiffEq.git
 $ cd LatentDiffEq/examples/pendulum_friction-less
 ```
 2. Activate and instantiate the project
