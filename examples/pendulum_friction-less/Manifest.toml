@@ -835,8 +835,8 @@ version = "1.6.0"
 
 [[LatentDiffEq]]
 deps = ["DiffEqFlux", "DiffEqSensitivity", "Flux", "ModelingToolkit", "OrdinaryDiffEq", "Statistics", "StochasticDiffEq", "Zygote"]
-git-tree-sha1 = "93aad9f6e19bbc6e14ab61746edcce72bc4b9d79"
-repo-rev = "master"
+git-tree-sha1 = "572e661ee3217226d2f3cdc9cb0ab0eed0190025"
+repo-rev = "luxor"
 repo-url = "https://github.com/gabrevaya/LatentDiffEq.git"
 uuid = "5e00f16f-4024-4869-80ca-bd64fdfff9b1"
 version = "0.1.0"
