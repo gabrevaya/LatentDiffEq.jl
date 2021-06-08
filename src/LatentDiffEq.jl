@@ -7,6 +7,7 @@ using Flux
 using Flux: reset!
 using Statistics
 using ModelingToolkit
+using DynamicalSystems
 
 ## Defining types
 abstract type AbstractModel end
