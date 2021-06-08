@@ -14,6 +14,8 @@ using Images
 using Plots
 import GR
 
+include("create_data.jl")
+
 ################################################################################
 ## Arguments for the train function
 @with_kw mutable struct Args
@@ -36,7 +38,7 @@ import GR
     dt = 0.05                       # timestep for ode solve
     start_af = 0.00001f0            # Annealing factor start value
     end_af = 0.00001f0              # Annealing factor end value
-    ae = 200                        # Annealing factor epoch end
+    ae = 400                        # Annealing factor epoch end
 
     ## Progressive observation training
     progressive_training = false    # progressive training usage
@@ -67,22 +69,28 @@ function train(; kws...)
     ## Prepare training data
 
     root_dir = @__DIR__
-    data_path = "$root_dir/data/processed_data.jld2"
+    data_path = "$root_dir/data/data.bson"
 
     if ~isfile(data_path)
-        @info "Downloading pendulum data"
+        @info "Generating data"
+        latent_data, u0s, ps, high_dim_data = generate_dataset(diffeq = diffeq)
+        data = (latent_data, u0s, ps, high_dim_data)
         mkpath("$root_dir/data")
-        download("https://ndownloader.figshare.com/files/27986997", data_path)
+        @save data_path data
     end
 
-    data_loaded = load(data_path, "processed_data")
-    train_data = data_loaded["train"]
+    data_loaded = load(data_path, :data)
+    train_data = data_loaded[4]
 
-    train_data_norm, min_val, max_val = normalize_to_unit_segment(train_data)
-    observations, full_seq_len, h, w = size(train_data_norm)
+    # stack time for each sample
+    train_data = Flux.stack.(train_data, 3)
 
-    train_data = reshape(train_data_norm, observations, full_seq_len, :)
-    train_data = permutedims(train_data, [3, 2, 1]) # input_dim, time_size, observations
+    # stack all samples
+    train_data = Flux.stack(train_data, 4) # 28x28x400x450
+    h, w, full_seq_len, observations = size(train_data)
+
+    # vectorize frames
+    train_data = reshape(train_data, :, full_seq_len, observations) # input_dim, time_size, samples
     train_data = Float32.(train_data)
 
     train_set, val_set = splitobs(train_data, 0.9)
@@ -104,6 +112,7 @@ function train(; kws...)
     ############################################################################
     ## Define optimizer
     opt = AdaBelief(η)
+    # opt = ADAM(η)
 
     ############################################################################
     ## Various definitions
@@ -141,6 +150,7 @@ function train(; kws...)
         mb_id = 1   # Minibatch id
         @info "Epoch $epoch .. (Sequence training length $seq_len)"
         progress = Progress(length(loader_train))
+
         for x in loader_train
 
             # Comput annealing factor
@@ -170,6 +180,7 @@ function train(; kws...)
             val_set = first(loader_val)
             # visualize_val_image(model, val_set[:,1:vis_len,:] |> device, t_val, h, w, save_figure)
             visualize_val_image(model, val_set |> device, vis_len, dt, h, w, save_figure)
+            # visualize_val_image(model, val_set[:,1:3,:] |> device, t_val, h, w, save_figure)
         end
         # if val_loss < best_val_loss
             # best_val_loss = deepcopy(val_loss)
@@ -200,8 +211,25 @@ function loss_batch(model, λ, x, t, af)
 end
 
 
+function vector_kl(μ::T, logσ²::T) where T <: Tuple{Matrix, Matrix}
+    P = eltype(μ[1])
+    s = zero(P)
+    # go through initial conditions and parameters
+    @inbounds for i in 1:2
+        s1 = zero(P)
+        @inbounds for k in eachindex(μ)
+            s1 += kl(μ[i][k], logσ²[i][k])
+        end
+        # divide per batch size
+        s1 /= size(μ[i], 2)
+        s += s1
+    end
+    return s
+end
+
 ################################################################################
 ## Visualization function
+
 
 function visualize_val_image(model, val_set, vis_len, dt, h, w, save_figure)
     j = rand(1:size(val_set,3))
