@@ -33,12 +33,12 @@ include("create_data.jl")
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
     epochs = 800                    # number of epochs for training
-    seed = 1                        # random seed
+    seed = 2                        # random seed
     cuda = false                    # GPU usage (not working well yet)
     dt = 0.05                       # timestep for ode solve
     start_af = 0.00001f0            # Annealing factor start value
     end_af = 0.00001f0              # Annealing factor end value
-    ae = 400                        # Annealing factor epoch end
+    ae = 200                        # Annealing factor epoch end
 
     ## Progressive observation training
     progressive_training = false    # progressive training usage

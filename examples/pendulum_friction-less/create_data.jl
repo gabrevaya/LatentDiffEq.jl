@@ -25,7 +25,7 @@ using Images
       ## High dimensional data arguments
       high_dim_args = (19, 1.75, 3.5)    # for the the simple pendulum
                                          # (pendulumlength, radius, rodthickness)
-  end
+end
 
 function generate_dataset(; diffeq = Pendulum(), kws...)
       args = Args_gen(; kws...)

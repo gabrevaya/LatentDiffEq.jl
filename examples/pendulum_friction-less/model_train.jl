@@ -31,7 +31,7 @@ import GR
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
     epochs = 800                    # number of epochs for training
-    seed = 1                        # random seed
+    seed = 2                        # random seed
     cuda = false                    # GPU usage (not working well yet)
     dt = 0.05                       # timestep for ode solve
     start_af = 0.00001f0            # Annealing factor start value
