@@ -8,6 +8,7 @@ using Flux: reset!
 using Statistics
 using ModelingToolkit
 using DynamicalSystems
+using StochasticDiffEq
 
 ## Defining types
 abstract type AbstractModel end
@@ -27,7 +28,7 @@ export default_layers
 include("./systems/pendulum.jl")
 include("./systems/double_pendulum.jl")
 include("./systems/nODE.jl")
-export Pendulum, NODE
+export Pendulum, SPendulum, DoublePendulum, NODE
 
 include("./utils/utils.jl")
 export vector_mse, kl, vector_kl, annealing_factor

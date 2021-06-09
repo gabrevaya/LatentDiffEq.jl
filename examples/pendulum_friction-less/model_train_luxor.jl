@@ -9,6 +9,7 @@ using BSON: @save
 using Flux.Data: DataLoader
 using Flux
 using OrdinaryDiffEq
+using StochasticDiffEq
 using ModelingToolkit
 using Images
 using Plots
@@ -25,6 +26,7 @@ include("create_data.jl")
 
     ## Latent Differential Equations
     diffeq = Pendulum()
+    # diffeq = SPendulum()
     # diffeq = NODE(2)
 
     ## Training params
