@@ -45,7 +45,7 @@ include("create_data.jl")
 
     ## Progressive observation training
     progressive_training = false    # progressive training usage
-    prog_training_duration = 5      # number of eppchs to reach the final seq_len
+    prog_training_duration = 200    # number of eppchs to reach the final seq_len
     start_seq_len = 10              # training sequence length at first step
 
     ## Visualization
@@ -209,28 +209,11 @@ function loss_batch(model, λ, x, t, af)
     reconstruction_loss = vector_mse(x, x̂)
 
     # Compute KL losses from parameter and initial value estimation
-    # kl_loss = vector_kl(μ, logσ²)
-    kl_loss = sum( [ mean(sum(kl.(μ[i], logσ²[i]), dims=1)) for i in 1:length(μ) ] )
+    kl_loss = vector_kl(μ, logσ²)
 
     return reconstruction_loss + kl_loss
 end
 
-
-function vector_kl(μ::T, logσ²::T) where T <: Tuple{Matrix, Matrix}
-    P = eltype(μ[1])
-    s = zero(P)
-    # go through initial conditions and parameters
-    @inbounds for i in 1:2
-        s1 = zero(P)
-        @inbounds for k in eachindex(μ)
-            s1 += kl(μ[i][k], logσ²[i][k])
-        end
-        # divide per batch size
-        s1 /= size(μ[i], 2)
-        s += s1
-    end
-    return s
-end
 
 ################################################################################
 ## Visualization function
