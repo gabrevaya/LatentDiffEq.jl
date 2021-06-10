@@ -28,14 +28,14 @@ import GR
     ## Training params
     η = 1e-3                        # learning rate
     λ = 0.01f0                      # regularization paramater
-    batch_size = 8                 # minibatch size
-    seq_len = 100                    # sequence length for training samples
-    epochs = 1500                    # number of epochs for training
+    batch_size = 8                  # minibatch size
+    seq_len = 50                    # sequence length for training samples
+    epochs = 1500                   # number of epochs for training
     seed = 2                        # random seed
     cuda = false                    # GPU usage (not working well yet)
     dt = 0.05                       # timestep for ode solve
-    start_af = 0.00001f0            # Annealing factor start value
-    end_af = 0.00001f0              # Annealing factor end value
+    start_af = 0.0001f0             # Annealing factor start value
+    end_af = 0.001f0                # Annealing factor end value
     ae = 400                        # Annealing factor epoch end
 
     ## Progressive observation training
@@ -203,7 +203,7 @@ function loss_batch(model, λ, x, t, af)
     # Compute KL losses from parameter and initial value estimation
     kl_loss = vector_kl(μ, logσ²)
 
-    return reconstruction_loss + kl_loss
+    return reconstruction_loss + af*kl_loss
 end
 
 
