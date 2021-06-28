@@ -26,9 +26,12 @@ export default_layers
 
 ## Predefined systems
 include("./systems/pendulum.jl")
+include("./systems/pendulum_NN_friction.jl")
 include("./systems/double_pendulum.jl")
 include("./systems/nODE.jl")
+
 export Pendulum, SPendulum, DoublePendulum, NODE
+export Pendulum_friction, Pendulum_NN_friction
 
 include("./utils/utils.jl")
 export vector_mse, kl, vector_kl, annealing_factor
