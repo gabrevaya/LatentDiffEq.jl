@@ -28,6 +28,18 @@ function vector_kl(μ::T, logσ²::T) where T <: Tuple{Matrix, Matrix}
     return s
 end
 
+function vector_kl(μ::T, logσ²::T) where T <: Tuple{Matrix}
+    P = eltype(μ[1])
+    s = zero(P)
+    # go through initial conditions
+    @inbounds for k in eachindex(μ[1])
+        s += kl(μ[1][k], logσ²[1][k])
+    end
+    # divide per batch size
+    s /= size(μ[1], 2)
+    return s
+end
+
 ## annealing factor scheduler
 # start_af: start value of annealing factor
 # end_af: end value of annealing factor

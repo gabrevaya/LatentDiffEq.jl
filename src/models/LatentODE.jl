@@ -39,7 +39,8 @@ function apply_layers2(encoder::LatentODE_encoder, l1_out)
     l1_out_rev = reverse(l1_out)
 
     # pass it through the recurrent layer
-    l2_z₀_out = encoder.layer2_z₀.(l1_out_rev)[end]
+    # l2_z₀_out = encoder.layer2_z₀.(l1_out_rev)[end]
+    l2_z₀_out = map(encoder.layer2_z₀, l1_out_rev)[end]
 
     # reset hidden states
     reset!(encoder.layer2_z₀)
@@ -77,10 +78,12 @@ function diffeq_layer(decoder::LatentODE_decoder, ẑ₀, t)
     dudt = decoder.diffeq.dudt
     solver = decoder.diffeq.solver
     neural_model = decoder.diffeq.neural_model
+    augment_dim = decoder.diffeq.augment_dim
     # sensealg = decoder.diffeq.sensealg
 
     # nODE = NeuralODE(dudt, (t[1], t[end]), solver, sensealg = sensealg, saveat = t)
     nODE = neural_model(dudt, (t[1], t[end]), solver, saveat = t)
+    nODE = augment_dim == 0 ? nODE : AugmentedNDELayer(nODE, augment_dim)
     ẑ = Array(nODE(ẑ₀))
 
     # Transform the resulting output (Mainly used for Kuramoto system to pass from phase -> time space)
@@ -114,23 +117,35 @@ function variational(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) whe
 end
 
 function default_layers(model_type::LatentODE, input_dim, diffeq, device;
-                            hidden_dim = 200, rnn_input_dim = 32,
-                            rnn_output_dim = 16,
+                            hidden_dim_resnet = 200, rnn_input_dim = 32,
+                            rnn_output_dim = 32,
                             latent_to_diffeq_dim = 200, θ_activation = x -> 5*σ(x),
                             output_activation = σ)
-
-    latent_dim = diffeq.latent_dim
+    
+    latent_dim_in = diffeq.latent_dim_in
+    latent_dim_out = diffeq.latent_dim_out
 
     ######################
     ### Encoder layers ###
     ######################
 
-    layer1 = Chain(Dense(input_dim, hidden_dim, relu),
-                        Dense(hidden_dim, rnn_input_dim, relu)) |> device
+    # Resnet
+    l1 = Dense(input_dim, hidden_dim_resnet, relu)
+    l2 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
+    l3 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
+    l4 = Dense(hidden_dim_resnet, rnn_input_dim, relu)
+    layer1 = Chain(l1,
+                    SkipConnection(l2, +),
+                    SkipConnection(l3, +),
+                    l4) |> device
+
+    # RNN
     layer2_z₀ = Chain(RNN(rnn_input_dim, rnn_output_dim, relu),
                         RNN(rnn_output_dim, rnn_output_dim, relu)) |> device
-    layer3_μ_z₀ = Dense(rnn_output_dim, latent_dim) |> device
-    layer3_logσ²_z₀ = Dense(rnn_output_dim, latent_dim) |> device
+
+    # final linear layers
+    layer3_μ_z₀ = Dense(rnn_output_dim, latent_dim_in) |> device
+    layer3_logσ²_z₀ = Dense(rnn_output_dim, latent_dim_in) |> device
 
     encoder_layers = (layer1, layer2_z₀, layer3_μ_z₀, layer3_logσ²_z₀)
 
@@ -138,15 +153,18 @@ function default_layers(model_type::LatentODE, input_dim, diffeq, device;
     ### Decoder layers ###
     ######################
 
-    layer_output = Chain(Dense(latent_dim, hidden_dim, relu),
-                    Dense(hidden_dim, input_dim)) |> device
+    # going back to the input dimensions
+    # Resnet
+    l1 = Dense(latent_dim_out, hidden_dim_resnet, relu)
+    l2 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
+    l3 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
+    l4 = Dense(hidden_dim_resnet, input_dim, output_activation)
+    layer_output = Chain(l1,
+                    SkipConnection(l2, +),
+                    SkipConnection(l3, +),
+                    l4)  |> device
 
     decoder_layers = layer_output
-    # we should do:
-    # diffeq.dudt = diffeq.dudt |> device
-    # so that we control here the usage of GPU
-    # instead of during the definition of the system
-    # However, we are supposed to use ! in the name
-    # of the function but that bring troubles with the other calls of default_layers
+    
     return encoder_layers, decoder_layers
 end
