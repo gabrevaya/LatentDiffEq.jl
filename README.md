@@ -1,6 +1,6 @@
-# LatentDiffEq [![Build Status](https://api.travis-ci.com/gabrevaya/LatentDiffEq.svg?branch=master)](https://travis-ci.com/github/gabrevaya/LatentDiffEq)
+# LatentDiffEq.jl [![Build Status](https://api.travis-ci.com/gabrevaya/LatentDiffEq.svg?branch=master)](https://travis-ci.com/github/gabrevaya/LatentDiffEq)
 
-Latent Differential Equations models in Julia.
+Generative Latent Differential Equations models in Julia.
 
 #### Note: This repo is still experimental!
 
