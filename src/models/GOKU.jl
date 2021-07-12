@@ -112,15 +112,15 @@ function diffeq_layer(decoder::GOKU_decoder, ẑ₀, θ̂, t)
 
     ## Solve
     ẑ = solve(ens_prob, solver, EnsembleThreads(), sensealg = sensealg, trajectories = size(θ̂, 2), saveat = t)
-    # Transform the resulting output (Mainly used for Kuramoto system to pass from phase -> time space)
-    transform_after_diffeq!(ẑ, decoder.diffeq)
-
+    
+    # Transform the resulting output (mainly used for Kuramoto-like systems)
+    ẑ = transform_after_diffeq(ẑ, decoder.diffeq)
     ẑ = Flux.unstack(ẑ, 2)
     return ẑ
 end
 
-# nothing by default (different method for Kuramoto)
-transform_after_diffeq!(x, diffeq) = nothing
+# the identity by default
+transform_after_diffeq(x, diffeq) = x
 
 Flux.@functor GOKU_decoder
 

@@ -86,8 +86,8 @@ function diffeq_layer(decoder::LatentODE_decoder, ẑ₀, t)
     nODE = augment_dim == 0 ? nODE : AugmentedNDELayer(nODE, augment_dim)
     ẑ = Array(nODE(ẑ₀))
 
-    # Transform the resulting output (Mainly used for Kuramoto system to pass from phase -> time space)
-    transform_after_diffeq!(ẑ, decoder.diffeq)
+    # Transform the resulting output (mainly used for Kuramoto-like systems)
+    ẑ = transform_after_diffeq(ẑ, decoder.diffeq)
     ẑ = Flux.unstack(ẑ, 3)
 
     return ẑ
