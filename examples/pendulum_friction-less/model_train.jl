@@ -234,10 +234,9 @@ function visualize_val_image(model, val_set, val_set_latent, vis_len, dt, h, w, 
     println("Inferred Pendulum Length = $θ̂")
 
     ẑ = Flux.stack(ẑ, 2)
-    plt1 = plot(ẑ[1,:,1], label="inferred",legend=:topleft)
-    ylabel!("Angle")
+    plt1 = plot(ẑ[1,:,1], legend=false, ylabel="inferred angle", color=:indigo, yforeground_color_axis=:indigo, yforeground_color_text=:indigo, yguidefontcolor=:indigo, rightmargin = 2.0Plots.cm)
     xlabel!("time")
-    plt1 = plot!(twinx(), true_latent[1,:], color=:red, box = :on, xticks=:none, label="ground truth")
+    plt1 = plot!(twinx(), true_latent[1,:], color=:darkorange1, box = :on, xticks=:none, legend=false, ylabel="true angle", yforeground_color_axis=:darkorange1, yforeground_color_text=:darkorange1, yguidefontcolor=:darkorange1)
 
     x̂ = Flux.stack(x̂, 2)
     frames_pred = [Gray.(reshape(x,h,w)) for x in eachslice(x̂, dims=2)]
