@@ -5,77 +5,78 @@
 
 struct GOKU <: LatentDE end
 
-struct GOKU_encoder{L1,L2,L3,L4,L5,L6,L7,L8} <: AbstractEncoder
+struct GOKU_encoder{FE,PE,LI} <: AbstractEncoder
 
-    layer1::L1
-    layer2_z₀::L2
-    layer2_θ_forward::L3
-    layer2_θ_backward::L4
-    layer3_μ_z₀::L5
-    layer3_logσ²_z₀::L6
-    layer3_μ_θ::L7
-    layer3_logσ²_θ::L8
+    feature_extractor::FE
+    pattern_extractor::PE
+    latent_in::LI
 
     function GOKU_encoder(encoder_layers)
-        L1,L2,L3,L4,L5,L6,L7,L8 = typeof.(encoder_layers)
-        new{L1,L2,L3,L4,L5,L6,L7,L8}(encoder_layers...)
+        FE, PE, LI = typeof.(encoder_layers)
+        new{FE,PE,LI}(encoder_layers...)
     end
 end
 
 function (encoder::GOKU_encoder)(x)
 
-    # Pass all states in the time series in dense layer
-    l1_out = encoder.layer1.(x)
+    # Pass every time frame independently through the feature extractor
+    fe_out = encoder.feature_extractor.(x)
 
-    # Pass an RNN and an BiLSTM through latent states
-    l2_z₀_out, l2_θ_out = apply_layers2(encoder, l1_out)
+    # Process sequentially with the pattern extractor
+    pe_z₀_out, pe_θ_out = apply_pattern_extractor(encoder, fe_out)
 
-    # Return RNN/BiLSTM ouput passed trough dense layers
-    z₀_μ = encoder.layer3_μ_z₀(l2_z₀_out)
-    z₀_logσ² = encoder.layer3_logσ²_z₀(l2_z₀_out)
+    # Pass trough a last layer before sampling
+    μ, logσ² = apply_latent_in(encoder, pe_z₀_out, pe_θ_out)
 
-    θ_μ = encoder.layer3_μ_θ(l2_θ_out)
-    θ_logσ² = encoder.layer3_logσ²_θ(l2_θ_out)
-
-    (z₀_μ, θ_μ), (z₀_logσ², θ_logσ²)
+    return μ, logσ²
 end
 
-
-# rewrite this. Test performance when computing the layer2_z₀ (RNN) and layer2_θ (BiLSTM) separately
+# Test performance when computing the pe_z₀ (RNN) and pe_θ (BiLSTM) separately
 # at the cost of calculating again the reverse(l1_out) 
-function apply_layers2(encoder::GOKU_encoder, l1_out)
-    # reverse sequence
-    l1_out_rev = reverse(l1_out)
+function apply_pattern_extractor(encoder::GOKU_encoder, fe_out)
+    pe_z₀, pe_θ_forward, pe_θ_backward = encoder.pattern_extractor
 
-    # pass it through the recurrent layer
-    l2_z₀_out = map(encoder.layer2_z₀, l1_out_rev)[end]
-    l2_θ_out_f = map(encoder.layer2_θ_forward, l1_out)[end]
-    l2_θ_out_b = map(encoder.layer2_θ_backward, l1_out_rev)[end]
-    l2_θ_out = vcat(l2_θ_out_f, l2_θ_out_b)
+    # reverse sequence
+    fe_out_rev = reverse(fe_out)
+
+    # pass it through the recurrent layers
+    pe_z₀_out = map(pe_z₀, fe_out_rev)[end]
+    pe_θ_out_f = map(pe_θ_forward, fe_out)[end]
+    pe_θ_out_b = map(pe_θ_backward, fe_out_rev)[end]
+    pe_θ_out = vcat(pe_θ_out_f, pe_θ_out_b)
 
     # reset hidden states
-    reset!(encoder.layer2_z₀)
-    reset!(encoder.layer2_θ_forward)
-    reset!(encoder.layer2_θ_backward)
+    reset!(pe_z₀)
+    reset!(pe_θ_forward)
+    reset!(pe_θ_backward)
 
-    return l2_z₀_out, l2_θ_out
+    return pe_z₀_out, pe_θ_out
+end
+
+function apply_latent_in(encoder, pe_z₀_out, pe_θ_out)
+    li_μ_z₀, li_logσ²_z₀, li_μ_θ, li_logσ²_θ = encoder.latent_in
+
+    z₀_μ = li_μ_z₀(pe_z₀_out)
+    z₀_logσ² = li_logσ²_z₀(pe_z₀_out)
+
+    θ_μ = li_μ_θ(pe_θ_out)
+    θ_logσ² = li_logσ²_θ(pe_θ_out)
+
+    return (z₀_μ, θ_μ), (z₀_logσ², θ_logσ²)
 end
 
 Flux.@functor GOKU_encoder
 
-struct GOKU_decoder{Z,T,O,D} <: AbstractDecoder
+struct GOKU_decoder{LI,R,D} <: AbstractDecoder
 
-    layer_z₀::Z
-    layer_θ::T
-
-    layer_output::O
-
+    latent_out::LI
+    reconstructor::R
     diffeq::D
 
     function GOKU_decoder(decoder_layers, diffeq)
-        Z,T,O = typeof.(decoder_layers)
+        LI, R = typeof.(decoder_layers)
         D = typeof(diffeq)
-        new{Z,T,O,D}(decoder_layers..., diffeq)
+        new{LI,R,D}(decoder_layers..., diffeq)
     end
 end
 
@@ -83,16 +84,25 @@ function (decoder::GOKU_decoder)(l̃, t)
 
     z̃₀, θ̃ = l̃
 
-    ## Pass sampled latent states in dense layers
-    ẑ₀ = decoder.layer_z₀(z̃₀)
-    θ̂ = decoder.layer_θ(θ̃)
+    ## Pass sampled latent states throue a latent_out layer
+    ẑ₀, θ̂ = apply_latent_out(decoder, z̃₀, θ̃)
 
+    ## Integrate differential equations
     ẑ = diffeq_layer(decoder, ẑ₀, θ̂, t)
 
-    ## Create output data shape
-    x̂ = decoder.layer_output.(ẑ)
+    ## Apply reconstructor independently to each time frame
+    x̂ = decoder.reconstructor.(ẑ)
 
     return x̂, ẑ, ẑ₀, θ̂
+end
+
+function apply_latent_out(decoder, z̃₀, θ̃)
+    lo_z₀, lo_θ = decoder.latent_out
+
+    ẑ₀ = lo_z₀(z̃₀)
+    θ̂ = lo_θ(θ̃)
+
+    return ẑ₀, θ̂
 end
 
 function diffeq_layer(decoder::GOKU_decoder, ẑ₀, θ̂, t)
@@ -119,7 +129,7 @@ function diffeq_layer(decoder::GOKU_decoder, ẑ₀, θ̂, t)
     return ẑ
 end
 
-# the identity by default
+# Identity by default
 transform_after_diffeq(x, diffeq) = x
 
 Flux.@functor GOKU_decoder
@@ -164,55 +174,60 @@ function default_layers(model_type::GOKU, input_dim, diffeq, device;
     l2 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
     l3 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
     l4 = Dense(hidden_dim_resnet, rnn_input_dim, relu)
-    layer1 = Chain(l1,
+    feature_extractor = Chain(l1,
                     SkipConnection(l2, +),
                     SkipConnection(l3, +),
                     l4) |> device
 
     # RNN
-    layer2_z₀ = Chain(RNN(rnn_input_dim, rnn_output_dim, relu),
+    pe_z₀ = Chain(RNN(rnn_input_dim, rnn_output_dim, relu),
                        RNN(rnn_output_dim, rnn_output_dim, relu)) |> device
 
-    # for building a Bidirectional LSTM
-    layer2_θ_forward = Chain(LSTM(rnn_input_dim, rnn_output_dim),
+    # Bidirectional LSTM
+    pe_θ_forward = Chain(LSTM(rnn_input_dim, rnn_output_dim),
                        LSTM(rnn_output_dim, rnn_output_dim)) |> device
 
-    layer2_θ_backward = Chain(LSTM(rnn_input_dim, rnn_output_dim),
+    pe_θ_backward = Chain(LSTM(rnn_input_dim, rnn_output_dim),
                         LSTM(rnn_output_dim, rnn_output_dim)) |> device
 
-    # final linear layers
-    layer3_μ_z₀ = Dense(rnn_output_dim, latent_dim) |> device
-    layer3_logσ²_z₀ = Dense(rnn_output_dim, latent_dim) |> device
+    pattern_extractor = (pe_z₀, pe_θ_forward, pe_θ_backward)
+
+    # final fully connected layers before sampling
+    li_μ_z₀ = Dense(rnn_output_dim, latent_dim) |> device
+    li_logσ²_z₀ = Dense(rnn_output_dim, latent_dim) |> device
     
-    layer3_μ_θ = Dense(rnn_output_dim*2, latent_dim) |> device
-    layer3_logσ²_θ = Dense(rnn_output_dim*2, latent_dim) |> device
-    
-    encoder_layers = (layer1, layer2_z₀, layer2_θ_forward, layer2_θ_backward,
-                        layer3_μ_z₀, layer3_logσ²_z₀, layer3_μ_θ, layer3_logσ²_θ)
+    li_μ_θ = Dense(rnn_output_dim*2, latent_dim) |> device
+    li_logσ²_θ = Dense(rnn_output_dim*2, latent_dim) |> device
+
+    latent_in = (li_μ_z₀, li_logσ²_z₀, li_μ_θ, li_logσ²_θ)
+
+    encoder_layers = (feature_extractor, pattern_extractor, latent_in)
 
     ######################
     ### Decoder layers ###
     ######################
 
-    # post variational but pre diff eq layer
-    layer_z₀ = Chain(Dense(latent_dim, latent_to_diffeq_dim, relu),
+    # after sampling in the latent space but before the differential equation layer
+    lo_z₀ = Chain(Dense(latent_dim, latent_to_diffeq_dim, relu),
                         Dense(latent_to_diffeq_dim, z_dim)) |> device
 
-    layer_θ = Chain(Dense(latent_dim, latent_to_diffeq_dim, relu),
+    lo_θ = Chain(Dense(latent_dim, latent_to_diffeq_dim, relu),
                         Dense(latent_to_diffeq_dim, θ_dim, θ_activation)) |> device
 
-    # going back to the input dimensions
+    latent_out = (lo_z₀, lo_θ)
+
+    # going back to the input space
     # Resnet
     l1 = Dense(z_dim, hidden_dim_resnet, relu)
     l2 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
     l3 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
     l4 = Dense(hidden_dim_resnet, input_dim, output_activation)
-    layer_output = Chain(l1,
+    reconstructor = Chain(l1,
                     SkipConnection(l2, +),
                     SkipConnection(l3, +),
                     l4)  |> device
 
-    decoder_layers = (layer_z₀, layer_θ, layer_output)
+    decoder_layers = (latent_out, reconstructor)
 
     return encoder_layers, decoder_layers
 end
