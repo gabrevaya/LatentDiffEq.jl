@@ -53,7 +53,7 @@ function apply_pattern_extractor(encoder::GOKU_encoder, fe_out)
     return pe_z₀_out, pe_θ_out
 end
 
-function apply_latent_in(encoder, pe_z₀_out, pe_θ_out)
+function apply_latent_in(encoder::GOKU_encoder, pe_z₀_out, pe_θ_out)
     li_μ_z₀, li_logσ²_z₀, li_μ_θ, li_logσ²_θ = encoder.latent_in
 
     z₀_μ = li_μ_z₀(pe_z₀_out)
@@ -96,7 +96,7 @@ function (decoder::GOKU_decoder)(l̃, t)
     return x̂, ẑ, ẑ₀, θ̂
 end
 
-function apply_latent_out(decoder, z̃₀, θ̃)
+function apply_latent_out(decoder::GOKU_decoder, z̃₀, θ̃)
     lo_z₀, lo_θ = decoder.latent_out
 
     ẑ₀ = lo_z₀(z̃₀)
