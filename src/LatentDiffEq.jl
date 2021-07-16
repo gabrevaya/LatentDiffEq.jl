@@ -11,10 +11,6 @@ using DynamicalSystems
 using StochasticDiffEq
 
 ## Defining types
-abstract type AbstractModel end
-abstract type AbstractEncoder end
-abstract type AbstractDecoder end
-
 abstract type LatentDE end
 
 ## Model definitions
