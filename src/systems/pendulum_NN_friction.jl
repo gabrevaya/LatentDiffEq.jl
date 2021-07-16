@@ -16,9 +16,9 @@ struct Pendulum_NN_friction{P,S,T}
         p_ODE = Float32[1.]
         tspan = (0.f0, 1.f0)
 
-        model_univ = FastChain(FastDense(2, 16, tanh),
-                       FastDense(16, 16, tanh),
-                       FastDense(16, 1))
+        model_univ = FastChain(FastDense(2, 10, tanh),
+                       FastDense(10, 10, tanh),
+                       FastDense(10, 1))
 
         # The model weights are destructured into a vector of parameters
         p_NN = initial_params(model_univ)

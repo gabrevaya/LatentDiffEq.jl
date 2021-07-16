@@ -18,13 +18,25 @@ function vector_kl(μ::T, logσ²::T) where T <: Tuple{Matrix, Matrix}
     # go through initial conditions and parameters
     @inbounds for i in 1:2
         s1 = zero(P)
-        @inbounds for k in eachindex(μ)
+        @inbounds for k in eachindex(μ[i])
             s1 += kl(μ[i][k], logσ²[i][k])
         end
         # divide per batch size
         s1 /= size(μ[i], 2)
         s += s1
     end
+    return s
+end
+
+function vector_kl(μ::T, logσ²::T) where T <: Matrix
+    P = eltype(μ)
+    s = zero(P)
+    # go through initial conditions
+    @inbounds for k in eachindex(μ)
+        s += kl(μ[k], logσ²[k])
+    end
+    # divide per batch size
+    s /= size(μ, 2)
     return s
 end
 

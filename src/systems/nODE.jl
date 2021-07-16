@@ -3,26 +3,31 @@
 ################################################################################
 ## Problem Definition -- neural ODE
 
-struct NODE{D,S,N,L}
+struct NODE{D,S,N,L,A}
 
     dudt::D
     solver::S
     neural_model::N
-    latent_dim::L
+    latent_dim_in::L
+    latent_dim_out::L
+    augment_dim::A
 
-    function NODE(latent_dim; hidden_dim=200, device=cpu)
-        dudt = Chain(Dense(latent_dim, hidden_dim, relu),
+    function NODE(latent_dim_in; hidden_dim=200, augment_dim=0, device=cpu)
+        dudt = Chain(Dense(latent_dim_in+augment_dim, hidden_dim, relu),
                         Dense(hidden_dim, hidden_dim, relu),
-                        Dense(hidden_dim, latent_dim)) |> device
+                        Dense(hidden_dim, latent_dim_in+augment_dim)) |> device
         solver = Tsit5()
         neural_model = NeuralODE
         # sensalg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
 
+        latent_dim_out = latent_dim_in + augment_dim
+
         D = typeof(dudt)
         S = typeof(solver)
         N = typeof(neural_model)
-        L = typeof(latent_dim)
-        new{D,S,N,L}(dudt, solver, neural_model,latent_dim)
+        L = typeof(latent_dim_in)
+        A = typeof(augment_dim)
+        new{D,S,N,L,A}(dudt, solver, neural_model,latent_dim_in, latent_dim_out, augment_dim)
     end
     
 end

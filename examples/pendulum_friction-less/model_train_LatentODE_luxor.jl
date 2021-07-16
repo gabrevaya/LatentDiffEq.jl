@@ -1,5 +1,3 @@
-# Example of GOKU-net model on friction-less pendulum data created with Luxor
-
 using Flux: length
 using LatentDiffEq
 using FileIO
@@ -11,8 +9,10 @@ using MLDataUtils
 using BSON: @save
 using Flux.Data: DataLoader
 using Flux
+using DiffEqFlux
 using OrdinaryDiffEq
 using StochasticDiffEq
+using DiffEqSensitivity
 using ModelingToolkit
 using Images
 using Plots
@@ -24,14 +24,21 @@ include("create_data.jl")
 ## Arguments for the train function
 @with_kw mutable struct Args
     ## Global model
-    model_type = GOKU()
+    # model_type = GOKU()
+    model_type = LatentODE()
 
     ## Latent Differential Equations
-    diffeq = Pendulum()
+    # diffeq = Pendulum_friction()
+    # diffeq = Pendulum()
+    # diffeq = SPendulum()
+    # diffeq = Pendulum_NN_friction()
+    # diffeq = NODE(2, augment_dim = 2)
+    diffeq = NODE(16)
+
 
     ## Training params
-    η = 5e-4                        # learning rate
-    λ = 0.01f0                      # regularization paramater
+    η = 1e-3                        # learning rate
+    λ = 1000f0                      # regularization paramater
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
     epochs = 800                    # number of epochs for training
@@ -45,10 +52,10 @@ include("create_data.jl")
     ## Progressive observation training
     progressive_training = false    # progressive training usage
     prog_training_duration = 200    # number of eppchs to reach the final seq_len
-    start_seq_len = 10              # training sequence length at first step
+    start_seq_len = 5               # training sequence length at first step
 
     ## Visualization
-    vis_len = 60                    # number of test frames to visualize after each epoch
+    vis_len = 60                    # number of frames to visualize after each epoch
     save_figure = false             # true: save visualization figure in save_path folder
                                     # false: display image instead of saving it    
 end
@@ -69,6 +76,7 @@ function train(; kws...)
 
     ############################################################################
     ## Prepare training data
+
     root_dir = @__DIR__
     data_path = "$root_dir/data/data.bson"
 
@@ -84,22 +92,22 @@ function train(; kws...)
     train_data = data_loaded[4]
     latent_data = data_loaded[1]
 
-    # Stack time for each sample
+    # stack time for each sample
     train_data = Flux.stack.(train_data, 3)
 
-    # Stack all samples
+    # stack all samples
     train_data = Flux.stack(train_data, 4) # 28x28x400x450
     h, w, full_seq_len, observations = size(train_data)
     latent_data = Flux.stack(latent_data, 3)
 
-    # Vectorize frames
+    # vectorize frames
     train_data = reshape(train_data, :, full_seq_len, observations) # input_dim, time_size, samples
     train_data = Float32.(train_data)
 
     train_set, val_set = Array.(splitobs(train_data, 0.9))
     train_set_latent, val_set_latent = Array.(splitobs(latent_data, 0.9))
 
-    # loader_train = DataLoader(train_set, batchsize=batch_size, shuffle=true, partial=false)
+    # loader_train = DataLoader(Array(train_set), batchsize=batch_size, shuffle=true, partial=false)
     loader_train = DataLoader((train_set, train_set_latent), batchsize=batch_size, shuffle=true, partial=false)
     val_set_time_unstacked = Flux.unstack(val_set, 2)
 
@@ -107,6 +115,7 @@ function train(; kws...)
 
     ############################################################################
     # Create model
+
     encoder_layers, decoder_layers = default_layers(model_type, input_dim, diffeq, device)
     model = LatentDiffEqModel(model_type, encoder_layers, decoder_layers)
 
@@ -115,11 +124,12 @@ function train(; kws...)
 
     ############################################################################
     ## Define optimizer
-    opt = AdaBelief(η)
-    # opt = ADAM(η)
+    # opt = AdaBelief(η)
+    opt = ADAM(η)
 
     ############################################################################
     ## Various definitions
+
     if progressive_training
         prog_seq_lengths = range(start_seq_len, seq_len, step=(seq_len-start_seq_len)/(prog_training_duration-1))
         prog_seq_lengths = Int.(round.(prog_seq_lengths))
@@ -141,13 +151,12 @@ function train(; kws...)
         mkpath("$root_dir/output/visualization")
         GR.inline("pdf")
     end
-
     ############################################################################
     ## Main train loop
     @info "Start Training of $(typeof(model_type))-net, total $epochs epochs"
     for epoch = 1:epochs
 
-        # Set a sequence length for training samples
+        ## set a sequence length for training samples
         seq_len = epoch ≤ prog_training_duration ? prog_seq_lengths[epoch] : seq_len
 
         # Model evaluation length
@@ -177,14 +186,14 @@ function train(; kws...)
             t_val = range(0.f0, step=dt, length=length(val_set_time_unstacked))
             val_loss = loss_batch(model, λ, val_set_time_unstacked |> device, t_val, af)
 
-            # Progress meter
+            # progress meter
             next!(progress; showvalues=[(:loss, loss),(:val_loss, val_loss)])
         end
 
         if device != gpu
             visualize_val_image(model, val_set |> device, val_set_latent, vis_len, dt, h, w, save_figure)
         end
-
+        
         if (val_loss < best_val_loss) & (epoch ≥ ae)
             best_val_loss = deepcopy(val_loss)
             weights = Flux.params(model)
@@ -197,7 +206,7 @@ end
 
 ################################################################################
 ## Loss definition
-
+# f(x) = 0.0000000001f0/(x^3)
 function loss_batch(model, λ, x, t, af)
 
     # Make prediction
@@ -207,14 +216,27 @@ function loss_batch(model, λ, x, t, af)
     # Compute reconstruction loss
     reconstruction_loss = vector_mse(x, x̂)
 
+    # # Compute 1st order difference loss
+    # x_diff1 = diff(x)
+    # x̂_diff1 = diff(x̂)
+    # diff1_loss = vector_mse(x_diff1, x̂_diff1)
+    # # Compute 2st order difference loss
+    # x_diff2 = diff(x_diff1)
+    # x̂_diff2 = diff(x̂_diff1)
+    # diff2_loss = vector_mse(x_diff2, x̂_diff2)
+
     # Compute KL losses from parameter and initial value estimation
     kl_loss = vector_kl(μ, logσ²)
 
-    return reconstruction_loss + af*kl_loss
+    # z₀_regularization = f(mean(ẑ₀.^2))
+
+    return reconstruction_loss + af*kl_loss #+ λ*diff1_loss + λ*diff2_loss #+ z₀_regularization
 end
+
 
 ################################################################################
 ## Visualization function
+
 
 function visualize_val_image(model, val_set, val_set_latent, vis_len, dt, h, w, save_figure)
     j = rand(1:size(val_set,3))
@@ -229,14 +251,13 @@ function visualize_val_image(model, val_set, val_set_latent, vis_len, dt, h, w, 
 
     X̂, μ, logσ² = model(x, t_val)
     x̂, ẑ, l̂ = X̂
-    ẑ₀, θ̂ = l̂
-
-    println("Inferred Pendulum Length = $θ̂")
 
     ẑ = Flux.stack(ẑ, 2)
-    plt1 = plot(ẑ[1,:,1], legend=false, ylabel="inferred angle", color=:indigo, yforeground_color_axis=:indigo, yforeground_color_text=:indigo, yguidefontcolor=:indigo, rightmargin = 2.0Plots.cm)
+
+    plt1 = plot(ẑ[:,:,1]', label="inferred",legend=:topleft)
+    ylabel!("State variables")
     xlabel!("time")
-    plt1 = plot!(twinx(), true_latent[1,:], color=:darkorange1, box = :on, xticks=:none, legend=false, ylabel="true angle", yforeground_color_axis=:darkorange1, yforeground_color_text=:darkorange1, yguidefontcolor=:darkorange1)
+    plt1 = plot!(twinx(), true_latent[1,:], color=:green, box = :on, xticks=:none, label="ground truth")
 
     x̂ = Flux.stack(x̂, 2)
     frames_pred = [Gray.(reshape(x,h,w)) for x in eachslice(x̂, dims=2)]
@@ -245,9 +266,12 @@ function visualize_val_image(model, val_set, val_set_latent, vis_len, dt, h, w, 
     frames_pred = frames_pred[1:6:end]
 
     plt2 = mosaicview(frames_test..., frames_pred..., nrow=2, rowmajor=true)
-    plt2 = plot(plt2, leg = false, ticks = nothing, border = :none)
-    plt = plot(plt1, plt2, layout = @layout([a; b]))
-    save_figure ? savefig(plt, "output/visualization/fig.pdf") : display(plt)
+    # plt2 = plot(plt2, leg = false, ticks = nothing, border = :none)
+    # plt = plot(plt1, plt2, layout = @layout([a; b]))
+    # save_figure ? savefig(plt, "output/visualization/fig.pdf") : display(plt)
+
+    display(plt1)
+    display(plt2)
 end
 
 train()

@@ -1,6 +1,6 @@
-# Example of GOKU-net model on friction-less pendulum data created with Luxor
+# Example of GOKU-net model on the original friction-less pendulum data
+# from the  GOKU-net paper (https://github.com/orilinial/GOKU)
 
-using Flux: length
 using LatentDiffEq
 using FileIO
 using Parameters: @with_kw
@@ -12,13 +12,10 @@ using BSON: @save
 using Flux.Data: DataLoader
 using Flux
 using OrdinaryDiffEq
-using StochasticDiffEq
 using ModelingToolkit
 using Images
 using Plots
 import GR
-
-include("create_data.jl")
 
 ################################################################################
 ## Arguments for the train function
@@ -30,25 +27,25 @@ include("create_data.jl")
     diffeq = Pendulum()
 
     ## Training params
-    η = 5e-4                        # learning rate
+    η = 1e-3                        # learning rate
     λ = 0.01f0                      # regularization paramater
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
     epochs = 800                    # number of epochs for training
-    seed = 1                        # random seed
+    seed = 3                        # random seed
     cuda = false                    # GPU usage (not working well yet)
     dt = 0.05                       # timestep for ode solve
     start_af = 0.0001f0             # Annealing factor start value
     end_af = 0.001f0                # Annealing factor end value
-    ae = 200                        # Annealing factor epoch end
+    ae = 400                        # Annealing factor epoch end
 
     ## Progressive observation training
     progressive_training = false    # progressive training usage
-    prog_training_duration = 200    # number of eppchs to reach the final seq_len
+    prog_training_duration = 5      # number of eppchs to reach the final seq_len
     start_seq_len = 10              # training sequence length at first step
 
     ## Visualization
-    vis_len = 60                    # number of test frames to visualize after each epoch
+    vis_len = 60                    # number of frames to visualize after each epoch
     save_figure = false             # true: save visualization figure in save_path folder
                                     # false: display image instead of saving it    
 end
@@ -69,44 +66,36 @@ function train(; kws...)
 
     ############################################################################
     ## Prepare training data
+
     root_dir = @__DIR__
-    data_path = "$root_dir/data/data.bson"
+    data_path = "$root_dir/data/processed_data.jld2"
 
     if ~isfile(data_path)
-        @info "Generating data"
-        latent_data, u0s, ps, high_dim_data = generate_dataset(diffeq = diffeq)
-        data = (latent_data, u0s, ps, high_dim_data)
+        @info "Downloading pendulum data"
         mkpath("$root_dir/data")
-        @save data_path data
+        download("https://ndownloader.figshare.com/files/27986997", data_path)
     end
-    
-    data_loaded = load(data_path, :data)
-    train_data = data_loaded[4]
-    latent_data = data_loaded[1]
 
-    # Stack time for each sample
-    train_data = Flux.stack.(train_data, 3)
+    data_loaded = load(data_path, "processed_data")
+    train_data = data_loaded["train"]
 
-    # Stack all samples
-    train_data = Flux.stack(train_data, 4) # 28x28x400x450
-    h, w, full_seq_len, observations = size(train_data)
-    latent_data = Flux.stack(latent_data, 3)
+    train_data_norm, min_val, max_val = normalize_to_unit_segment(train_data)
+    observations, full_seq_len, h, w = size(train_data_norm)
 
-    # Vectorize frames
-    train_data = reshape(train_data, :, full_seq_len, observations) # input_dim, time_size, samples
+    train_data = reshape(train_data_norm, observations, full_seq_len, :)
+    train_data = permutedims(train_data, [3, 2, 1]) # input_dim, time_size, observations
     train_data = Float32.(train_data)
 
-    train_set, val_set = Array.(splitobs(train_data, 0.9))
-    train_set_latent, val_set_latent = Array.(splitobs(latent_data, 0.9))
+    train_set, val_set = splitobs(train_data, 0.9)
 
-    # loader_train = DataLoader(train_set, batchsize=batch_size, shuffle=true, partial=false)
-    loader_train = DataLoader((train_set, train_set_latent), batchsize=batch_size, shuffle=true, partial=false)
-    val_set_time_unstacked = Flux.unstack(val_set, 2)
+    loader_train = DataLoader(Array(train_set), batchsize=batch_size, shuffle=true, partial=false)
+    loader_val = DataLoader(Array(val_set), batchsize=size(val_set, 3), shuffle=false, partial=false)
 
     input_dim = size(train_set,1)
 
     ############################################################################
     # Create model
+
     encoder_layers, decoder_layers = default_layers(model_type, input_dim, diffeq, device)
     model = LatentDiffEqModel(model_type, encoder_layers, decoder_layers)
 
@@ -116,10 +105,10 @@ function train(; kws...)
     ############################################################################
     ## Define optimizer
     opt = AdaBelief(η)
-    # opt = ADAM(η)
 
     ############################################################################
     ## Various definitions
+
     if progressive_training
         prog_seq_lengths = range(start_seq_len, seq_len, step=(seq_len-start_seq_len)/(prog_training_duration-1))
         prog_seq_lengths = Int.(round.(prog_seq_lengths))
@@ -147,7 +136,7 @@ function train(; kws...)
     @info "Start Training of $(typeof(model_type))-net, total $epochs epochs"
     for epoch = 1:epochs
 
-        # Set a sequence length for training samples
+        ## set a sequence length for training samples
         seq_len = epoch ≤ prog_training_duration ? prog_seq_lengths[epoch] : seq_len
 
         # Model evaluation length
@@ -156,9 +145,8 @@ function train(; kws...)
         mb_id = 1   # Minibatch id
         @info "Epoch $epoch .. (Sequence training length $seq_len)"
         progress = Progress(length(loader_train))
+        for x in loader_train
 
-        for data in loader_train
-            x, latent = data
             # Comput annealing factor
             af = annealing_factor(start_af, end_af, ae, epoch, mb_id, length(loader_train))
             mb_id += 1
@@ -174,17 +162,19 @@ function train(; kws...)
             Flux.Optimise.update!(opt, ps, grad)
 
             # Use validation set to get loss and visualisation
-            t_val = range(0.f0, step=dt, length=length(val_set_time_unstacked))
-            val_loss = loss_batch(model, λ, val_set_time_unstacked |> device, t_val, af)
+            val_set = Flux.unstack(first(loader_val), 2)
+            t_val = range(0.f0, step=dt, length=length(val_set))
+            val_loss = loss_batch(model, λ, val_set |> device, t_val, af)
 
-            # Progress meter
+            # progress meter
             next!(progress; showvalues=[(:loss, loss),(:val_loss, val_loss)])
         end
 
         if device != gpu
-            visualize_val_image(model, val_set |> device, val_set_latent, vis_len, dt, h, w, save_figure)
+            val_set = first(loader_val)
+            # visualize_val_image(model, val_set[:,1:vis_len,:] |> device, t_val, h, w, save_figure)
+            visualize_val_image(model, val_set |> device, vis_len, dt, h, w, save_figure)
         end
-
         if (val_loss < best_val_loss) & (epoch ≥ ae)
             best_val_loss = deepcopy(val_loss)
             weights = Flux.params(model)
@@ -213,15 +203,15 @@ function loss_batch(model, λ, x, t, af)
     return reconstruction_loss + af*kl_loss
 end
 
+
 ################################################################################
 ## Visualization function
 
-function visualize_val_image(model, val_set, val_set_latent, vis_len, dt, h, w, save_figure)
+function visualize_val_image(model, val_set, vis_len, dt, h, w, save_figure)
     j = rand(1:size(val_set,3))
     idxs = rand_time(size(val_set,2), vis_len)
     X_test = val_set[:, idxs, j]
-    true_latent = val_set_latent[:,idxs,j]
-
+    
     frames_test = [Gray.(reshape(x,h,w)) for x in eachcol(X_test)]
     X_test = reshape(X_test, Val(3))
     x = Flux.unstack(X_test, 2)
@@ -231,12 +221,11 @@ function visualize_val_image(model, val_set, val_set_latent, vis_len, dt, h, w, 
     x̂, ẑ, l̂ = X̂
     ẑ₀, θ̂ = l̂
 
-    println("Inferred Pendulum Length = $θ̂")
-
     ẑ = Flux.stack(ẑ, 2)
-    plt1 = plot(ẑ[1,:,1], legend=false, ylabel="inferred angle", color=:indigo, yforeground_color_axis=:indigo, yforeground_color_text=:indigo, yguidefontcolor=:indigo, rightmargin = 2.0Plots.cm)
+
+    plt1 = plot(ẑ[1,:,1], legend = false)
+    ylabel!("Angle")
     xlabel!("time")
-    plt1 = plot!(twinx(), true_latent[1,:], color=:darkorange1, box = :on, xticks=:none, legend=false, ylabel="true angle", yforeground_color_axis=:darkorange1, yforeground_color_text=:darkorange1, yguidefontcolor=:darkorange1)
 
     x̂ = Flux.stack(x̂, 2)
     frames_pred = [Gray.(reshape(x,h,w)) for x in eachslice(x̂, dims=2)]
