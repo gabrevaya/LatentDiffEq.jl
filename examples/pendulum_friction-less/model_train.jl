@@ -108,7 +108,7 @@ function train(; kws...)
     ############################################################################
     # Create model
     encoder_layers, decoder_layers = default_layers(model_type, input_dim, diffeq, device)
-    model = LatentDiffEqModel(model_type, encoder_layers, diffeq, decoder_layers)
+    model = LatentDiffEqModel(model_type, encoder_layers, decoder_layers)
 
     # Get parameters
     ps = Flux.params(model)
@@ -202,7 +202,7 @@ function loss_batch(model, λ, x, t, af)
 
     # Make prediction
     X̂, μ, logσ² = model(x, t)
-    x̂, ẑ, ẑ₀, = X̂
+    x̂, ẑ, l̂ = X̂
 
     # Compute reconstruction loss
     reconstruction_loss = vector_mse(x, x̂)
@@ -228,9 +228,9 @@ function visualize_val_image(model, val_set, val_set_latent, vis_len, dt, h, w, 
     t_val = range(0.f0, step=dt, length=vis_len)
 
     X̂, μ, logσ² = model(x, t_val)
-    x̂, ẑ, ẑ₀, = X̂
+    x̂, ẑ, l̂ = X̂
+    ẑ₀, θ̂ = l̂
 
-    θ̂ = X̂[4]
     println("Inferred Pendulum Length = $θ̂")
 
     ẑ = Flux.stack(ẑ, 2)

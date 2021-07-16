@@ -1,4 +1,4 @@
-# Latent ODE
+# Latent ODE model
 #
 # Based on
 # https://arxiv.org/abs/1806.07366
@@ -6,82 +6,42 @@
 
 struct LatentODE <: LatentDE end
 
-struct LatentODE_encoder{L1,L2,L3,L4} <: AbstractEncoder
+apply_feature_extractor(encoder::Encoder{LatentODE}, x) = encoder.feature_extractor.(x)
 
-    layer1::L1
-    layer2_z₀::L2
-    layer3_μ_z₀::L3
-    layer3_logσ²_z₀::L4
+function apply_pattern_extractor(encoder::Encoder{LatentODE}, fe_out)
+    pe_z₀ = encoder.pattern_extractor
 
-    function LatentODE_encoder(encoder_layers)
-        L1,L2,L3,L4 = typeof.(encoder_layers)
-        new{L1,L2,L3,L4}(encoder_layers...)
-    end
-end
-
-function (encoder::LatentODE_encoder)(x)
-
-    # Pass all states in the time series in dense layer
-    l1_out = encoder.layer1.(x)
-
-    # Pass an RNN and an BiLSTM through latent states
-    l2_z₀_out = apply_layers2(encoder, l1_out)
-
-    # Return RNN/BiLSTM ouput passed trough dense layers
-    z₀_μ = encoder.layer3_μ_z₀(l2_z₀_out)
-    z₀_logσ² = encoder.layer3_logσ²_z₀(l2_z₀_out)
-
-    (z₀_μ,), (z₀_logσ²,)
-end
-
-function apply_layers2(encoder::LatentODE_encoder, l1_out)
     # reverse sequence
-    l1_out_rev = reverse(l1_out)
+    fe_out_rev = reverse(fe_out)
 
-    # pass it through the recurrent layer
-    # l2_z₀_out = encoder.layer2_z₀.(l1_out_rev)[end]
-    l2_z₀_out = map(encoder.layer2_z₀, l1_out_rev)[end]
+    # pass it through the recurrent layers
+    pe_out = map(pe_z₀, fe_out_rev)[end]
 
     # reset hidden states
-    reset!(encoder.layer2_z₀)
+    reset!(pe_z₀)
 
-    return l2_z₀_out
+    return pe_out
 end
 
-Flux.@functor LatentODE_encoder
+function apply_latent_in(encoder::Encoder{LatentODE}, pe_out)
+    li_μ_z₀, li_logσ²_z₀ = encoder.latent_in
 
-struct LatentODE_decoder{D,O} <: AbstractDecoder
+    z₀_μ = li_μ_z₀(pe_out)
+    z₀_logσ² = li_logσ²_z₀(pe_out)
 
-    diffeq::D
-    layer_output::O
-
-    function LatentODE_decoder(decoder_layers, diffeq)
-        D = typeof(diffeq)
-        O = typeof(decoder_layers)
-        new{D,O}(diffeq, decoder_layers)
-    end
+    return z₀_μ, z₀_logσ²
 end
 
-function (decoder::LatentODE_decoder)(l̃, t)
+apply_latent_out(decoder::Decoder{LatentODE}, z̃₀) = decoder.latent_out(z̃₀)
 
-    ẑ₀ = l̃
-
-    ẑ = diffeq_layer(decoder, ẑ₀, t)
-
-    ## Create output data shape
-    x̂ = decoder.layer_output.(ẑ)
-
-    return (x̂, ẑ, ẑ₀,)
-end
-
-function diffeq_layer(decoder::LatentODE_decoder, ẑ₀, t)
+function diffeq_layer(decoder::Decoder{LatentODE}, ẑ₀, t)
     dudt = decoder.diffeq.dudt
     solver = decoder.diffeq.solver
     neural_model = decoder.diffeq.neural_model
     augment_dim = decoder.diffeq.augment_dim
     # sensealg = decoder.diffeq.sensealg
 
-    # nODE = NeuralODE(dudt, (t[1], t[end]), solver, sensealg = sensealg, saveat = t)
+    # nODE = neural_model(dudt, (t[1], t[end]), solver, sensealg = sensealg, saveat = t)
     nODE = neural_model(dudt, (t[1], t[end]), solver, saveat = t)
     nODE = augment_dim == 0 ? nODE : AugmentedNDELayer(nODE, augment_dim)
     ẑ = Array(nODE(ẑ₀))
@@ -93,33 +53,29 @@ function diffeq_layer(decoder::LatentODE_decoder, ẑ₀, t)
     return ẑ
 end
 
-Flux.@functor LatentODE_decoder
+apply_reconstructor(decoder::Decoder{LatentODE}, ẑ) = decoder.reconstructor.(ẑ)
 
-built_encoder(model_type::LatentODE, encoder_layers) = LatentODE_encoder(encoder_layers)
-built_decoder(model_type::LatentODE, decoder_layers, diffeq) = LatentODE_decoder(decoder_layers, diffeq)
-
-function variational(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) where T <: Tuple{Flux.CUDA.CuArray}
-    z₀_μ, = μ
-    z₀_logσ², = logσ²
-
-    ẑ₀ = z₀_μ + gpu(randn(Float32, size(z₀_logσ²))) .* exp.(z₀_logσ²/2f0)
-
-    return ẑ₀
-end
-
-function variational(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) where T <: Tuple{Array}
-    z₀_μ, = μ
-    z₀_logσ², = logσ²
+function variational(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) where T <: Array
+    z₀_μ = μ
+    z₀_logσ² = logσ²
 
     ẑ₀ = z₀_μ + randn(Float32, size(z₀_logσ²)) .* exp.(z₀_logσ²/2f0)
 
     return ẑ₀
 end
 
+function variational(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) where T <: Flux.CUDA.CuArray
+    z₀_μ = μ
+    z₀_logσ² = logσ²
+
+    ẑ₀ = z₀_μ + gpu(randn(Float32, size(z₀_logσ²))) .* exp.(z₀_logσ²/2f0)
+
+    return ẑ₀
+end
+
 function default_layers(model_type::LatentODE, input_dim, diffeq, device;
                             hidden_dim_resnet = 200, rnn_input_dim = 32,
-                            rnn_output_dim = 32,
-                            latent_to_diffeq_dim = 200, θ_activation = x -> 5*σ(x),
+                            rnn_output_dim = 32, latent_to_diffeq_dim = 200,
                             output_activation = σ)
     
     latent_dim_in = diffeq.latent_dim_in
@@ -134,20 +90,22 @@ function default_layers(model_type::LatentODE, input_dim, diffeq, device;
     l2 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
     l3 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
     l4 = Dense(hidden_dim_resnet, rnn_input_dim, relu)
-    layer1 = Chain(l1,
-                    SkipConnection(l2, +),
-                    SkipConnection(l3, +),
-                    l4) |> device
+    feature_extractor = Chain(l1,
+                                SkipConnection(l2, +),
+                                SkipConnection(l3, +),
+                                l4) |> device
 
     # RNN
-    layer2_z₀ = Chain(RNN(rnn_input_dim, rnn_output_dim, relu),
-                        RNN(rnn_output_dim, rnn_output_dim, relu)) |> device
+    pattern_extractor = Chain(RNN(rnn_input_dim, rnn_output_dim, relu),
+                                RNN(rnn_output_dim, rnn_output_dim, relu)) |> device
 
-    # final linear layers
-    layer3_μ_z₀ = Dense(rnn_output_dim, latent_dim_in) |> device
-    layer3_logσ²_z₀ = Dense(rnn_output_dim, latent_dim_in) |> device
+    # final fully connected layers before sampling
+    li_μ_z₀ = Dense(rnn_output_dim, latent_dim_in) |> device
+    li_logσ²_z₀ = Dense(rnn_output_dim, latent_dim_in) |> device
 
-    encoder_layers = (layer1, layer2_z₀, layer3_μ_z₀, layer3_logσ²_z₀)
+    latent_in = (li_μ_z₀, li_logσ²_z₀)
+
+    encoder_layers = (feature_extractor, pattern_extractor, latent_in)
 
     ######################
     ### Decoder layers ###
@@ -159,12 +117,12 @@ function default_layers(model_type::LatentODE, input_dim, diffeq, device;
     l2 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
     l3 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
     l4 = Dense(hidden_dim_resnet, input_dim, output_activation)
-    layer_output = Chain(l1,
-                    SkipConnection(l2, +),
-                    SkipConnection(l3, +),
-                    l4)  |> device
+    reconstructor = Chain(l1,
+                            SkipConnection(l2, +),
+                            SkipConnection(l3, +),
+                            l4)  |> device
 
-    decoder_layers = layer_output
+    decoder_layers = (x -> x, diffeq, reconstructor)
     
     return encoder_layers, decoder_layers
 end

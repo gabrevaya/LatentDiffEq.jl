@@ -19,11 +19,9 @@ import GR
 @with_kw mutable struct Args
     ## Global model
     model_type = GOKU()
-    # model_type = LatentODE()
 
     ## Latent Differential Equations
     diffeq = DoublePendulum()
-    # diffeq = NODE(2)
 
     ## Training params
     η = 1e-3                        # learning rate
@@ -69,12 +67,6 @@ function train(; kws...)
     root_dir = @__DIR__
     data_path = "$root_dir/data/data.bson"
 
-    # if ~isfile(data_path)
-    #     @info "Downloading pendulum data"
-    #     mkpath("$root_dir/data")
-    #     download("https://ndownloader.figshare.com/files/27986997", data_path)
-    # end
-
     data_loaded = load(data_path, :data)
     train_data = data_loaded[4]
 
@@ -102,7 +94,7 @@ function train(; kws...)
     # Create model
 
     encoder_layers, decoder_layers = default_layers(model_type, input_dim, diffeq, device)
-    model = LatentDiffEqModel(model_type, encoder_layers, diffeq, decoder_layers)
+    model = LatentDiffEqModel(model_type, encoder_layers, decoder_layers)
 
     # Get parameters
     ps = Flux.params(model)
@@ -121,8 +113,10 @@ function train(; kws...)
         prog_training_duration = 0
     end
     
-    best_val_loss::Float32 = Inf32
-    val_loss::Float32 = 0
+    # Preparation for saving best models weights
+    mkpath("$root_dir/output")
+    best_val_loss = Inf32
+    val_loss = 0f0
 
     # mkpath("$root_dir/output")
     # args = struct2dict(args)
@@ -133,6 +127,7 @@ function train(; kws...)
         mkpath("$root_dir/output/visualization")
         GR.inline("pdf")
     end
+
     ############################################################################
     ## Main train loop
     @info "Start Training of $(typeof(model_type))-net, total $epochs epochs"
@@ -179,11 +174,12 @@ function train(; kws...)
             visualize_val_image(model, val_set |> device, vis_len, dt, h, w, save_figure)
             # visualize_val_image(model, val_set[:,1:3,:] |> device, t_val, h, w, save_figure)
         end
-        # if val_loss < best_val_loss
-            # best_val_loss = deepcopy(val_loss)
-            # @save "$root_dir/output/best_model.bson" model
-            # @info "Model saved"
-        # end
+        if (val_loss < best_val_loss) & (epoch ≥ ae)
+            best_val_loss = deepcopy(val_loss)
+            weights = Flux.params(model)
+            @save "$root_dir/output/best_model_weights.bson" weights
+            @info "Model saved"
+        end
     end
 end
 
@@ -195,7 +191,7 @@ function loss_batch(model, λ, x, t, af)
 
     # Make prediction
     X̂, μ, logσ² = model(x, t)
-    x̂, ẑ, ẑ₀, = X̂
+    x̂, ẑ, l̂ = X̂
 
     # Compute reconstruction loss
     reconstruction_loss = vector_mse(x, x̂)
@@ -221,20 +217,13 @@ function visualize_val_image(model, val_set, vis_len, dt, h, w, save_figure)
     t_val = range(0.f0, step=dt, length=vis_len)
 
     X̂, μ, logσ² = model(x, t_val)
-    x̂, ẑ, ẑ₀, = X̂
+    x̂, ẑ, l̂ = X̂
 
-    # if length(X̂) == 4
-    #     θ̂ = X̂[4]
-    #     @show θ̂
-    # end
-
-    # gr(size = (700, 350))
     ẑ = Flux.stack(ẑ, 2)
 
     plt1 = plot(ẑ[1,:,1], legend = false)
     ylabel!("Angle")
     xlabel!("time")
-    # plt1 = plot(ẑ[1,1,:]) # for Latent ODE
 
     x̂ = Flux.stack(x̂, 2)
     frames_pred = [Gray.(reshape(x,h,w)) for x in eachslice(x̂, dims=2)]

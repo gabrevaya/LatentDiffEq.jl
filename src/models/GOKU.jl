@@ -1,39 +1,13 @@
-# GOKU-NET MODEL
+# GOKU-net model
 #
 # Based on
 # https://arxiv.org/abs/2003.10775
 
 struct GOKU <: LatentDE end
 
-struct GOKU_encoder{FE,PE,LI} <: AbstractEncoder
+apply_feature_extractor(encoder::Encoder{GOKU}, x) = encoder.feature_extractor.(x)
 
-    feature_extractor::FE
-    pattern_extractor::PE
-    latent_in::LI
-
-    function GOKU_encoder(encoder_layers)
-        FE, PE, LI = typeof.(encoder_layers)
-        new{FE,PE,LI}(encoder_layers...)
-    end
-end
-
-function (encoder::GOKU_encoder)(x)
-
-    # Pass every time frame independently through the feature extractor
-    fe_out = encoder.feature_extractor.(x)
-
-    # Process sequentially with the pattern extractor
-    pe_z₀_out, pe_θ_out = apply_pattern_extractor(encoder, fe_out)
-
-    # Pass trough a last layer before sampling
-    μ, logσ² = apply_latent_in(encoder, pe_z₀_out, pe_θ_out)
-
-    return μ, logσ²
-end
-
-# Test performance when computing the pe_z₀ (RNN) and pe_θ (BiLSTM) separately
-# at the cost of calculating again the reverse(l1_out) 
-function apply_pattern_extractor(encoder::GOKU_encoder, fe_out)
+function apply_pattern_extractor(encoder::Encoder{GOKU}, fe_out)
     pe_z₀, pe_θ_forward, pe_θ_backward = encoder.pattern_extractor
 
     # reverse sequence
@@ -53,7 +27,8 @@ function apply_pattern_extractor(encoder::GOKU_encoder, fe_out)
     return pe_z₀_out, pe_θ_out
 end
 
-function apply_latent_in(encoder::GOKU_encoder, pe_z₀_out, pe_θ_out)
+function apply_latent_in(encoder::Encoder{GOKU}, pe_out)
+    pe_z₀_out, pe_θ_out = pe_out
     li_μ_z₀, li_logσ²_z₀, li_μ_θ, li_logσ²_θ = encoder.latent_in
 
     z₀_μ = li_μ_z₀(pe_z₀_out)
@@ -65,38 +40,8 @@ function apply_latent_in(encoder::GOKU_encoder, pe_z₀_out, pe_θ_out)
     return (z₀_μ, θ_μ), (z₀_logσ², θ_logσ²)
 end
 
-Flux.@functor GOKU_encoder
-
-struct GOKU_decoder{LI,R,D} <: AbstractDecoder
-
-    latent_out::LI
-    reconstructor::R
-    diffeq::D
-
-    function GOKU_decoder(decoder_layers, diffeq)
-        LI, R = typeof.(decoder_layers)
-        D = typeof(diffeq)
-        new{LI,R,D}(decoder_layers..., diffeq)
-    end
-end
-
-function (decoder::GOKU_decoder)(l̃, t)
-
+function apply_latent_out(decoder::Decoder{GOKU}, l̃)
     z̃₀, θ̃ = l̃
-
-    ## Pass sampled latent states throue a latent_out layer
-    ẑ₀, θ̂ = apply_latent_out(decoder, z̃₀, θ̃)
-
-    ## Integrate differential equations
-    ẑ = diffeq_layer(decoder, ẑ₀, θ̂, t)
-
-    ## Apply reconstructor independently to each time frame
-    x̂ = decoder.reconstructor.(ẑ)
-
-    return x̂, ẑ, ẑ₀, θ̂
-end
-
-function apply_latent_out(decoder::GOKU_decoder, z̃₀, θ̃)
     lo_z₀, lo_θ = decoder.latent_out
 
     ẑ₀ = lo_z₀(z̃₀)
@@ -105,7 +50,8 @@ function apply_latent_out(decoder::GOKU_decoder, z̃₀, θ̃)
     return ẑ₀, θ̂
 end
 
-function diffeq_layer(decoder::GOKU_decoder, ẑ₀, θ̂, t)
+function diffeq_layer(decoder::Decoder{GOKU}, l̂, t)
+    ẑ₀, θ̂ = l̂
     prob = decoder.diffeq.prob
     solver = decoder.diffeq.solver
     sensealg = decoder.diffeq.sensealg
@@ -132,20 +78,7 @@ end
 # Identity by default
 transform_after_diffeq(x, diffeq) = x
 
-Flux.@functor GOKU_decoder
-
-built_encoder(model_type::GOKU, encoder_layers) = GOKU_encoder(encoder_layers)
-built_decoder(model_type::GOKU, decoder_layers, diffeq) = GOKU_decoder(decoder_layers, diffeq)
-
-function variational(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Flux.CUDA.CuArray}
-    z₀_μ, θ_μ = μ
-    z₀_logσ², θ_logσ² = logσ²
-
-    ẑ₀ = z₀_μ + gpu(randn(Float32, size(z₀_logσ²))) .* exp.(z₀_logσ²/2f0)
-    θ̂ =  θ_μ + gpu(randn(Float32, size( θ_logσ²))) .* exp.(θ_logσ²/2f0)
-
-    return ẑ₀, θ̂
-end
+apply_reconstructor(decoder::Decoder{GOKU}, ẑ) = decoder.reconstructor.(ẑ)
 
 function variational(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Array}
     z₀_μ, θ_μ = μ
@@ -153,6 +86,16 @@ function variational(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T 
 
     ẑ₀ = z₀_μ + randn(Float32, size(z₀_logσ²)) .* exp.(z₀_logσ²/2f0)
     θ̂ =  θ_μ + randn(Float32, size( θ_logσ²)) .* exp.(θ_logσ²/2f0)
+
+    return ẑ₀, θ̂
+end
+
+function variational(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Flux.CUDA.CuArray}
+    z₀_μ, θ_μ = μ
+    z₀_logσ², θ_logσ² = logσ²
+
+    ẑ₀ = z₀_μ + gpu(randn(Float32, size(z₀_logσ²))) .* exp.(z₀_logσ²/2f0)
+    θ̂ =  θ_μ + gpu(randn(Float32, size( θ_logσ²))) .* exp.(θ_logσ²/2f0)
 
     return ẑ₀, θ̂
 end
@@ -175,9 +118,9 @@ function default_layers(model_type::GOKU, input_dim, diffeq, device;
     l3 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
     l4 = Dense(hidden_dim_resnet, rnn_input_dim, relu)
     feature_extractor = Chain(l1,
-                    SkipConnection(l2, +),
-                    SkipConnection(l3, +),
-                    l4) |> device
+                                SkipConnection(l2, +),
+                                SkipConnection(l3, +),
+                                l4) |> device
 
     # RNN
     pe_z₀ = Chain(RNN(rnn_input_dim, rnn_output_dim, relu),
@@ -223,11 +166,11 @@ function default_layers(model_type::GOKU, input_dim, diffeq, device;
     l3 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
     l4 = Dense(hidden_dim_resnet, input_dim, output_activation)
     reconstructor = Chain(l1,
-                    SkipConnection(l2, +),
-                    SkipConnection(l3, +),
-                    l4)  |> device
+                            SkipConnection(l2, +),
+                            SkipConnection(l3, +),
+                            l4)  |> device
 
-    decoder_layers = (latent_out, reconstructor)
+    decoder_layers = (latent_out, diffeq, reconstructor)
 
     return encoder_layers, decoder_layers
 end

@@ -117,7 +117,7 @@ function train(; kws...)
     # Create model
 
     encoder_layers, decoder_layers = default_layers(model_type, input_dim, diffeq, device)
-    model = LatentDiffEqModel(model_type, encoder_layers, diffeq, decoder_layers)
+    model = LatentDiffEqModel(model_type, encoder_layers, decoder_layers)
 
     # Get parameters
     ps = Flux.params(model)
@@ -137,8 +137,10 @@ function train(; kws...)
         prog_training_duration = 0
     end
     
-    best_val_loss::Float32 = Inf32
-    val_loss::Float32 = 0
+    # Preparation for saving best models weights
+    mkpath("$root_dir/output")
+    best_val_loss = Inf32
+    val_loss = 0f0
 
     # mkpath("$root_dir/output")
     # args = struct2dict(args)
@@ -189,15 +191,15 @@ function train(; kws...)
         end
 
         if device != gpu
-            # visualize_val_image(model, val_set[:,1:vis_len,:] |> device, t_val, h, w, save_figure)
             visualize_val_image(model, val_set |> device, val_set_latent, vis_len, dt, h, w, save_figure)
-            # visualize_val_image(model, val_set[:,1:3,:] |> device, t_val, h, w, save_figure)
         end
-        # if val_loss < best_val_loss
-            # best_val_loss = deepcopy(val_loss)
-            # @save "$root_dir/output/best_model.bson" model
-            # @info "Model saved"
-        # end
+        
+        if (val_loss < best_val_loss) & (epoch ≥ ae)
+            best_val_loss = deepcopy(val_loss)
+            weights = Flux.params(model)
+            @save "$root_dir/output/best_model_weights.bson" weights
+            @info "Model saved"
+        end
     end
 end
 
@@ -209,7 +211,7 @@ function loss_batch(model, λ, x, t, af)
 
     # Make prediction
     X̂, μ, logσ² = model(x, t)
-    x̂, ẑ, ẑ₀, = X̂
+    x̂, ẑ, l̂ = X̂
 
     # Compute reconstruction loss
     reconstruction_loss = vector_mse(x, x̂)
@@ -248,22 +250,14 @@ function visualize_val_image(model, val_set, val_set_latent, vis_len, dt, h, w, 
     t_val = range(0.f0, step=dt, length=vis_len)
 
     X̂, μ, logσ² = model(x, t_val)
-    x̂, ẑ, ẑ₀, = X̂
+    x̂, ẑ, l̂ = X̂
+
     ẑ = Flux.stack(ẑ, 2)
 
-    if length(X̂) == 4
-        plt1 = plot(ẑ[1,:,1], label="inferred",legend=:topleft)
-        plt1 = plot!(twinx(), true_latent[1,:], color=:red, box = :on, xticks=:none, label="ground truth")
-        ylabel!("Angle")
-        xlabel!("time")
-        θ̂ = X̂[4]
-        @show θ̂
-    else
-        plt1 = plot(ẑ[:,:,1]', label="inferred",legend=:topleft)
-        ylabel!("State variables")
-        xlabel!("time")
-        plt1 = plot!(twinx(), true_latent[1,:], color=:green, box = :on, xticks=:none, label="ground truth")
-    end
+    plt1 = plot(ẑ[:,:,1]', label="inferred",legend=:topleft)
+    ylabel!("State variables")
+    xlabel!("time")
+    plt1 = plot!(twinx(), true_latent[1,:], color=:green, box = :on, xticks=:none, label="ground truth")
 
     x̂ = Flux.stack(x̂, 2)
     frames_pred = [Gray.(reshape(x,h,w)) for x in eachslice(x̂, dims=2)]
