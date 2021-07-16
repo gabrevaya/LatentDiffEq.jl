@@ -457,9 +457,9 @@ version = "1.4.1"
 
 [[FFTW_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "5a0d4b6a22a34d17d53543bd124f4b08ed78e8b0"
+git-tree-sha1 = "3676abafff7e4ff07bbd2c42b3d8201f31653dcc"
 uuid = "f5851436-0d7a-5f13-b9de-f02708fd171a"
-version = "3.3.9+7"
+version = "3.3.9+8"
 
 [[FastBroadcast]]
 deps = ["LinearAlgebra"]
@@ -888,11 +888,11 @@ version = "1.6.1"
 
 [[LatentDiffEq]]
 deps = ["DiffEqFlux", "DiffEqSensitivity", "DynamicalSystems", "Flux", "ModelingToolkit", "OrdinaryDiffEq", "Statistics", "StochasticDiffEq", "Zygote"]
-git-tree-sha1 = "b50524ffd4209cfedf0facc6d27de909a102c8f8"
-repo-rev = "luxor"
+git-tree-sha1 = "c028ff9f14aba39d20ed82a6be24ba771ab34fec"
+repo-rev = "master"
 repo-url = "https://github.com/gabrevaya/LatentDiffEq.git"
 uuid = "5e00f16f-4024-4869-80ca-bd64fdfff9b1"
-version = "0.1.0"
+version = "0.2.0"
 
 [[Latexify]]
 deps = ["Formatting", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "Printf", "Requires"]
@@ -985,9 +985,9 @@ version = "1.42.0+0"
 
 [[Libiconv_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "8d22e127ea9a0917bc98ebd3755c8bd31989381e"
+git-tree-sha1 = "42b62845d70a619f063a7da093d995ec8e15e778"
 uuid = "94ce4f54-9a6c-5748-9c1c-f9c7231a4531"
-version = "1.16.1+0"
+version = "1.16.1+1"
 
 [[Libmount_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
