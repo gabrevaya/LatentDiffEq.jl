@@ -39,8 +39,8 @@ function generate_dataset(; kws...)
 
       # Sample initial condition and parameters from a uniform distribution
       ps = [rand_uniform(p₀_range, length(prob.p)) for i in 1:n_traj]
-      u0s = [rand_uniform(u₀_range, length(prob.u0)) for i in 1:n_traj]
-      # u0s = [vcat(rand_uniform_u0(u₀_range, length(prob.u0)), 0) for i in 1:n_traj]
+      # u0s = [rand_uniform(u₀_range, length(prob.u0)) for i in 1:n_traj]
+      u0s = [vcat(rand_uniform_u0(u₀_range, length(prob.u0)), 0) for i in 1:n_traj]
 
       @info "Generating data"
       ensemble_prob = EnsembleProblem(prob, prob_func = prob_func)

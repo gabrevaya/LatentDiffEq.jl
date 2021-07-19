@@ -75,9 +75,7 @@ function train(; kws...)
 
     # stack all samples
     train_data = Flux.stack(train_data, 4) # 50x50x400x450
-
     h, w, full_seq_len, observations = size(train_data)
-    @show size(train_data)
 
     # vectorize frames
     train_data = reshape(train_data, :, full_seq_len, observations) # input_dim, time_size, samples
@@ -170,9 +168,7 @@ function train(; kws...)
 
         if device != gpu
             val_set = first(loader_val)
-            # visualize_val_image(model, val_set[:,1:vis_len,:] |> device, t_val, h, w, save_figure)
             visualize_val_image(model, val_set |> device, vis_len, dt, h, w, save_figure)
-            # visualize_val_image(model, val_set[:,1:3,:] |> device, t_val, h, w, save_figure)
         end
         if (val_loss < best_val_loss) & (epoch ≥ ae)
             best_val_loss = deepcopy(val_loss)
