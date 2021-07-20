@@ -180,7 +180,7 @@ function train(; kws...)
 
             # Use validation set to get loss and visualisation
             t_val = range(0.f0, step=dt, length=length(val_set_time_unstacked))
-            val_loss = loss_batch(model, λ, val_set_time_unstacked |> device, t_val, af)
+            val_loss = loss_batch(model, λ, val_set_time_unstacked |> device, t_val, β)
 
             # Progress meter
             next!(progress; showvalues=[(:loss, loss),(:val_loss, val_loss)])
@@ -190,7 +190,7 @@ function train(; kws...)
             visualize_val_image(model, val_set |> device, val_set_latent, vis_len, dt, h, w, save_figure)
         end
 
-        if (val_loss < best_val_loss) & (epoch ≥ ae)
+        if val_loss < best_val_loss
             best_val_loss = deepcopy(val_loss)
             weights = Flux.params(model)
             @save "$root_dir/output/best_model_weights.bson" weights
