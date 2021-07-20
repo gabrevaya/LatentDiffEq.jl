@@ -18,6 +18,8 @@ using Images
 using Plots
 import GR
 
+include("pendulum.jl")
+include("nODE.jl")
 include("create_data.jl")
 
 ################################################################################

@@ -18,7 +18,7 @@ function apply_pattern_extractor(encoder::Encoder{LatentODE}, fe_out)
     pe_out = map(pe_z₀, fe_out_rev)[end]
 
     # reset hidden states
-    reset!(pe_z₀)
+    Flux.reset!(pe_z₀)
 
     return pe_out
 end

@@ -1,3 +1,4 @@
+using FileIO: include
 # Example of GOKU-net model on the original friction-less pendulum data
 # from the  GOKU-net paper (https://github.com/orilinial/GOKU)
 
@@ -16,6 +17,8 @@ using ModelingToolkit
 using Images
 using Plots
 import GR
+
+include("pendulum.jl")
 
 ################################################################################
 ## Arguments for the train function

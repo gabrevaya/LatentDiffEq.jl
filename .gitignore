@@ -5,5 +5,5 @@
 *.DS_Store
 other
 
-pendulum_friction-less/data
-pendulum_friction-less/output
+*/data
+*/output

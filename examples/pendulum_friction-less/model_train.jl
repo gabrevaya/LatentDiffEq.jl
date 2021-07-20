@@ -1,6 +1,5 @@
 # Example of GOKU-net model on friction-less pendulum data created with Luxor
 
-using Flux: length
 using LatentDiffEq
 using FileIO
 using Parameters: @with_kw
@@ -14,10 +13,12 @@ using Flux
 using OrdinaryDiffEq
 using StochasticDiffEq
 using ModelingToolkit
+using DiffEqSensitivity
 using Images
 using Plots
 import GR
 
+include("pendulum.jl")
 include("create_data.jl")
 
 ################################################################################
@@ -28,6 +29,7 @@ include("create_data.jl")
 
     ## Latent Differential Equations
     diffeq = Pendulum()
+    # diffeq = SPendulum()
 
     ## Training params
     η = 5e-4                        # learning rate

@@ -10,9 +10,12 @@ using Flux.Data: DataLoader
 using Flux
 using OrdinaryDiffEq
 using ModelingToolkit
+using DynamicalSystems
 using Images
 using Plots
 import GR
+
+include("double_pendulum.jl")
 
 ################################################################################
 ## Arguments for the train function

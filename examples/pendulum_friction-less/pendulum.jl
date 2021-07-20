@@ -1,5 +1,3 @@
-
-
 ################################################################################
 ## Problem Definition -- frictionless pendulum
 
@@ -90,8 +88,8 @@ struct Pendulum_friction{P,S,T}
     
 end
 
-################################################################################
-## Problem Definition -- Stochastic Pendulum
+###############################################################################
+# Problem Definition -- Stochastic Pendulum
 
 struct SPendulum{P,S,T}
 
@@ -124,7 +122,7 @@ struct SPendulum{P,S,T}
         prob = ODEProblem(ODEFunc, u₀, tspan, p)
 
         function σ(du,u,p,t)
-            du .= 0.001f0
+            du .= 0.01f0
         end
 
         prob_sde = SDEProblem(prob.f.f, σ, prob.u0, prob.tspan, prob.p, jac = prob.f.jac, tgrad = prob.f.tgrad)

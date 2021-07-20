@@ -20,9 +20,9 @@ function apply_pattern_extractor(encoder::Encoder{GOKU}, fe_out)
     pe_θ_out = vcat(pe_θ_out_f, pe_θ_out_b)
 
     # reset hidden states
-    reset!(pe_z₀)
-    reset!(pe_θ_forward)
-    reset!(pe_θ_backward)
+    Flux.reset!(pe_z₀)
+    Flux.reset!(pe_θ_forward)
+    Flux.reset!(pe_θ_backward)
 
     return pe_z₀_out, pe_θ_out
 end

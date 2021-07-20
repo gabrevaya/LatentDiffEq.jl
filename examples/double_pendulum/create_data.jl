@@ -16,7 +16,7 @@ using Images
   
       tspan = (0.0f0, 5f0)        # time span
       dt = 0.05                       # timestep for ode solve
-      u₀_range = (-π/3, π/3)          # initial value range
+      u₀_range = (-π/2, π/2)          # initial value range
       p₀_range = (1.0, 2.0)           # parameter value range
       n_traj = 450                    # Number of trajectories
       seed = 1                        # random seed
