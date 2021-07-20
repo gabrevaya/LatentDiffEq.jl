@@ -14,9 +14,9 @@ using Images
       ## Latent Differential Equations
       diffeq = DoublePendulum()
   
-      tspan = (0.0f0, 20.f0)        # time span
+      tspan = (0.0f0, 5f0)        # time span
       dt = 0.05                       # timestep for ode solve
-      u₀_range = (-π/6, π/6)          # initial value range
+      u₀_range = (-π/3, π/3)          # initial value range
       p₀_range = (1.0, 2.0)           # parameter value range
       n_traj = 450                    # Number of trajectories
       seed = 1                        # random seed
@@ -39,8 +39,8 @@ function generate_dataset(; kws...)
 
       # Sample initial condition and parameters from a uniform distribution
       ps = [rand_uniform(p₀_range, length(prob.p)) for i in 1:n_traj]
-      # u0s = [rand_uniform(u₀_range, length(prob.u0)) for i in 1:n_traj]
-      u0s = [vcat(rand_uniform_u0(u₀_range, length(prob.u0)), 0) for i in 1:n_traj]
+      u0s = [rand_uniform(u₀_range, length(prob.u0)) for i in 1:n_traj]
+      # u0s = [vcat(rand_uniform_u0(u₀_range, length(prob.u0)), 0) for i in 1:n_traj]
 
       @info "Generating data"
       ensemble_prob = EnsembleProblem(prob, prob_func = prob_func)

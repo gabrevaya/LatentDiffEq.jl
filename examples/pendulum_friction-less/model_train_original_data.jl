@@ -31,13 +31,16 @@ import GR
     λ = 0.01f0                      # regularization paramater
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
-    epochs = 800                    # number of epochs for training
+    epochs = 900                    # number of epochs for training
     seed = 3                        # random seed
     cuda = false                    # GPU usage (not working well yet)
     dt = 0.05                       # timestep for ode solve
-    start_af = 0.0001f0             # Annealing factor start value
-    end_af = 0.001f0                # Annealing factor end value
-    ae = 400                        # Annealing factor epoch end
+
+    ## Annealing schedule
+    start_β = 0f0                   # start value
+    end_β = 1f0                     # end value
+    n_cycle = 3                     # number of annealing cycles
+    ratio = 0.9                     # proportion used to increase β (and 1-ratio used to fix β)    
 
     ## Progressive observation training
     progressive_training = false    # progressive training usage
@@ -116,6 +119,9 @@ function train(; kws...)
         prog_training_duration = 0
     end
     
+    # KL annealing scheduling
+    annealing_schedule = frange_cycle_linear(epochs, start_β, end_β, n_cycle, ratio)
+
     # Preparation for saving best models weights
     mkpath("$root_dir/output")
     best_val_loss = Inf32
@@ -136,26 +142,24 @@ function train(; kws...)
     @info "Start Training of $(typeof(model_type))-net, total $epochs epochs"
     for epoch = 1:epochs
 
-        ## set a sequence length for training samples
+        # Set annealing factor
+        β = annealing_schedule[epoch]
+
+        ## Set a sequence length for training samples
         seq_len = epoch ≤ prog_training_duration ? prog_seq_lengths[epoch] : seq_len
 
         # Model evaluation length
         t = range(0.f0, step=dt, length=seq_len)
 
-        mb_id = 1   # Minibatch id
         @info "Epoch $epoch .. (Sequence training length $seq_len)"
         progress = Progress(length(loader_train))
         for x in loader_train
-
-            # Comput annealing factor
-            af = annealing_factor(start_af, end_af, ae, epoch, mb_id, length(loader_train))
-            mb_id += 1
 
             # Use only random sequences of length seq_len for the current minibatch
             x = time_loader(x, full_seq_len, seq_len)
             
             loss, back = Flux.pullback(ps) do
-                loss_batch(model, λ, x |> device, t, af)
+                loss_batch(model, λ, x |> device, t, β)
             end
             # Backpropagate and update
             grad = back(1f0)
@@ -164,7 +168,7 @@ function train(; kws...)
             # Use validation set to get loss and visualisation
             val_set = Flux.unstack(first(loader_val), 2)
             t_val = range(0.f0, step=dt, length=length(val_set))
-            val_loss = loss_batch(model, λ, val_set |> device, t_val, af)
+            val_loss = loss_batch(model, λ, val_set |> device, t_val, β)
 
             # progress meter
             next!(progress; showvalues=[(:loss, loss),(:val_loss, val_loss)])
@@ -175,7 +179,7 @@ function train(; kws...)
             # visualize_val_image(model, val_set[:,1:vis_len,:] |> device, t_val, h, w, save_figure)
             visualize_val_image(model, val_set |> device, vis_len, dt, h, w, save_figure)
         end
-        if (val_loss < best_val_loss) & (epoch ≥ ae)
+        if val_loss < best_val_loss
             best_val_loss = deepcopy(val_loss)
             weights = Flux.params(model)
             @save "$root_dir/output/best_model_weights.bson" weights
@@ -188,7 +192,7 @@ end
 ################################################################################
 ## Loss definition
 
-function loss_batch(model, λ, x, t, af)
+function loss_batch(model, λ, x, t, β)
 
     # Make prediction
     X̂, μ, logσ² = model(x, t)
@@ -200,7 +204,7 @@ function loss_batch(model, λ, x, t, af)
     # Compute KL losses from parameter and initial value estimation
     kl_loss = vector_kl(μ, logσ²)
 
-    return reconstruction_loss + af*kl_loss
+    return reconstruction_loss + β*kl_loss
 end
 
 

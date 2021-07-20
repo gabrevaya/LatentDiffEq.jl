@@ -41,26 +41,22 @@ function vector_kl(μ::T, logσ²::T) where T <: Matrix
 end
 
 ## annealing factor scheduler
-# start_af: start value of annealing factor
-# end_af: end value of annealing factor
-# ae: annealing epochs - after these epochs, the annealing factor is set to the end value.
-# epoch: current epoch
-# mb_id: current number of mini batch
-# mb_amount: amount of mini batches
-function annealing_factor(start_af, end_af, ae, epoch, mb_id, mb_amount)
+# based on https://github.com/haofuml/cyclical_annealing
+function frange_cycle_linear(n_iter, start::T=0.0f0, stop::T=1.0f0,  n_cycle=4, ratio=0.5) where T
+    L = ones(n_iter) * stop
+    period = n_iter/n_cycle
+    step = T((stop-start)/(period*ratio)) # linear schedule
 
-    if ae > 0
-        if epoch < ae
-            return Float32(start_af + (end_af - start_af) * (mb_id + epoch * mb_amount) / (ae * mb_amount))
-        else
-            return Float32(end_af)
+    for c in 0:n_cycle-1
+        v, i = start, 1
+        while (v ≤ stop) & (Int(round(i+c*period)) < n_iter)
+            L[Int(i+c*period)] = v
+            v += step
+            i += 1
         end
-    else
-        return 1.0f0
     end
-
+    return T.(L)
 end
-
 
 ################################################################################
 ## Data pre-processing

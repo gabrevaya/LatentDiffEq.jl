@@ -30,7 +30,7 @@ export Pendulum, SPendulum, DoublePendulum, NODE
 export Pendulum_friction, Pendulum_NN_friction
 
 include("./utils/utils.jl")
-export vector_mse, kl, vector_kl, annealing_factor
+export vector_mse, kl, vector_kl, frange_cycle_linear
 export normalize_to_unit_segment, time_loader, rand_time
 
 end # end LatentDiffEq module
