@@ -262,7 +262,7 @@ function visualize_val_image(model, val_set, val_set_latent, vis_len, dt, h, w, 
 
     ẑ = Flux.stack(ẑ, 2)
 
-    plt1 = plot(ẑ[:,:,1]', label="inferred",legend=:topleft)
+    plt1 = plot(ẑ[:,:,1]', label="inferred",legend=:topleft, rightmargin = 2.0Plots.cm)
     ylabel!("State variables")
     xlabel!("time")
     plt1 = plot!(twinx(), true_latent[1,:], color=:green, box = :on, xticks=:none, label="ground truth")
