@@ -33,7 +33,7 @@ include("create_data.jl")
 
     ## Training params
     η = 5e-4                        # learning rate
-    λ = 0.01f0                      # regularization paramater
+    λ = 0.001f0                      # regularization paramater
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
     epochs = 900                    # number of epochs for training
@@ -88,6 +88,7 @@ function train(; kws...)
     data_loaded = load(data_path, :data)
     train_data = data_loaded[4]
     latent_data = data_loaded[1]
+    params_data = data_loaded[3]
 
     # Stack time for each sample
     train_data = Flux.stack.(train_data, 3)
@@ -96,6 +97,7 @@ function train(; kws...)
     train_data = Flux.stack(train_data, 4) # 28x28x400x450
     h, w, full_seq_len, observations = size(train_data)
     latent_data = Flux.stack(latent_data, 3)
+    params_data = Flux.stack(params_data, 3)
 
     # Vectorize frames
     train_data = reshape(train_data, :, full_seq_len, observations) # input_dim, time_size, samples
@@ -103,6 +105,7 @@ function train(; kws...)
 
     train_set, val_set = Array.(splitobs(train_data, 0.9))
     train_set_latent, val_set_latent = Array.(splitobs(latent_data, 0.9))
+    train_set_params, val_set_params = Array.(splitobs(params_data, 0.9))
 
     # loader_train = DataLoader(train_set, batchsize=batch_size, shuffle=true, partial=false)
     loader_train = DataLoader((train_set, train_set_latent), batchsize=batch_size, shuffle=true, partial=false)
@@ -120,8 +123,9 @@ function train(; kws...)
 
     ############################################################################
     ## Define optimizer
-    opt = AdaBelief(η)
+    # opt = AdaBelief(η)
     # opt = ADAM(η)
+    opt = ADAMW(η,(0.9,0.999), λ)
 
     ############################################################################
     ## Various definitions
@@ -189,7 +193,7 @@ function train(; kws...)
         end
 
         if device != gpu
-            visualize_val_image(model, val_set |> device, val_set_latent, vis_len, dt, h, w, save_figure)
+            visualize_val_image(model, val_set |> device, val_set_latent, val_set_params, vis_len, dt, h, w, save_figure)
         end
 
         if val_loss < best_val_loss
@@ -223,11 +227,12 @@ end
 ################################################################################
 ## Visualization function
 
-function visualize_val_image(model, val_set, val_set_latent, vis_len, dt, h, w, save_figure)
+function visualize_val_image(model, val_set, val_set_latent, val_set_params, vis_len, dt, h, w, save_figure)
     j = rand(1:size(val_set,3))
     idxs = rand_time(size(val_set,2), vis_len)
     X_test = val_set[:, idxs, j]
     true_latent = val_set_latent[:,idxs,j]
+    true_params = Float32(val_set_params[1,1,j])
 
     frames_test = [Gray.(reshape(x,h,w)) for x in eachcol(X_test)]
     X_test = reshape(X_test, Val(3))
@@ -237,7 +242,9 @@ function visualize_val_image(model, val_set, val_set_latent, vis_len, dt, h, w, 
     X̂, μ, logσ² = model(x, t_val)
     x̂, ẑ, l̂ = X̂
     ẑ₀, θ̂ = l̂
+    θ̂ = θ̂[1]
 
+    println("True Pendulum Length = $true_params")
     println("Inferred Pendulum Length = $θ̂")
 
     ẑ = Flux.stack(ẑ, 2)
