@@ -80,7 +80,7 @@ transform_after_diffeq(x, diffeq) = x
 
 apply_reconstructor(decoder::Decoder{GOKU}, ẑ) = decoder.reconstructor.(ẑ)
 
-function variational(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Array}
+function variational(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Array, Array}
     z₀_μ, θ_μ = μ
     z₀_logσ², θ_logσ² = logσ²
 
@@ -90,7 +90,7 @@ function variational(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T 
     return ẑ₀, θ̂
 end
 
-function variational(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Flux.CUDA.CuArray}
+function variational(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Flux.CUDA.CuArray,Flux.CUDA.CuArray}
     z₀_μ, θ_μ = μ
     z₀_logσ², θ_logσ² = logσ²
 
