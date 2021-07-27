@@ -50,7 +50,7 @@ function frange_cycle_linear(n_iter, start::T=0.0f0, stop::T=1.0f0,  n_cycle=4, 
     for c in 0:n_cycle-1
         v, i = start, 1
         while (v ≤ stop) & (Int(round(i+c*period)) < n_iter)
-            L[Int(i+c*period)] = v
+            L[Int(round(i+c*period))] = v
             v += step
             i += 1
         end

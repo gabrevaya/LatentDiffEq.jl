@@ -33,18 +33,18 @@ include("create_data.jl")
 
     ## Training params
     η = 5e-4                        # learning rate
-    λ = 0.001f0                      # regularization paramater
+    decay = 0.001f0                 # decay applied to weights during optimisation
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
-    epochs = 900                    # number of epochs for training
+    epochs = 1800                   # number of epochs for training
     seed = 1                        # random seed
     cuda = false                    # GPU usage (not working well yet)
     dt = 0.05                       # timestep for ode solve
 
     ## Annealing schedule
     start_β = 0f0                   # start value
-    end_β = 1f0                     # end value
-    n_cycle = 3                     # number of annealing cycles
+    end_β = 0.001f0                 # end value
+    n_cycle = 6                     # number of annealing cycles
     ratio = 0.9                     # proportion used to increase β (and 1-ratio used to fix β)
 
     ## Progressive observation training
@@ -125,7 +125,7 @@ function train(; kws...)
     ## Define optimizer
     # opt = AdaBelief(η)
     # opt = ADAM(η)
-    opt = ADAMW(η,(0.9,0.999), λ)
+    opt = ADAMW(η,(0.9,0.999), decay)
 
     ############################################################################
     ## Various definitions
@@ -178,7 +178,7 @@ function train(; kws...)
             x = time_loader(x, full_seq_len, seq_len)
             
             loss, back = Flux.pullback(ps) do
-                loss_batch(model, λ, x |> device, t, β)
+                loss_batch(model, x |> device, t, β)
             end
             # Backpropagate and update
             grad = back(1f0)
@@ -186,7 +186,7 @@ function train(; kws...)
 
             # Use validation set to get loss and visualisation
             t_val = range(0.f0, step=dt, length=length(val_set_time_unstacked))
-            val_loss = loss_batch(model, λ, val_set_time_unstacked |> device, t_val, β)
+            val_loss = loss_batch(model, val_set_time_unstacked |> device, t_val, β)
 
             # Progress meter
             next!(progress; showvalues=[(:loss, loss),(:val_loss, val_loss)])
@@ -209,7 +209,7 @@ end
 ################################################################################
 ## Loss definition
 
-function loss_batch(model, λ, x, t, β)
+function loss_batch(model, x, t, β)
 
     # Make prediction
     X̂, μ, logσ² = model(x, t)
@@ -221,7 +221,7 @@ function loss_batch(model, λ, x, t, β)
     # Compute KL losses from parameter and initial value estimation
     kl_loss = vector_kl(μ, logσ²)
 
-    return reconstruction_loss + β*kl_loss
+    return reconstruction_loss + β * kl_loss
 end
 
 ################################################################################
@@ -244,14 +244,11 @@ function visualize_val_image(model, val_set, val_set_latent, val_set_params, vis
     ẑ₀, θ̂ = l̂
     θ̂ = θ̂[1]
 
-    println("True Pendulum Length = $true_params")
-    println("Inferred Pendulum Length = $θ̂")
-
     ẑ = Flux.stack(ẑ, 2)
-    plt1 = plot(ẑ[1,:,1], legend=false, ylabel="inferred angle", color=:indigo, yforeground_color_axis=:indigo, yforeground_color_text=:indigo, yguidefontcolor=:indigo, rightmargin = 2.0Plots.cm)
+    plt1 = plot(ẑ[1,:,1], legend=false, ylabel="inferred angle", box = :on, color=:indigo, yforeground_color_axis=:indigo, yforeground_color_text=:indigo, yguidefontcolor=:indigo, rightmargin = 2.0Plots.cm)
     xlabel!("time")
     plt1 = plot!(twinx(), true_latent[1,:], color=:darkorange1, box = :on, xticks=:none, legend=false, ylabel="true angle", yforeground_color_axis=:darkorange1, yforeground_color_text=:darkorange1, yguidefontcolor=:darkorange1)
-
+    title!("Sample from validation set")
     x̂ = Flux.stack(x̂, 2)
     frames_pred = [Gray.(reshape(x,h,w)) for x in eachslice(x̂, dims=2)]
 
@@ -260,6 +257,8 @@ function visualize_val_image(model, val_set, val_set_latent, val_set_params, vis
 
     plt2 = mosaicview(frames_test..., frames_pred..., nrow=2, rowmajor=true)
     plt2 = plot(plt2, leg = false, ticks = nothing, border = :none)
+    annotate!((208, -21, ("True Pendulum Length = $(round(true_params, digits = 2))", 9, :gray, :right)))
+    annotate!((208, -11, ("Inferred Pendulum Length = $(round(θ̂, digits = 2))", 9, :gray, :right)))
     plt = plot(plt1, plt2, layout = @layout([a; b]))
     save_figure ? savefig(plt, "output/visualization/fig.pdf") : display(plt)
 end
