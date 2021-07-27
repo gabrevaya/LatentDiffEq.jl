@@ -899,11 +899,11 @@ version = "1.6.2"
 
 [[LatentDiffEq]]
 deps = ["DiffEqFlux", "DiffEqSensitivity", "DynamicalSystems", "Flux", "ModelingToolkit", "OrdinaryDiffEq", "Statistics", "StochasticDiffEq", "Zygote"]
-git-tree-sha1 = "71601da745fa5117bb4e4c3e61b2e0008ad384f7"
+git-tree-sha1 = "3af83e14049ce813f24777f8435376dce7810434"
 repo-rev = "master"
 repo-url = "https://github.com/gabrevaya/LatentDiffEq.jl.git"
 uuid = "5e00f16f-4024-4869-80ca-bd64fdfff9b1"
-version = "0.2.1"
+version = "0.2.2"
 
 [[Latexify]]
 deps = ["Formatting", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "Printf", "Requires"]
