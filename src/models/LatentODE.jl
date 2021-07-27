@@ -39,10 +39,11 @@ function diffeq_layer(decoder::Decoder{LatentODE}, ẑ₀, t)
     solver = decoder.diffeq.solver
     neural_model = decoder.diffeq.neural_model
     augment_dim = decoder.diffeq.augment_dim
+    kwargs = decoder.diffeq.kwargs
     # sensealg = decoder.diffeq.sensealg
 
     # nODE = neural_model(dudt, (t[1], t[end]), solver, sensealg = sensealg, saveat = t)
-    nODE = neural_model(dudt, (t[1], t[end]), solver, saveat = t)
+    nODE = neural_model(dudt, (t[1], t[end]), solver; saveat = t, kwargs...)
     nODE = augment_dim == 0 ? nODE : AugmentedNDELayer(nODE, augment_dim)
     ẑ = Array(nODE(ẑ₀))
 

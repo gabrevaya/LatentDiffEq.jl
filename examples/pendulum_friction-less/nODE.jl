@@ -1,9 +1,6 @@
-
-
 ################################################################################
 ## Problem Definition -- neural ODE
-
-struct NODE{D,S,N,L,A}
+struct NODE{D,S,N,L,A,K}
 
     dudt::D
     solver::S
@@ -11,8 +8,9 @@ struct NODE{D,S,N,L,A}
     latent_dim_in::L
     latent_dim_out::L
     augment_dim::A
+    kwargs::K
 
-    function NODE(latent_dim_in; hidden_dim=200, augment_dim=0, device=cpu)
+    function NODE(latent_dim_in; hidden_dim=200, augment_dim=0, device=cpu, kwargs...)
         dudt = Chain(Dense(latent_dim_in+augment_dim, hidden_dim, relu),
                         Dense(hidden_dim, hidden_dim, relu),
                         Dense(hidden_dim, latent_dim_in+augment_dim)) |> device
@@ -27,7 +25,9 @@ struct NODE{D,S,N,L,A}
         N = typeof(neural_model)
         L = typeof(latent_dim_in)
         A = typeof(augment_dim)
-        new{D,S,N,L,A}(dudt, solver, neural_model,latent_dim_in, latent_dim_out, augment_dim)
+        K = typeof(kwargs)
+        new{D,S,N,L,A,K}(dudt, solver, neural_model,latent_dim_in,
+                            latent_dim_out, augment_dim, kwargs)
     end
     
 end

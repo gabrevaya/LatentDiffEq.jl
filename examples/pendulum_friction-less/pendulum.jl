@@ -1,14 +1,16 @@
 ################################################################################
 ## Problem Definition -- frictionless pendulum
 
-struct Pendulum{P,S,T}
+struct Pendulum{P,S,T,K}
 
     prob::P
     solver::S
     sensealg::T
+    kwargs::K
 
-    function Pendulum()
-        # Default parameters and initial conditions
+    function Pendulum(; kwargs...)
+        # Parameters and initial conditions only
+        # used to initialize the ODE problem
         u₀ = Float32[1.0, 1.0]
         p = Float32[1.]
         tspan = (0.f0, 1.f0)
@@ -27,6 +29,9 @@ struct Pendulum{P,S,T}
         _prob = ODEProblem(f!, u₀, tspan, p)
 
         @info "Optimizing ODE Problem"
+        # Make ODE Problem more performant using ModelingToolkit
+        # not necessary for this simple pendulum but can very usefull
+        # for other more complex systems
         sys = modelingtoolkitize(_prob)
         ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
         prob = ODEProblem(ODEFunc, u₀, tspan, p)
@@ -37,7 +42,8 @@ struct Pendulum{P,S,T}
         P = typeof(prob)
         S = typeof(solver)
         T = typeof(sensalg)
-        new{P,S,T}(prob, solver, sensalg)
+        K = typeof(kwargs)
+        new{P,S,T,K}(prob, solver, sensalg, kwargs)
     end
     
 end

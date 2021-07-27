@@ -55,6 +55,7 @@ function diffeq_layer(decoder::Decoder{GOKU}, l̂, t)
     prob = decoder.diffeq.prob
     solver = decoder.diffeq.solver
     sensealg = decoder.diffeq.sensealg
+    kwargs = decoder.diffeq.kwargs
 
     # Function definition for ensemble problem
     prob_func(prob,i,repeat) = remake(prob, u0=ẑ₀[:,i], p = θ̂[:,i])
@@ -67,7 +68,7 @@ function diffeq_layer(decoder::Decoder{GOKU}, l̂, t)
     ens_prob = EnsembleProblem(prob, prob_func = prob_func, output_func = output_func)
 
     ## Solve
-    ẑ = solve(ens_prob, solver, EnsembleThreads(), sensealg = sensealg, trajectories = size(θ̂, 2), saveat = t)
+    ẑ = solve(ens_prob, solver, EnsembleThreads(); sensealg = sensealg, trajectories = size(θ̂, 2), saveat = t, kwargs...)
     
     # Transform the resulting output (mainly used for Kuramoto-like systems)
     ẑ = transform_after_diffeq(ẑ, decoder.diffeq)
