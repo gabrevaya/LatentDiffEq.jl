@@ -80,7 +80,7 @@ transform_after_diffeq(x, diffeq) = x
 
 apply_reconstructor(decoder::Decoder{GOKU}, ẑ) = decoder.reconstructor.(ẑ)
 
-function variational(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Array, Array}
+function sample(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Array, Array}
     z₀_μ, θ_μ = μ
     z₀_logσ², θ_logσ² = logσ²
 
@@ -90,7 +90,7 @@ function variational(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T 
     return ẑ₀, θ̂
 end
 
-function variational(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Flux.CUDA.CuArray,Flux.CUDA.CuArray}
+function sample(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Flux.CUDA.CuArray, Flux.CUDA.CuArray}
     z₀_μ, θ_μ = μ
     z₀_logσ², θ_logσ² = logσ²
 
@@ -125,7 +125,7 @@ function default_layers(model_type::GOKU, input_dim, diffeq, device;
     # RNN
     pe_z₀ = Chain(RNN(rnn_input_dim, rnn_output_dim, relu),
                        RNN(rnn_output_dim, rnn_output_dim, relu)) |> device
-
+    
     # Bidirectional LSTM
     pe_θ_forward = Chain(LSTM(rnn_input_dim, rnn_output_dim),
                        LSTM(rnn_output_dim, rnn_output_dim)) |> device

@@ -40,6 +40,7 @@ include("create_data.jl")
     seed = 1                        # random seed
     cuda = false                    # GPU usage (not working well yet)
     dt = 0.05                       # timestep for ode solve
+    variational = true              # variational or deterministic training
 
     ## Annealing schedule
     start_β = 0f0                   # start value
@@ -178,7 +179,7 @@ function train(; kws...)
             x = time_loader(x, full_seq_len, seq_len)
             
             loss, back = Flux.pullback(ps) do
-                loss_batch(model, x |> device, t, β)
+                loss_batch(model, x |> device, t, β, variational)
             end
             # Backpropagate and update
             grad = back(1f0)
@@ -186,7 +187,7 @@ function train(; kws...)
 
             # Use validation set to get loss and visualisation
             t_val = range(0.f0, step=dt, length=length(val_set_time_unstacked))
-            val_loss = loss_batch(model, val_set_time_unstacked |> device, t_val, β)
+            val_loss = loss_batch(model, val_set_time_unstacked |> device, t_val, β, false)
 
             # Progress meter
             next!(progress; showvalues=[(:loss, loss),(:val_loss, val_loss)])
@@ -209,10 +210,10 @@ end
 ################################################################################
 ## Loss definition
 
-function loss_batch(model, x, t, β)
+function loss_batch(model, x, t, β, variational)
 
     # Make prediction
-    X̂, μ, logσ² = model(x, t)
+    X̂, μ, logσ² = model(x, t, variational)
     x̂, ẑ, l̂ = X̂
 
     # Compute reconstruction loss

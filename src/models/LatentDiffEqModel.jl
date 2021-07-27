@@ -13,22 +13,19 @@ struct LatentDiffEqModel{M,E,D}
     end
 end
 
-function (model::LatentDiffEqModel)(x,t)
+function (model::LatentDiffEqModel)(x, t, variational=false)
 
     # Get encoded latent initial states and parameters
     μ, logσ² = model.encoder(x)
 
     # Sample from distributions
-    l̃ = variational(μ, logσ², model)
+    l̃ = variational ? sample(μ, logσ², model) : μ
 
     # Get predicted output
     X̂ = model.decoder(l̃, t)
 
     return X̂, μ, logσ²
 end
-
-# default non variational
-variational(μ, logσ², model) = μ
 
 Flux.@functor LatentDiffEqModel
 

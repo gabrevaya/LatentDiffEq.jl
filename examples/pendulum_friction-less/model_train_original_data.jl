@@ -31,17 +31,18 @@ include("pendulum.jl")
 
     ## Training params
     η = 1e-3                        # learning rate
-    λ = 0.01f0                      # regularization paramater
+    decay = 0.001f0                 # decay applied to weights during optimisation
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
     epochs = 900                    # number of epochs for training
     seed = 3                        # random seed
     cuda = false                    # GPU usage (not working well yet)
     dt = 0.05                       # timestep for ode solve
+    variational = true              # variational or deterministic training
 
     ## Annealing schedule
     start_β = 0f0                   # start value
-    end_β = 1f0                     # end value
+    end_β = 0.001f0                 # end value
     n_cycle = 3                     # number of annealing cycles
     ratio = 0.9                     # proportion used to increase β (and 1-ratio used to fix β)    
 
@@ -110,7 +111,8 @@ function train(; kws...)
 
     ############################################################################
     ## Define optimizer
-    opt = AdaBelief(η)
+    # opt = AdaBelief(η)
+    opt = ADAMW(η,(0.9,0.999), decay)
 
     ############################################################################
     ## Various definitions
@@ -162,7 +164,7 @@ function train(; kws...)
             x = time_loader(x, full_seq_len, seq_len)
             
             loss, back = Flux.pullback(ps) do
-                loss_batch(model, λ, x |> device, t, β)
+                loss_batch(model, x |> device, t, β, variational)
             end
             # Backpropagate and update
             grad = back(1f0)
@@ -171,7 +173,7 @@ function train(; kws...)
             # Use validation set to get loss and visualisation
             val_set = Flux.unstack(first(loader_val), 2)
             t_val = range(0.f0, step=dt, length=length(val_set))
-            val_loss = loss_batch(model, λ, val_set |> device, t_val, β)
+            val_loss = loss_batch(model, val_set |> device, t_val, β, false)
 
             # progress meter
             next!(progress; showvalues=[(:loss, loss),(:val_loss, val_loss)])
@@ -195,10 +197,10 @@ end
 ################################################################################
 ## Loss definition
 
-function loss_batch(model, λ, x, t, β)
+function loss_batch(model, x, t, β, variational)
 
     # Make prediction
-    X̂, μ, logσ² = model(x, t)
+    X̂, μ, logσ² = model(x, t, variational)
     x̂, ẑ, l̂ = X̂
 
     # Compute reconstruction loss
@@ -207,7 +209,7 @@ function loss_batch(model, λ, x, t, β)
     # Compute KL losses from parameter and initial value estimation
     kl_loss = vector_kl(μ, logσ²)
 
-    return reconstruction_loss + β*kl_loss
+    return reconstruction_loss + β * kl_loss
 end
 
 

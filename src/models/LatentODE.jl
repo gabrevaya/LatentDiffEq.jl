@@ -55,7 +55,7 @@ end
 
 apply_reconstructor(decoder::Decoder{LatentODE}, ẑ) = decoder.reconstructor.(ẑ)
 
-function variational(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) where T <: Array
+function sample(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) where T <: Array
     z₀_μ = μ
     z₀_logσ² = logσ²
 
@@ -64,7 +64,7 @@ function variational(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) whe
     return ẑ₀
 end
 
-function variational(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) where T <: Flux.CUDA.CuArray
+function sample(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) where T <: Flux.CUDA.CuArray
     z₀_μ = μ
     z₀_logσ² = logσ²
 
