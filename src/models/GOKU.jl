@@ -5,8 +5,50 @@
 
 struct GOKU <: LatentDE end
 
+@doc raw"""
+    apply_feature_extractor(encoder::Encoder{GOKU}, x)
+
+Converts a batch of the initial high-dimensional data into lower-dimensional data (i.e. extracts features)
+
+# Examples
+```julia-repl
+julia> using LatentDiffEq, OrdinaryDiffEq, ModelingToolkit, DiffEqSensitivity, Flux
+
+julia> include("pendulum.jl")
+
+julia> encoder_layers, _ = default_layers(GOKU(), 28*28, Pendulum(), cpu)
+
+julia> encoder = LatentDiffEq.Encoder(GOKU(), encoder_layers)
+
+julia> x = [zeros(Float32,28*28,64) for _ in 1:50]   # Dummy data
+
+julia> fe_out = LatentDiffEq.apply_feature_extractor(encoder, x)
+```
+"""
 apply_feature_extractor(encoder::Encoder{GOKU}, x) = encoder.feature_extractor.(x)
 
+@doc raw"""
+    apply_pattern_extractor(encoder::Encoder{GOKU}, fe_out)
+
+Passes features in time series through RNNs, returning a tuple containing patterns for the initial state and the parameters, respectively.
+
+# Examples
+```julia-repl
+julia> using LatentDiffEq, OrdinaryDiffEq, ModelingToolkit, DiffEqSensitivity, Flux
+
+julia> include("pendulum.jl")
+
+julia> encoder_layers, _ = default_layers(GOKU(), 28*28, Pendulum(), cpu)
+
+julia> encoder = LatentDiffEq.Encoder(GOKU(), encoder_layers)
+
+julia> x = [zeros(Float32,28*28,64) for _ in 1:50]   # Dummy data
+
+julia> fe_out = LatentDiffEq.apply_feature_extractor(encoder, x)
+
+julia> pe_out = LatentDiffEq.apply_pattern_extractor(encoder, fe_out)
+```
+"""
 function apply_pattern_extractor(encoder::Encoder{GOKU}, fe_out)
     pe_z₀, pe_θ_forward, pe_θ_backward = encoder.pattern_extractor
 
@@ -27,6 +69,30 @@ function apply_pattern_extractor(encoder::Encoder{GOKU}, fe_out)
     return pe_z₀_out, pe_θ_out
 end
 
+@doc raw"""
+    apply_latent_in(encoder::Encoder{GOKU}, pe_out)
+
+Obtains representations of the mean and log-variance of the initial conditions and parameters to use for sampling.
+
+# Examples
+```julia-repl
+julia> using LatentDiffEq, OrdinaryDiffEq, ModelingToolkit, DiffEqSensitivity, Flux
+
+julia> include("pendulum.jl")
+
+julia> encoder_layers, _ = default_layers(GOKU(), 28*28, Pendulum(), cpu)
+
+julia> encoder = LatentDiffEq.Encoder(GOKU(), encoder_layers)
+
+julia> x = [zeros(Float32,28*28,64) for _ in 1:50]   # Dummy data
+
+julia> fe_out = LatentDiffEq.apply_feature_extractor(encoder, x)
+
+julia> pe_out = LatentDiffEq.apply_pattern_extractor(encoder, fe_out)
+
+julia> μ, logσ² = apply_latent_in(encoder, pe_out)
+```
+"""
 function apply_latent_in(encoder::Encoder{GOKU}, pe_out)
     pe_z₀_out, pe_θ_out = pe_out
     li_μ_z₀, li_logσ²_z₀, li_μ_θ, li_logσ²_θ = encoder.latent_in
@@ -40,6 +106,32 @@ function apply_latent_in(encoder::Encoder{GOKU}, pe_out)
     return (z₀_μ, θ_μ), (z₀_logσ², θ_logσ²)
 end
 
+@doc raw"""
+    apply_latent_out(decoder::Decoder{GOKU}, l̃)
+
+Obtains the inferred initial conditions and parameters after sampling.
+
+# Examples
+```julia-repl
+julia> using LatentDiffEq, OrdinaryDiffEq, ModelingToolkit, DiffEqSensitivity, Flux
+
+julia> include("pendulum.jl")
+
+julia> encoder_layers, decoder_layers = default_layers(GOKU(), 28*28, Pendulum(), cpu)
+
+julia> encoder = LatentDiffEq.Encoder(GOKU(), encoder_layers)
+
+julia> decoder = LatentDiffEq.Decoder(GOKU(), decoder_layers)
+
+julia> x = [zeros(Float32,28*28,64) for _ in 1:50]   # Dummy data
+
+julia> μ, logσ² = encoder(x)
+
+julia> l̃ = LatentDiffEq.sample(μ, logσ², model)
+
+julia> l̂ = LatentDiffEq.apply_latent_out(decoder, l̃)
+```
+"""
 function apply_latent_out(decoder::Decoder{GOKU}, l̃)
     z̃₀, θ̃ = l̃
     lo_z₀, lo_θ = decoder.latent_out
@@ -50,6 +142,34 @@ function apply_latent_out(decoder::Decoder{GOKU}, l̃)
     return ẑ₀, θ̂
 end
 
+@doc raw"""
+    diffeq_layer(decoder::Decoder{GOKU}, l̂, t)
+
+Uses decoder.diffeq's ODE solver to extrapolate the latent states (from the initial states l̂) to time t.
+
+# Examples
+```julia-repl
+julia> using LatentDiffEq, OrdinaryDiffEq, ModelingToolkit, DiffEqSensitivity, Flux
+
+julia> include("pendulum.jl")
+
+julia> encoder_layers, decoder_layers = default_layers(GOKU(), 28*28, Pendulum(), cpu)
+
+julia> encoder = LatentDiffEq.Encoder(GOKU(), encoder_layers)
+
+julia> decoder = LatentDiffEq.Decoder(GOKU(), decoder_layers)
+
+julia> x = [zeros(Float32,28*28,64) for _ in 1:50]   # Dummy data
+
+julia> μ, logσ² = encoder(x)
+
+julia> l̃ = LatentDiffEq.sample(μ, logσ², model)
+
+julia> l̂ = LatentDiffEq.apply_latent_out(decoder, l̃)
+
+julia> ẑ = LatentDiffEq.diffeq_layer(decoder, l̂, t)
+```
+"""
 function diffeq_layer(decoder::Decoder{GOKU}, l̂, t)
     ẑ₀, θ̂ = l̂
     prob = decoder.diffeq.prob
@@ -79,8 +199,60 @@ end
 # Identity by default
 transform_after_diffeq(x, diffeq) = x
 
+@doc raw"""
+    apply_reconstructor(decoder::Decoder{GOKU}, ẑ)
+
+Reconstruct the initial data from the extrapolated latent states. 
+
+# Examples
+```julia-repl
+julia> using LatentDiffEq, OrdinaryDiffEq, ModelingToolkit, DiffEqSensitivity, Flux
+
+julia> include("pendulum.jl")
+
+julia> encoder_layers, decoder_layers = default_layers(GOKU(), 28*28, Pendulum(), cpu)
+
+julia> encoder = LatentDiffEq.Encoder(GOKU(), encoder_layers)
+
+julia> decoder = LatentDiffEq.Decoder(GOKU(), decoder_layers)
+
+julia> x = [zeros(Float32,28*28,64) for _ in 1:50]   # Dummy data
+
+julia> μ, logσ² = encoder(x)
+
+julia> l̃ = LatentDiffEq.sample(μ, logσ², model)
+
+julia> l̂ = LatentDiffEq.apply_latent_out(decoder, l̃)
+
+julia> ẑ = LatentDiffEq.diffeq_layer(decoder, l̂, t)
+
+julia> x̂ = LatentDiffEq.apply_reconstructor(decoder, ẑ)
+```
+"""
 apply_reconstructor(decoder::Decoder{GOKU}, ẑ) = decoder.reconstructor.(ẑ)
 
+@doc raw"""
+    sample(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Array, Array}
+
+Samples the parameters initial state from the normal distribution with mean μ and variance exp(logσ²).
+
+# Examples
+```julia-repl
+julia> using LatentDiffEq, OrdinaryDiffEq, ModelingToolkit, DiffEqSensitivity, Flux
+
+julia> include("pendulum.jl")
+
+julia> encoder_layers, decoder_layers = default_layers(GOKU(), 28*28, Pendulum(), cpu)
+
+julia> model = LatentDiffEqModel(GOKU(), encoder_layers, decoder_layers)
+
+julia> x = [zeros(Float32,28*28,64) for _ in 1:50]   # Dummy data
+
+julia> μ, logσ² = model.encoder(x)
+
+julia> l̃ = LatentDiffEq.sample(μ, logσ², model)
+```
+"""
 function sample(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Array, Array}
     z₀_μ, θ_μ = μ
     z₀_logσ², θ_logσ² = logσ²
@@ -101,6 +273,26 @@ function sample(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tu
     return ẑ₀, θ̂
 end
 
+@doc raw"""
+    default_layers(model_type::GOKU, input_dim::Int, diffeq, device;
+        hidden_dim_resnet = 200, rnn_input_dim = 32,
+        rnn_output_dim = 16, latent_dim = 16,
+        latent_to_diffeq_dim = 200, θ_activation = softplus,
+        output_activation = σ)
+
+Generates default encoder and decoder layers that are to be fed into the LatentDiffEqModel.
+
+# Examples
+```julia-repl
+julia> using LatentDiffEq, OrdinaryDiffEq, ModelingToolkit, DiffEqSensitivity, Flux
+
+julia> include("pendulum.jl")
+
+julia> encoder_layers, decoder_layers = default_layers(GOKU(), 28*28, Pendulum(), cpu)
+
+julia> model = LatentDiffEqModel(GOKU(), encoder_layers, decoder_layers)
+```
+"""
 function default_layers(model_type::GOKU, input_dim, diffeq, device;
                             hidden_dim_resnet = 200, rnn_input_dim = 32,
                             rnn_output_dim = 16, latent_dim = 16,
