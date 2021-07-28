@@ -4,6 +4,22 @@ struct LatentDiffEqModel{M,E,D}
     encoder::E
     decoder::D
 
+    @doc raw"""
+        LatentDiffEqModel(model_type, encoder_layers, decoder_layers)
+
+    Construct a LatentDiffEqModel.
+
+    # Examples
+    ```julia-repl
+    julia> using LatentDiffEq, OrdinaryDiffEq, ModelingToolkit, DiffEqSensitivity, Flux
+
+    julia> include("pendulum.jl")
+
+    julia> encoder_layers, decoder_layers = default_layers(GOKU(), 28*28, Pendulum(), cpu)
+
+    julia> model = LatentDiffEqModel(GOKU(), encoder_layers, decoder_layers)
+    ```
+    """
     function LatentDiffEqModel(model_type, encoder_layers, decoder_layers)
 
         encoder = Encoder(model_type, encoder_layers)
@@ -37,6 +53,22 @@ struct Encoder{M,FE,PE,LI}
     pattern_extractor::PE
     latent_in::LI
 
+    @doc raw"""
+        Encoder(model_type, encoder_layers)
+
+    Construct an encoder of a LatentDiffEqModel.
+
+    # Examples
+    ```julia-repl
+    julia> using LatentDiffEq, OrdinaryDiffEq, ModelingToolkit, DiffEqSensitivity, Flux
+
+    julia> include("pendulum.jl")
+
+    julia> encoder_layers, _ = default_layers(GOKU(), 28*28, Pendulum(), cpu)
+
+    julia> encoder = LatentDiffEq.Encoder(GOKU(), encoder_layers)
+    ```
+    """
     function Encoder(model_type, encoder_layers)
         M = typeof(model_type)
         FE, PE, LI = typeof.(encoder_layers)
@@ -68,6 +100,22 @@ struct Decoder{M,LI,D,R}
     diffeq::D
     reconstructor::R
 
+    @doc raw"""
+        Decoder(model_type, decoder_layers)
+
+    Construct a decoder of a LatentDiffEqModel.
+
+    # Examples
+    ```julia-repl
+    julia> using LatentDiffEq, OrdinaryDiffEq, ModelingToolkit, DiffEqSensitivity, Flux
+
+    julia> include("pendulum.jl")
+
+    julia> _, decoder_layers = default_layers(GOKU(), 28*28, Pendulum(), cpu)
+
+    julia> decoder = LatentDiffEq.Encoder(GOKU(), decoder_layers)
+    ```
+    """
     function Decoder(model_type, decoder_layers)
         M = typeof(model_type)
         LI, D, R = typeof.(decoder_layers)
