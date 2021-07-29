@@ -74,7 +74,7 @@ function sample(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) where T 
     return ẑ₀
 end
 
-function default_layers(model_type::LatentODE, input_dim, diffeq, device;
+function default_layers(model_type::LatentODE, input_dim, diffeq; device = cpu,
                             hidden_dim_resnet = 200, rnn_input_dim = 32,
                             rnn_output_dim = 32, latent_to_diffeq_dim = 200,
                             output_activation = σ)

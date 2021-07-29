@@ -51,13 +51,14 @@ end
 ################################################################################
 ## Problem Definition -- Pendulum with friction
 
-struct Pendulum_friction{P,S,T}
+struct Pendulum_friction{P,S,T,K}
 
     prob::P
     solver::S
     sensealg::T
+    kwargs::K
 
-    function Pendulum_friction()
+    function Pendulum_friction(; kwargs...)
         # Default parameters and initial conditions
         u₀ = Float32[1.0, 1.0]
         p = Float32[1.]
@@ -89,7 +90,8 @@ struct Pendulum_friction{P,S,T}
         P = typeof(prob)
         S = typeof(solver)
         T = typeof(sensalg)
-        new{P,S,T}(prob, solver, sensalg)
+        K = typeof(kwargs)
+        new{P,S,T,K}(prob, solver, sensalg, kwargs)
     end
     
 end
@@ -97,13 +99,14 @@ end
 ###############################################################################
 # Problem Definition -- Stochastic Pendulum
 
-struct SPendulum{P,S,T}
+struct SPendulum{P,S,T,K}
 
     prob::P
     solver::S
     sensealg::T
+    kwargs::K
 
-    function SPendulum()
+    function SPendulum(; kwargs...)
         # Default parameters and initial conditions
         u₀ = Float32[1.0, 1.0]
         p = Float32[1.]
@@ -142,7 +145,8 @@ struct SPendulum{P,S,T}
         P = typeof(prob_sde)
         S = typeof(solver)
         T = typeof(sensalg)
-        new{P,S,T}(prob_sde, solver, sensalg)
+        K = typeof(kwargs)
+        new{P,S,T,K}(prob_sde, solver, sensalg, kwargs)
     end
     
 end

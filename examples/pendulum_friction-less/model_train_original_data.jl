@@ -31,7 +31,7 @@ include("pendulum.jl")
 
     ## Training params
     η = 1e-3                        # learning rate
-    decay = 0.001f0                 # decay applied to weights during optimisation
+    decay = 0.0001f0                # decay applied to weights during optimisation
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
     epochs = 900                    # number of epochs for training
@@ -41,14 +41,14 @@ include("pendulum.jl")
     variational = true              # variational or deterministic training
 
     ## Annealing schedule
-    start_β = 0f0                   # start value
-    end_β = 0.001f0                 # end value
+    start_β = 0.00001f0             # start value
+    end_β = 0.00001f0               # end value
     n_cycle = 3                     # number of annealing cycles
     ratio = 0.9                     # proportion used to increase β (and 1-ratio used to fix β)    
 
     ## Progressive observation training
     progressive_training = false    # progressive training usage
-    prog_training_duration = 5      # number of eppchs to reach the final seq_len
+    prog_training_duration = 5      # number of epochs to reach the final seq_len
     start_seq_len = 10              # training sequence length at first step
 
     ## Visualization
@@ -103,7 +103,7 @@ function train(; kws...)
     ############################################################################
     # Create model
 
-    encoder_layers, decoder_layers = default_layers(model_type, input_dim, diffeq, device)
+    encoder_layers, decoder_layers = default_layers(model_type, input_dim, diffeq, device = device)
     model = LatentDiffEqModel(model_type, encoder_layers, decoder_layers)
 
     # Get parameters
@@ -111,8 +111,9 @@ function train(; kws...)
 
     ############################################################################
     ## Define optimizer
+    opt = ADAM(η)
     # opt = AdaBelief(η)
-    opt = ADAMW(η,(0.9,0.999), decay)
+    # opt = ADAMW(η,(0.9,0.999), decay)
 
     ############################################################################
     ## Various definitions
@@ -163,9 +164,11 @@ function train(; kws...)
             # Use only random sequences of length seq_len for the current minibatch
             x = time_loader(x, full_seq_len, seq_len)
             
+            # Run the model with the current parameters and compute the loss
             loss, back = Flux.pullback(ps) do
                 loss_batch(model, x |> device, t, β, variational)
             end
+
             # Backpropagate and update
             grad = back(1f0)
             Flux.Optimise.update!(opt, ps, grad)

@@ -32,25 +32,25 @@ include("create_data.jl")
     # diffeq = SPendulum()
 
     ## Training params
-    η = 5e-4                        # learning rate
-    decay = 0.001f0                 # decay applied to weights during optimisation
+    η = 1e-4                        # learning rate
+    decay = 0.0001f0                # decay applied to weights during optimisation
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
     epochs = 1800                   # number of epochs for training
-    seed = 1                        # random seed
+    seed = 3                        # random seed
     cuda = false                    # GPU usage (not working well yet)
     dt = 0.05                       # timestep for ode solve
     variational = true              # variational or deterministic training
 
     ## Annealing schedule
-    start_β = 0f0                   # start value
-    end_β = 0.001f0                 # end value
+    start_β = 0.00001f0             # start value
+    end_β = 0.00001f0               # end value
     n_cycle = 6                     # number of annealing cycles
     ratio = 0.9                     # proportion used to increase β (and 1-ratio used to fix β)
 
     ## Progressive observation training
     progressive_training = false    # progressive training usage
-    prog_training_duration = 200    # number of eppchs to reach the final seq_len
+    prog_training_duration = 200    # number of epochs to reach the final seq_len
     start_seq_len = 10              # training sequence length at first step
 
     ## Visualization
@@ -116,7 +116,7 @@ function train(; kws...)
 
     ############################################################################
     # Create model
-    encoder_layers, decoder_layers = default_layers(model_type, input_dim, diffeq, device)
+    encoder_layers, decoder_layers = default_layers(model_type, input_dim, diffeq, device = device)
     model = LatentDiffEqModel(model_type, encoder_layers, decoder_layers)
 
     # Get parameters
@@ -124,9 +124,9 @@ function train(; kws...)
 
     ############################################################################
     ## Define optimizer
+    opt = ADAM(η)
     # opt = AdaBelief(η)
-    # opt = ADAM(η)
-    opt = ADAMW(η,(0.9,0.999), decay)
+    # opt = ADAMW(η,(0.9,0.999), decay)
 
     ############################################################################
     ## Various definitions
@@ -178,9 +178,11 @@ function train(; kws...)
             # Use only random sequences of length seq_len for the current minibatch
             x = time_loader(x, full_seq_len, seq_len)
             
+            # Run the model with the current parameters and compute the loss
             loss, back = Flux.pullback(ps) do
                 loss_batch(model, x |> device, t, β, variational)
             end
+
             # Backpropagate and update
             grad = back(1f0)
             Flux.Optimise.update!(opt, ps, grad)
@@ -233,7 +235,7 @@ function visualize_val_image(model, val_set, val_set_latent, val_set_params, vis
     idxs = rand_time(size(val_set,2), vis_len)
     X_test = val_set[:, idxs, j]
     true_latent = val_set_latent[:,idxs,j]
-    true_params = Float32(val_set_params[1,1,j])
+    true_params = val_set_params[j]
 
     frames_test = [Gray.(reshape(x,h,w)) for x in eachcol(X_test)]
     X_test = reshape(X_test, Val(3))
@@ -262,6 +264,7 @@ function visualize_val_image(model, val_set, val_set_latent, val_set_params, vis
     annotate!((208, -11, ("Inferred Pendulum Length = $(round(θ̂, digits = 2))", 9, :gray, :right)))
     plt = plot(plt1, plt2, layout = @layout([a; b]))
     save_figure ? savefig(plt, "output/visualization/fig.pdf") : display(plt)
+    return nothing
 end
 
 train()

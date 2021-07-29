@@ -5,9 +5,14 @@
 function vector_mse(x, x̂)
     res = zero(eltype(x[1]))
     @inbounds for i in eachindex(x)
+        # res += sum((x[i] .- x̂[i]).^2)
         res += mean((x[i] .- x̂[i]).^2)
     end
-    res /= length(x)
+    # divide per number of time steps and batch size
+    # @show size(x, 1)
+    # @show size(x[1], 2)
+    # res /= size(x, 1) * size(x[1], 2)
+    return res
 end
 
 kl(μ, logσ²) = -logσ²/2f0 + ((exp(logσ²) + μ^2)/2f0) - 0.5f0

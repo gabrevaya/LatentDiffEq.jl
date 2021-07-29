@@ -1,8 +1,7 @@
-using Flux: length
 using LatentDiffEq
 using FileIO
 using Parameters: @with_kw
-using ProgressMeter: Progress, next!
+using ProgressMeter
 using Random
 using Statistics
 using MLDataUtils
@@ -40,7 +39,7 @@ include("create_data.jl")
 
     ## Training params
     η = 5e-4                        # learning rate
-    decay = 0.001f0                 # decay applied to weights during optimisation
+    decay = 0.0001f0                 # decay applied to weights during optimisation
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
     epochs = 900                    # number of epochs for training
@@ -50,14 +49,14 @@ include("create_data.jl")
     variational = true              # variational or deterministic training
 
     ## Annealing schedule
-    start_β = 0f0                   # start value
-    end_β = 0.001f0                     # end value
+    start_β = 0.00001f0                   # start value
+    end_β = 0.00001f0                     # end value
     n_cycle = 3                     # number of annealing cycles
     ratio = 0.9                     # proportion used to increase β (and 1-ratio used to fix β)
     
     ## Progressive observation training
     progressive_training = false    # progressive training usage
-    prog_training_duration = 200    # number of eppchs to reach the final seq_len
+    prog_training_duration = 200    # number of epochs to reach the final seq_len
     start_seq_len = 5               # training sequence length at first step
 
     ## Visualization
@@ -122,7 +121,7 @@ function train(; kws...)
     ############################################################################
     # Create model
 
-    encoder_layers, decoder_layers = default_layers(model_type, input_dim, diffeq, device)
+    encoder_layers, decoder_layers = default_layers(model_type, input_dim, diffeq, device = device)
     model = LatentDiffEqModel(model_type, encoder_layers, decoder_layers)
 
     # Get parameters
