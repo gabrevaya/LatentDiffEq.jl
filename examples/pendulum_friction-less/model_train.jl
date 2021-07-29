@@ -112,7 +112,7 @@ function train(; kws...)
     loader_train = DataLoader((train_set, train_set_latent), batchsize=batch_size, shuffle=true, partial=false)
     val_set_time_unstacked = Flux.unstack(val_set, 2)
 
-    input_dim = size(train_set,1)
+    input_dim = size(train_set, 1)
 
     ############################################################################
     # Create model
@@ -126,7 +126,7 @@ function train(; kws...)
     ## Define optimizer
     opt = ADAM(η)
     # opt = AdaBelief(η)
-    # opt = ADAMW(η,(0.9,0.999), decay)
+    # opt = ADAMW(η, (0.9,0.999), decay)
 
     ############################################################################
     ## Various definitions

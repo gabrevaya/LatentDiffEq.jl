@@ -8,7 +8,7 @@ function vector_mse(x, x̂)
         res += sum((x[i] .- x̂[i]).^2)
     end
     # divide per number of time steps and batch size
-    res /= length(x)*length(x[1][1,:])
+    res /= size(x, 1) * size(x[1], 2)
     return res
 end
 
