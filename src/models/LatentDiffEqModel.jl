@@ -9,16 +9,9 @@ struct LatentDiffEqModel{M,E,D}
 
     Construct a LatentDiffEqModel.
 
-    # Examples
-    ```julia-repl
-    julia> using LatentDiffEq, OrdinaryDiffEq, ModelingToolkit, DiffEqSensitivity, Flux
-
-    julia> include("pendulum.jl")
-
-    julia> encoder_layers, decoder_layers = default_layers(GOKU(), 28*28, Pendulum(), cpu)
-
-    julia> model = LatentDiffEqModel(GOKU(), encoder_layers, decoder_layers)
-    ```
+    # Arguments
+    model_type: GOKU() or LatentODE()
+    encoder_layers, decoder_layers: Could be specified manually or produced from default_layers
     """
     function LatentDiffEqModel(model_type, encoder_layers, decoder_layers)
 
@@ -58,16 +51,9 @@ struct Encoder{M,FE,PE,LI}
 
     Construct an encoder of a LatentDiffEqModel.
 
-    # Examples
-    ```julia-repl
-    julia> using LatentDiffEq, OrdinaryDiffEq, ModelingToolkit, DiffEqSensitivity, Flux
-
-    julia> include("pendulum.jl")
-
-    julia> encoder_layers, _ = default_layers(GOKU(), 28*28, Pendulum(), cpu)
-
-    julia> encoder = LatentDiffEq.Encoder(GOKU(), encoder_layers)
-    ```
+    # Arguments
+    model_type: GOKU() or LatentODE()
+    encoder_layers: Could be specified manually or produced be default_layers
     """
     function Encoder(model_type, encoder_layers)
         M = typeof(model_type)
@@ -105,16 +91,9 @@ struct Decoder{M,LI,D,R}
 
     Construct a decoder of a LatentDiffEqModel.
 
-    # Examples
-    ```julia-repl
-    julia> using LatentDiffEq, OrdinaryDiffEq, ModelingToolkit, DiffEqSensitivity, Flux
-
-    julia> include("pendulum.jl")
-
-    julia> _, decoder_layers = default_layers(GOKU(), 28*28, Pendulum(), cpu)
-
-    julia> decoder = LatentDiffEq.Encoder(GOKU(), decoder_layers)
-    ```
+    # Arguments
+    model_type: GOKU() or LatentODE()
+    decoder_layers: Could be specified manually or produced by default_layers
     """
     function Decoder(model_type, decoder_layers)
         M = typeof(model_type)
