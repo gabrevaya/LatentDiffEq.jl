@@ -152,7 +152,8 @@ function sample(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tu
 end
 
 @doc raw"""
-    default_layers(model_type, input_dim::Int, diffeq, device;
+    default_layers(model_type, input_dim::Int, diffeq;
+        device = cpu,
         hidden_dim_resnet = 200, rnn_input_dim = 32,
         rnn_output_dim = 16, latent_dim = 16,
         latent_to_diffeq_dim = 200, θ_activation = softplus,
@@ -164,7 +165,6 @@ Generates default encoder and decoder layers that are to be fed into the LatentD
 model_type: GOKU() or LatentODE()
 input_dim: Dimension of input, 28*28 for pendulum data provided
 diffeq: Differential equation, e.g. Pendulum() for GOKU or NODE(16) for LatentODE
-device: cpu (gpu not working well yet)
 
 # Examples
 ```julia-repl
@@ -175,7 +175,7 @@ julia> include("pendulum.jl")  # Assuming directory is LatentDiffEq/examples/pen
 julia> encoder_layers, decoder_layers = default_layers(GOKU(), 28*28, Pendulum(), cpu)
 ```
 """
-function default_layers(model_type::GOKU, input_dim, diffeq, device;
+function default_layers(model_type::GOKU, input_dim, diffeq; device = cpu
                             hidden_dim_resnet = 200, rnn_input_dim = 32,
                             rnn_output_dim = 16, latent_dim = 16,
                             latent_to_diffeq_dim = 200, θ_activation = softplus,
