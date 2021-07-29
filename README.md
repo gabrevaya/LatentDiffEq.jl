@@ -16,11 +16,12 @@ julia> ]
 pkg> add https://github.com/gabrevaya/LatentDiffEq.jl.git
 ```
 
-### Tutorial
-Checkout the Tutorial to get familiar with the base functionalities of this package. If you wish to build your own models, follow the following chart detailing the names of the functions associated with the different parts of the package.
+### Tutorial (Coming soon!)
+Checkout the Tutorial to get familiar with the base functionalities of this package. If you wish to build your own models, this is also convered in the Tutorial. You can also refer to the following chart detailing the names of the functions associated with the different parts of the package.
 
 ![LatentDiffEq.jl_framework](./package_framework.png)
 
 ## References
 
+Chen, Ricky TQ, et al. "Neural ordinary differential equations." arXiv preprint arXiv:1806.07366 (2018).
 Linial, O., Eytan, D., & Shalit, U. (2020). Generative ODE Modeling with Known Unknowns. arXiv preprint [arXiv:2003.10775](https://arxiv.org/abs/2003.10775).
