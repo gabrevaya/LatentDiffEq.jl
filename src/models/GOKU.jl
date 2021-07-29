@@ -175,7 +175,7 @@ julia> include("pendulum.jl")  # Assuming directory is LatentDiffEq/examples/pen
 julia> encoder_layers, decoder_layers = default_layers(GOKU(), 28*28, Pendulum(), cpu)
 ```
 """
-function default_layers(model_type::GOKU, input_dim, diffeq; device = cpu
+function default_layers(model_type::GOKU, input_dim, diffeq; device=cpu
                             hidden_dim_resnet = 200, rnn_input_dim = 32,
                             rnn_output_dim = 16, latent_dim = 16,
                             latent_to_diffeq_dim = 200, θ_activation = softplus,
