@@ -851,9 +851,11 @@ version = "1.6.3"
 
 [[LatentDiffEq]]
 deps = ["DiffEqFlux", "DiffEqSensitivity", "Flux", "OrdinaryDiffEq", "Statistics"]
-path = "/Users/ger/.julia/dev/LatentDiffEq"
+git-tree-sha1 = "b2823e389387ae971b3b90bbada6d41fce4ca66f"
+repo-rev = "master"
+repo-url = "https://github.com/gabrevaya/LatentDiffEq.jl.git"
 uuid = "5e00f16f-4024-4869-80ca-bd64fdfff9b1"
-version = "0.2.3"
+version = "0.2.4"
 
 [[Latexify]]
 deps = ["Formatting", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "Printf", "Requires"]
