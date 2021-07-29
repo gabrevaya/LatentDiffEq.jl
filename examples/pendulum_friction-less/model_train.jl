@@ -36,7 +36,7 @@ include("create_data.jl")
     decay = 0.0001f0                # decay applied to weights during optimisation
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
-    epochs = 1800                   # number of epochs for training
+    epochs = 485                    # number of epochs for training
     seed = 3                        # random seed
     cuda = false                    # GPU usage (not working well yet)
     dt = 0.05                       # timestep for ode solve

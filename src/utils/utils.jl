@@ -5,13 +5,10 @@
 function vector_mse(x, x̂)
     res = zero(eltype(x[1]))
     @inbounds for i in eachindex(x)
-        # res += sum((x[i] .- x̂[i]).^2)
-        res += mean((x[i] .- x̂[i]).^2)
+        res += sum((x[i] .- x̂[i]).^2)
     end
     # divide per number of time steps and batch size
-    # @show size(x, 1)
-    # @show size(x[1], 2)
-    # res /= size(x, 1) * size(x[1], 2)
+    res /= length(x)*length(x[1][1,:])
     return res
 end
 
