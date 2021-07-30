@@ -6,7 +6,7 @@ Latent Differential Equation models is a powerful class of models that brings gr
 
 ![LDE_framework](./general_framework.png)
 
-This package is still in an early (but functionnal) stage of it's developpement, any help in finding bugs or improvement would be greatly appreciated. Please get in touch if, like us, you share a great interest in bringing this exiting field of research to a wider audience!
+This package is still in an early (but functional) stage of its developpement, any help in finding bugs or improvement would be greatly appreciated. Please get in touch if, like us, you share a great interest in bringing this exciting field of research to a wider audience!
 
 ## Getting Started
 ### Installation
