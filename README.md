@@ -6,7 +6,7 @@ Latent Differential Equation models is a powerful class of models that brings gr
 
 ![LDE_framework](./general_framework.png)
 
-This package is still in an early (but functional) stage of it's development, any help in finding bugs or improvement would be greatly appreciated. Please get in touch if, like us, you share a great interest in bringing this exiting field of research to a wider audience!
+This package is still in an early (but functional) stage of its development, any help in finding bugs or improvement would be greatly appreciated. Please get in touch if, like us, you share a great interest in bringing this exciting field of research to a wider audience!
 
 ## Getting Started
 ### Installation
@@ -23,6 +23,6 @@ Checkout the Tutorial to get familiar with the base functionalities of this pack
 
 ## References
 
-Chen, Ricky TQ, et al. "Neural ordinary differential equations." arXiv preprint arXiv:1806.07366 (2018).
+Chen, Ricky TQ, et al. "Neural ordinary differential equations." arXiv preprint [arXiv:1806.07366](https://arxiv.org/abs/1806.07366) (2018).
 
 Linial, O., Eytan, D., & Shalit, U. (2020). Generative ODE Modeling with Known Unknowns. arXiv preprint [arXiv:2003.10775](https://arxiv.org/abs/2003.10775).
