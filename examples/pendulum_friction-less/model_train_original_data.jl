@@ -1,4 +1,3 @@
-using FileIO: include
 # Example of GOKU-net model on the original friction-less pendulum data
 # from the  GOKU-net paper (https://github.com/orilinial/GOKU)
 
@@ -14,6 +13,7 @@ using Flux.Data: DataLoader
 using Flux
 using OrdinaryDiffEq
 using ModelingToolkit
+using DiffEqSensitivity
 using Images
 using Plots
 import GR
