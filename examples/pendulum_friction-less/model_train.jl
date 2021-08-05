@@ -49,8 +49,8 @@ include("create_data.jl")
     ratio = 0.9                     # proportion used to increase β (and 1-ratio used to fix β)
 
     ## Progressive observation training
-    progressive_training = false     # progressive training usage
-    prog_training_duration = 10     # number of epochs to reach the final seq_len
+    progressive_training = false    # progressive training usage
+    prog_training_duration = 200    # number of epochs to reach the final seq_len
     start_seq_len = 10              # training sequence length at first step
 
     ## Visualization
