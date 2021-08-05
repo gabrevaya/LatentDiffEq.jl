@@ -17,7 +17,6 @@ using DiffEqSensitivity
 using Images
 using Plots
 import GR
-using LinearAlgebra
 
 include("pendulum.jl")
 include("create_data.jl")
@@ -50,7 +49,7 @@ include("create_data.jl")
     ratio = 0.9                     # proportion used to increase β (and 1-ratio used to fix β)
 
     ## Progressive observation training
-    progressive_training = true     # progressive training usage
+    progressive_training = false     # progressive training usage
     prog_training_duration = 10     # number of epochs to reach the final seq_len
     start_seq_len = 10              # training sequence length at first step
 
@@ -122,10 +121,6 @@ function train(; kws...)
 
     # Get parameters
     ps = Flux.params(model)
-    # display(heatmap(Flux.params(model.decoder.latent_out[1][2])[1]))
-    # println(norm(Flux.params(model.decoder.latent_out[1])))
-    # println(norm(Flux.params(model.encoder.latent_in)))
-    # Flux.params(model.encoder.latent_in)
 
     ############################################################################
     ## Define optimizer
