@@ -17,6 +17,7 @@ using DiffEqSensitivity
 using Images
 using Plots
 import GR
+using LinearAlgebra
 
 include("pendulum.jl")
 include("create_data.jl")
@@ -32,25 +33,25 @@ include("create_data.jl")
     # diffeq = SPendulum()
 
     ## Training params
-    η = 1e-4                        # learning rate
-    decay = 0.0001f0                # decay applied to weights during optimisation
+    η = 1e-3                        # learning rate
+    decay = 0.001f0                 # decay applied to weights during optimisation
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
-    epochs = 485                    # number of epochs for training
-    seed = 3                        # random seed
+    epochs = 1500                   # number of epochs for training
+    seed = 333                      # random seed
     cuda = false                    # GPU usage (not working well yet)
     dt = 0.05                       # timestep for ode solve
-    variational = true              # variational or deterministic training
+    variational = false             # variational or deterministic training
 
     ## Annealing schedule
-    start_β = 0.00001f0             # start value
-    end_β = 0.00001f0               # end value
-    n_cycle = 6                     # number of annealing cycles
+    start_β = 0f0                   # start value
+    end_β = 1f0                     # end value
+    n_cycle = 4                     # number of annealing cycles
     ratio = 0.9                     # proportion used to increase β (and 1-ratio used to fix β)
 
     ## Progressive observation training
-    progressive_training = false    # progressive training usage
-    prog_training_duration = 200    # number of epochs to reach the final seq_len
+    progressive_training = true     # progressive training usage
+    prog_training_duration = 10     # number of epochs to reach the final seq_len
     start_seq_len = 10              # training sequence length at first step
 
     ## Visualization
@@ -121,12 +122,16 @@ function train(; kws...)
 
     # Get parameters
     ps = Flux.params(model)
+    # display(heatmap(Flux.params(model.decoder.latent_out[1][2])[1]))
+    # println(norm(Flux.params(model.decoder.latent_out[1])))
+    # println(norm(Flux.params(model.encoder.latent_in)))
+    # Flux.params(model.encoder.latent_in)
 
     ############################################################################
     ## Define optimizer
-    opt = ADAM(η)
+    # opt = ADAM(η)
     # opt = AdaBelief(η)
-    # opt = ADAMW(η, (0.9,0.999), decay)
+    opt = ADAMW(η, (0.9,0.999), decay)
 
     ############################################################################
     ## Various definitions
