@@ -8,8 +8,8 @@ struct LatentDiffEqModel{M,E,D}
         LatentDiffEqModel(model_type, encoder_layers, decoder_layers)
     Construct a LatentDiffEqModel.
     # Arguments
-    model_type: GOKU() or LatentODE()
-    encoder_layers, decoder_layers: Could be specified manually or produced from default_layers
+    model\_type: GOKU() or LatentODE()\
+    encoder\_layers, decoder\_layers: Could be specified manually or produced from default_layers
     """
     function LatentDiffEqModel(model_type, encoder_layers, decoder_layers)
 
@@ -48,8 +48,8 @@ struct Encoder{M,FE,PE,LI}
         Encoder(model_type, encoder_layers)
     Construct an encoder of a LatentDiffEqModel.
     # Arguments
-    model_type: GOKU() or LatentODE()
-    encoder_layers: Could be specified manually or produced be default_layers
+    model\_type: GOKU() or LatentODE()\
+    encoder\_layers: Could be specified manually or produced be default_layers
     """
     function Encoder(model_type, encoder_layers)
         M = typeof(model_type)
@@ -86,8 +86,8 @@ struct Decoder{M,LI,D,R}
         Decoder(model_type, decoder_layers)
     Construct a decoder of a LatentDiffEqModel.
     # Arguments
-    model_type: GOKU() or LatentODE()
-    decoder_layers: Could be specified manually or produced by default_layers
+    model\_type: GOKU() or LatentODE()\
+    decoder\_layers: Could be specified manually or produced by default_layers
     """
     function Decoder(model_type, decoder_layers)
         M = typeof(model_type)

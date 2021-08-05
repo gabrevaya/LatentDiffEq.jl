@@ -12,7 +12,7 @@ apply_feature_extractor(encoder::Encoder{LatentODE}, x) = encoder.feature_extrac
     apply_pattern_extractor(encoder::Encoder{LatentODE}, fe_out)
 Passes features in time series through RNNs, returning a matrix containing patterns for the initial state.
 # Arguments
-fe_out: Output of feature extractor layer
+fe\_out: Output of feature extractor layer
 """
 function apply_pattern_extractor(encoder::Encoder{LatentODE}, fe_out)
     pe_z₀ = encoder.pattern_extractor
@@ -33,7 +33,7 @@ end
     apply_latent_in(encoder::Encoder{LatentODE}, pe_out)
 Obtains representations of the mean and log-variance of the initial conditions to use for sampling.
 # Arguments
-pe_out: output of pattern extractor layer
+pe\_out: output of pattern extractor layer
 """
 function apply_latent_in(encoder::Encoder{LatentODE}, pe_out)
     li_μ_z₀, li_logσ²_z₀ = encoder.latent_in
