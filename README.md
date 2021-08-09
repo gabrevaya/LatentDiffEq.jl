@@ -16,8 +16,8 @@ julia> ]
 pkg> add https://github.com/gabrevaya/LatentDiffEq.jl.git
 ```
 
-### Tutorial (Coming soon!)
-Checkout the Tutorial to get familiar with the base functionalities of this package. If you wish to build your own models, this is also covered in the Tutorial. You can also refer to the following chart detailing the names of the functions associated with the different parts of the package.
+### Tutorial
+Checkout the [tutorial](./examples/tutorial/GOKU-net_pendulum_tutorial.ipynb) to get familiar with the base functionalities of this package. You will also learn how to build your own models within our framework. You can also refer to the following chart detailing the names of the functions associated with the different parts of the package.
 
 ![LatentDiffEq.jl_framework](./package_framework.png)
 
