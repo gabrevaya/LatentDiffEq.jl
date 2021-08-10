@@ -40,7 +40,7 @@ include("create_data.jl")
     seed = 333                      # random seed
     cuda = false                    # GPU usage (not working well yet)
     dt = 0.05                       # timestep for ode solve
-    variational = false             # variational or deterministic training
+    variational = true              # variational or deterministic training
 
     ## Annealing schedule
     start_β = 0f0                   # start value

@@ -34,9 +34,7 @@ include("create_data.jl")
     # diffeq = SPendulum()
     # diffeq = Pendulum_NN_friction()
     # diffeq = NODE(2, augment_dim = 2)
-    # diffeq = NODE(16)
-    diffeq = NODE(2)
-
+    diffeq = NODE(16)
 
     ## Training params
     η = 1e-3                        # learning rate

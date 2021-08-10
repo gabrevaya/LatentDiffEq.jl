@@ -5,20 +5,13 @@
 
 struct GOKU <: LatentDE end
 
-@doc raw"""
-    apply_feature_extractor(encoder, x)
-Converts a batch of the initial high-dimensional data into lower-dimensional data (i.e. extracts features)
-# Arguments
-encoder: Has type Encoder{GOKU} or Encoder{LatentODE}\
-x: Initial data, has size (seq_len,), x[1] has size (input_dim, batch_size)
-"""
 apply_feature_extractor(encoder::Encoder{GOKU}, x) = encoder.feature_extractor.(x)
 
 @doc raw"""
     apply_pattern_extractor(encoder::Encoder{GOKU}, fe_out)
-Passes features in time series through RNNs, returning a tuple containing patterns for the initial state and the parameters, respectively.
+Passes extracted features through the pattern_extractor layer contained in the `encoder`, returning a tuple corresponding to the initial latent states and parameters, respectively.
 # Arguments
-fe\_out: Output of feature extractor layer
+`fe_out`: Output of feature extractor layer
 """
 function apply_pattern_extractor(encoder::Encoder{GOKU}, fe_out)
     pe_z₀, pe_θ_forward, pe_θ_backward = encoder.pattern_extractor
@@ -40,12 +33,6 @@ function apply_pattern_extractor(encoder::Encoder{GOKU}, fe_out)
     return pe_z₀_out, pe_θ_out
 end
 
-@doc raw"""
-    apply_latent_in(encoder::Encoder{GOKU}, pe_out)
-Obtains representations of the mean and log-variance of the initial conditions and parameters to use for sampling.
-# Arguments
-pe\_out: output of pattern extractor layer
-"""
 function apply_latent_in(encoder::Encoder{GOKU}, pe_out)
     pe_z₀_out, pe_θ_out = pe_out
     li_μ_z₀, li_logσ²_z₀, li_μ_θ, li_logσ²_θ = encoder.latent_in
@@ -61,7 +48,9 @@ end
 
 @doc raw"""
     apply_latent_out(decoder::Decoder{GOKU}, l̃)
-Obtains the inferred initial conditions and parameters after sampling.
+Applies the `decoder`'s `latent_out` layer to `l̃`, obtaining the inferred initial conditions and parameters for use in the differential equation layer.
+# Arguments
+`l̃`: Tuple containing sampled abstract representations of the initial conditions and parameters, respectively.
 """
 function apply_latent_out(decoder::Decoder{GOKU}, l̃)
     z̃₀, θ̃ = l̃
@@ -75,7 +64,7 @@ end
 
 @doc raw"""
     diffeq_layer(decoder::Decoder{GOKU}, l̂, t)
-Uses decoder.diffeq's ODE solver to extrapolate the latent states (from the initial states and parameters l̂) to time t.
+Uses decoder.diffeq's DE solver to extrapolate the latent states (from the initial states and parameters l̂) to time t.
 """
 function diffeq_layer(decoder::Decoder{GOKU}, l̂, t)
     ẑ₀, θ̂ = l̂
@@ -106,18 +95,11 @@ end
 # Identity by default
 transform_after_diffeq(x, diffeq) = x
 
-@doc raw"""
-    apply_reconstructor(decoder, ẑ)
-Reconstruct the initial data from the extrapolated latent states.
-# Arguments
-decoder: has type Decoder{GOKU} or Decoder{LatentODE}\
-ẑ: Latent states, has size (seq_len,), ẑ[1] has size (latent_dims, batch_size)
-"""
 apply_reconstructor(decoder::Decoder{GOKU}, ẑ) = decoder.reconstructor.(ẑ)
 
 @doc raw"""
     sample(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Array, Array}
-Samples the parameters and initial state from the normal distribution with mean μ and variance exp(logσ²).
+Samples abstract representations of the parameters and initial state from the normal distribution with mean μ and variance exp(logσ²).
 """
 function sample(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Array, Array}
     z₀_μ, θ_μ = μ
@@ -139,25 +121,6 @@ function sample(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tu
     return ẑ₀, θ̂
 end
 
-@doc raw"""
-    default_layers(model_type, input_dim::Int, diffeq;
-        device = cpu,
-        hidden_dim_resnet = 200, rnn_input_dim = 32,
-        rnn_output_dim = 16, latent_dim = 16,
-        latent_to_diffeq_dim = 200, θ_activation = softplus,
-        output_activation = σ, init = Flux.kaiming_uniform(gain = 1/sqrt(3)))
-Generates default encoder and decoder layers that are to be fed into the LatentDiffEqModel.
-# Arguments
-model\_type: GOKU() or LatentODE()\
-input\_dim: Dimension of input, 28*28 for pendulum data provided\
-diffeq: Differential equation, e.g. Pendulum() for GOKU or NODE(16) for LatentODE
-# Examples
-```julia-repl
-julia> using LatentDiffEq, OrdinaryDiffEq, ModelingToolkit, DiffEqSensitivity, Flux
-julia> include("pendulum.jl")  # Assuming directory is LatentDiffEq/examples/pendulum_friction-less
-julia> encoder_layers, decoder_layers = default_layers(GOKU(), 28*28, Pendulum())
-```
-"""
 function default_layers(model_type::GOKU, input_dim, diffeq; device=cpu,
                             hidden_dim_resnet = 200, rnn_input_dim = 32,
                             rnn_output_dim = 16, latent_dim = 16,
