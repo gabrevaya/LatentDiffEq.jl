@@ -5,7 +5,6 @@ using Parameters: @with_kw
 using Random
 using Statistics
 using Distributions
-using ModelingToolkit
 using Flux
 using Luxor
 using Images
@@ -17,13 +16,15 @@ using Images
   
       tspan = (0.0f0, 4.95f0)         # time span
       dt = 0.05                       # timestep for ode solve
-      u₀_range = (0, π/6)             # initial value range
+      u₀_range = [-π/6 π/6            # initial values ranges
+                  -π/3 π/3]
+
       p₀_range = (1.0, 2.0)           # parameter value range
       n_traj = 450                    # Number of trajectories
       seed = 1                        # random seed
   
       ## High dimensional data arguments
-      high_dim_args = (19, 1.75, 3.5)    # for the the simple pendulum
+      high_dim_args = (19, 1.75, 3.75)    # for the the simple pendulum
                                          # (pendulumlength, radius, rodthickness)
 end
 
@@ -40,15 +41,14 @@ function generate_dataset(; diffeq = Pendulum(), kws...)
 
       # Sample initial condition and parameters from a uniform distribution
       ps = [rand_uniform(p₀_range, length(prob.p)) for i in 1:n_traj]
-      # u0s = [rand_uniform(u₀_range, length(prob.u0)) for i in 1:n_traj]
-      u0s = [vcat(rand_uniform_u0(u₀_range, length(prob.u0)), 0) for i in 1:n_traj]
+      u0s = [rand_uniform(u₀_range) for i in 1:n_traj]
 
       # Build and solve EnsembleProblem data
       ensemble_prob = EnsembleProblem(prob, prob_func = prob_func)
       sols = solve(ensemble_prob, diffeq.solver, saveat = args.dt, trajectories = n_traj)
 
       # Store the trajectories variables
-      latent_data = [dropdims(Array(sol), dims = 2) for sol in sols]
+      latent_data = [Array(sol) for sol in sols]
 
       # Create animations with Luxor
       high_dim_data = [create_high_dim_data(sol, high_dim_args) for sol in sols]
@@ -58,7 +58,7 @@ end
 
 ## util functions
 rand_uniform(range::Tuple, size) = rand(Uniform(range...),(size,1))
-rand_uniform(range::Array, size) = [rand(Uniform(r[1], r[2])) for r in eachrow(range)]
+rand_uniform(range::Array) = [rand(Uniform(r[1], r[2])) for r in eachrow(range)]
 rand_uniform_u0(range::Tuple, size) = rand(Uniform(range...),(Int(size/2),1))
 
 
