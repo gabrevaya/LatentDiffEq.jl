@@ -9,9 +9,12 @@ apply_feature_extractor(encoder::Encoder{GOKU}, x) = encoder.feature_extractor.(
 
 @doc raw"""
     apply_pattern_extractor(encoder::Encoder{GOKU}, fe_out)
-Passes extracted features through the pattern_extractor layer contained in the `encoder`, returning a tuple corresponding to the initial latent states and parameters, respectively.
+
+Passes `fe_out` through the pattern_extractor layer contained in the `encoder`, returning a tuple associated to the initial latent states and parameters, respectively.
+
 # Arguments
-`fe_out`: Output of feature extractor layer
+`encoder`: Encoder structure containing all the encoder layers.\
+`fe_out`: Output of feature extractor layer.
 """
 function apply_pattern_extractor(encoder::Encoder{GOKU}, fe_out)
     pe_z₀, pe_θ_forward, pe_θ_backward = encoder.pattern_extractor
@@ -48,8 +51,10 @@ end
 
 @doc raw"""
     apply_latent_out(decoder::Decoder{GOKU}, l̃)
-Applies the `decoder`'s `latent_out` layer to `l̃`, obtaining the inferred initial conditions and parameters for use in the differential equation layer.
+Applies the `decoder`'s `latent_out` layer to `l̃`, returning a tuple with initial conditions and parameters for use in the differential equation layer.
+
 # Arguments
+`decoder`: Decoder structure containing all the decoder layers.\
 `l̃`: Tuple containing sampled abstract representations of the initial conditions and parameters, respectively.
 """
 function apply_latent_out(decoder::Decoder{GOKU}, l̃)
@@ -64,7 +69,8 @@ end
 
 @doc raw"""
     diffeq_layer(decoder::Decoder{GOKU}, l̂, t)
-Uses decoder.diffeq's DE solver to extrapolate the latent states (from the initial states and parameters l̂) to time t.
+
+Solves the differential equations contained in the `diffeq` layer of the `decoder` using the initial conditions and parameters contained in `l̂`, and saving at times `t`.
 """
 function diffeq_layer(decoder::Decoder{GOKU}, l̂, t)
     ẑ₀, θ̂ = l̂
@@ -97,10 +103,6 @@ transform_after_diffeq(x, diffeq) = x
 
 apply_reconstructor(decoder::Decoder{GOKU}, ẑ) = decoder.reconstructor.(ẑ)
 
-@doc raw"""
-    sample(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Array, Array}
-Samples abstract representations of the parameters and initial state from the normal distribution with mean μ and variance exp(logσ²).
-"""
 function sample(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Array, Array}
     z₀_μ, θ_μ = μ
     z₀_logσ², θ_logσ² = logσ²

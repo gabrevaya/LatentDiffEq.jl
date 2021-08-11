@@ -9,18 +9,23 @@ struct LatentODE <: LatentDE end
 @doc raw"""
     apply_feature_extractor(encoder::Encoder{GOKU}, x::Vector{Array})
     apply_feature_extractor(encoder::Encoder{LatentODE}, x::Vector{Array})
+
 Applies the feature extractor layer contained in the `encoder` to the batch of input data x, usually reducing its dimensionality (i.e. extracting features).
+
 # Arguments
-`encoder`: Structure of type `Encoder` containing all the encoders layers.\
-`x`: Input data, consists of matrices corresponding to the time frames and having size (`input data dimension` x `batch size`)
+`encoder`: Encoder structure containing all the encoder layers.\
+`x`: Input data. Each element of this vector is a matrix of size `input data dimension` x `batch size` and corresponds to a different time point.
 """
 apply_feature_extractor(encoder::Encoder{LatentODE}, x) = encoder.feature_extractor.(x)
 
 @doc raw"""
     apply_pattern_extractor(encoder::Encoder{LatentODE}, fe_out)
-Passes extracted features through the pattern_extractor layer contained in the `encoder`, returning a matrix containing patterns for the initial conditions.
+
+Passes `fe_out` through the pattern_extractor layer contained in the `encoder`.
+
 # Arguments
-`fe_out`: Output of feature extractor layer
+`encoder`: Encoder structure containing all the encoder layers.\
+`fe_out`: Output of feature extractor layer.
 """
 function apply_pattern_extractor(encoder::Encoder{LatentODE}, fe_out)
     pe_z₀ = encoder.pattern_extractor
@@ -38,11 +43,14 @@ function apply_pattern_extractor(encoder::Encoder{LatentODE}, fe_out)
 end
 
 @doc raw"""
+    apply_latent_in(encoder::Encoder{GOKU}, pe_out)
     apply_latent_in(encoder::Encoder{LatentODE}, pe_out)
-    apply_latent_in(encoder::Encoder{LatentODE}, pe_out)
-Applies the `encoder`'s `latent_in` layer to `pe_out`, obtaining representations of the mean and log-variance of the initial conditions (and parameters in the case of GOKU) to use for sampling.
+
+Applies the `encoder`'s `latent_in` layer to `pe_out`, returning the mean and log-variance of the latent variables to use for sampling.
+
 # Arguments
-`pe_out`: output of pattern extractor layer
+`encoder`: Encoder structure containing all the encoder layers.\
+`pe_out`: Output of pattern extractor layer.
 """
 function apply_latent_in(encoder::Encoder{LatentODE}, pe_out)
     li_μ_z₀, li_logσ²_z₀ = encoder.latent_in
@@ -55,15 +63,19 @@ end
 
 @doc raw"""
     apply_latent_out(decoder::Decoder{LatentODE}, z̃₀)
-Applies the `decoder`'s `latent_out` layer to `z̃₀`, obtaining the inferred initial conditions for use in the differential equation layer.
+
+Applies the `decoder`'s `latent_out` layer to `z̃₀`, returning initial conditions for use in the differential equation layer.
+
 # Arguments
+`decoder`: Decoder structure containing all the decoder layers.\
 `z̃₀`: Sampled abstract representations of the initial conditions.
 """
 apply_latent_out(decoder::Decoder{LatentODE}, z̃₀) = decoder.latent_out(z̃₀)
 
 @doc raw"""
     diffeq_layer(decoder::Decoder{LatentODE}, ẑ₀, t)
-Uses decoder.diffeq's DE solver to extrapolate the latent states (from the initial states ẑ₀) to time t.
+
+Solves the differential equations contained in the `diffeq` layer of the `decoder` using the initial conditions `ẑ₀` and saving at times `t`.
 """
 function diffeq_layer(decoder::Decoder{LatentODE}, ẑ₀, t)
     dudt = decoder.diffeq.dudt
@@ -88,16 +100,19 @@ end
 @doc raw"""
     apply_reconstructor(decoder::Decoder{GOKU}, ẑ)
     apply_reconstructor(decoder::Decoder{LatentODE}, ẑ)
-Reconstruct the initial data from the extrapolated latent states `ẑ`.
+
+Passes latent trajectories `ẑ` through the reconstructor layer contained in the `decoder`.
+
 # Arguments
-`decoder`: Structure of type Decoder containing all of the decoder layers.
-`ẑ`: Latent states, consists of matrices corresponding to the time frames and having size (`latent data dimension` x `batch size`)
+`decoder`: Decoder structure containing all the decoder layers.\
+`ẑ`: Latent trajectories, consists of matrices corresponding to different time frames and having size `latent data dimension` x `batch size`.
 """
 apply_reconstructor(decoder::Decoder{LatentODE}, ẑ) = decoder.reconstructor.(ẑ)
 
 @doc raw"""
     sample(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) where T <: Array
-Samples abstract representations of the initial state from the normal distribution with mean μ and variance exp(logσ²).
+
+Samples latent variables from the normal distribution with mean μ and variance exp(logσ²).
 """
 function sample(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) where T <: Array
     z₀_μ = μ
@@ -124,11 +139,13 @@ end
         rnn_output_dim = 16, latent_dim = 16,
         latent_to_diffeq_dim = 200, θ_activation = softplus,
         output_activation = σ, init = Flux.kaiming_uniform(gain = 1/sqrt(3)))
+
 Generates default encoder and decoder layers that are to be fed into the LatentDiffEqModel.
+
 # Arguments
 `model_type`: GOKU() or LatentODE()\
 `input_dim`: Dimension of input\
-`diffeq`: Differential equations structure, containing fields `prob`, `solver` and `sensealg`, which correspond to DifferentialEquations.jl's problem, solver and sensitivity algorithm, respectively. For an example, see https://github.com/gabrevaya/LatentDiffEq.jl/blob/master/examples/pendulum_friction-less/pendulum.jl
+`diffeq`: Differential equations structure, containing fields `prob`, `solver` and `sensealg`, which correspond to [DifferentialEquations.jl](https://diffeq.sciml.ai/dev/)'s problem, solver and [sensitivity algorithm](https://diffeqflux.sciml.ai/dev/ControllingAdjoints/), respectively.
 """
 function default_layers(model_type::LatentODE, input_dim, diffeq; device = cpu,
                             hidden_dim_resnet = 200, rnn_input_dim = 32,
