@@ -73,8 +73,6 @@ function train(; kws...)
     args = Args(; kws...)
     @unpack_Args args
 
-    seed > 0 && Random.seed!(seed)
-
     device = cpu
     @info "Training on CPU"
 
@@ -91,6 +89,8 @@ function train(; kws...)
         mkpath("$root_dir/data")
         @save data_path data
     end
+
+    seed > 0 && Random.seed!(seed)
     
     data_loaded = load(data_path, :data)
     train_data = data_loaded[4]
