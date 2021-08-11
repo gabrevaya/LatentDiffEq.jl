@@ -36,22 +36,21 @@ include("create_data.jl")
     # diffeq = NODE(2, augment_dim = 2)
     diffeq = NODE(16)
 
-
     ## Training params
-    η = 5e-4                        # learning rate
-    decay = 0.0001f0                 # decay applied to weights during optimisation
+    η = 1e-3                        # learning rate
+    decay = 0.0001f0                # decay applied to weights during optimisation
     batch_size = 64                 # minibatch size
     seq_len = 50                    # sequence length for training samples
-    epochs = 900                    # number of epochs for training
+    epochs = 1500                   # number of epochs for training
     seed = 1                        # random seed
     cuda = false                    # GPU usage (not working well yet)
     dt = 0.05                       # timestep for ode solve
     variational = true              # variational or deterministic training
 
     ## Annealing schedule
-    start_β = 0.00001f0                   # start value
-    end_β = 0.00001f0                     # end value
-    n_cycle = 3                     # number of annealing cycles
+    start_β = 0f0                   # start value
+    end_β = 1f0                     # end value
+    n_cycle = 4                     # number of annealing cycles
     ratio = 0.9                     # proportion used to increase β (and 1-ratio used to fix β)
     
     ## Progressive observation training

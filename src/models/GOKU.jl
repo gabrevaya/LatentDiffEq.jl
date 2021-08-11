@@ -7,6 +7,12 @@ struct GOKU <: LatentDE end
 
 apply_feature_extractor(encoder::Encoder{GOKU}, x) = encoder.feature_extractor.(x)
 
+@doc raw"""
+    apply_pattern_extractor(encoder::Encoder{GOKU}, fe_out)
+Passes extracted features through the pattern_extractor layer contained in the `encoder`, returning a tuple corresponding to the initial latent states and parameters, respectively.
+# Arguments
+`fe_out`: Output of feature extractor layer
+"""
 function apply_pattern_extractor(encoder::Encoder{GOKU}, fe_out)
     pe_z₀, pe_θ_forward, pe_θ_backward = encoder.pattern_extractor
 
@@ -40,6 +46,12 @@ function apply_latent_in(encoder::Encoder{GOKU}, pe_out)
     return (z₀_μ, θ_μ), (z₀_logσ², θ_logσ²)
 end
 
+@doc raw"""
+    apply_latent_out(decoder::Decoder{GOKU}, l̃)
+Applies the `decoder`'s `latent_out` layer to `l̃`, obtaining the inferred initial conditions and parameters for use in the differential equation layer.
+# Arguments
+`l̃`: Tuple containing sampled abstract representations of the initial conditions and parameters, respectively.
+"""
 function apply_latent_out(decoder::Decoder{GOKU}, l̃)
     z̃₀, θ̃ = l̃
     lo_z₀, lo_θ = decoder.latent_out
@@ -50,6 +62,10 @@ function apply_latent_out(decoder::Decoder{GOKU}, l̃)
     return ẑ₀, θ̂
 end
 
+@doc raw"""
+    diffeq_layer(decoder::Decoder{GOKU}, l̂, t)
+Uses decoder.diffeq's DE solver to extrapolate the latent states (from the initial states and parameters l̂) to time t.
+"""
 function diffeq_layer(decoder::Decoder{GOKU}, l̂, t)
     ẑ₀, θ̂ = l̂
     prob = decoder.diffeq.prob
@@ -81,6 +97,10 @@ transform_after_diffeq(x, diffeq) = x
 
 apply_reconstructor(decoder::Decoder{GOKU}, ẑ) = decoder.reconstructor.(ẑ)
 
+@doc raw"""
+    sample(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Array, Array}
+Samples abstract representations of the parameters and initial state from the normal distribution with mean μ and variance exp(logσ²).
+"""
 function sample(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Array, Array}
     z₀_μ, θ_μ = μ
     z₀_logσ², θ_logσ² = logσ²
@@ -105,7 +125,7 @@ function default_layers(model_type::GOKU, input_dim, diffeq; device=cpu,
                             hidden_dim_resnet = 200, rnn_input_dim = 32,
                             rnn_output_dim = 16, latent_dim = 16,
                             latent_to_diffeq_dim = 200, θ_activation = softplus,
-                            output_activation = σ)
+                            output_activation = σ, init = Flux.kaiming_uniform(gain = 1/sqrt(3)))
 
     z_dim = length(diffeq.prob.u0)
     θ_dim = length(diffeq.prob.p)
@@ -114,34 +134,34 @@ function default_layers(model_type::GOKU, input_dim, diffeq; device=cpu,
     ### Encoder layers ###
     ######################
     # Resnet
-    l1 = Dense(input_dim, hidden_dim_resnet, relu)
-    l2 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
-    l3 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
-    l4 = Dense(hidden_dim_resnet, rnn_input_dim, relu)
+    l1 = Dense(input_dim, hidden_dim_resnet, relu, init = init)
+    l2 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu, init = init)
+    l3 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu, init = init)
+    l4 = Dense(hidden_dim_resnet, rnn_input_dim, relu, init = init)
     feature_extractor = Chain(l1,
                                 SkipConnection(l2, +),
                                 SkipConnection(l3, +),
                                 l4) |> device
 
     # RNN
-    pe_z₀ = Chain(RNN(rnn_input_dim, rnn_output_dim, relu),
-                       RNN(rnn_output_dim, rnn_output_dim, relu)) |> device
+    pe_z₀ = Chain(RNN(rnn_input_dim, rnn_output_dim, relu, init = init),
+                       RNN(rnn_output_dim, rnn_output_dim, relu, init = init)) |> device
     
     # Bidirectional LSTM
-    pe_θ_forward = Chain(LSTM(rnn_input_dim, rnn_output_dim),
-                       LSTM(rnn_output_dim, rnn_output_dim)) |> device
+    pe_θ_forward = Chain(LSTM(rnn_input_dim, rnn_output_dim, init = init),
+                       LSTM(rnn_output_dim, rnn_output_dim, init = init)) |> device
 
-    pe_θ_backward = Chain(LSTM(rnn_input_dim, rnn_output_dim),
-                        LSTM(rnn_output_dim, rnn_output_dim)) |> device
+    pe_θ_backward = Chain(LSTM(rnn_input_dim, rnn_output_dim, init = init),
+                        LSTM(rnn_output_dim, rnn_output_dim, init = init)) |> device
 
     pattern_extractor = (pe_z₀, pe_θ_forward, pe_θ_backward)
 
     # final fully connected layers before sampling
-    li_μ_z₀ = Dense(rnn_output_dim, latent_dim) |> device
-    li_logσ²_z₀ = Dense(rnn_output_dim, latent_dim) |> device
+    li_μ_z₀ = Dense(rnn_output_dim, latent_dim, init = init) |> device
+    li_logσ²_z₀ = Dense(rnn_output_dim, latent_dim, init = init) |> device
     
-    li_μ_θ = Dense(rnn_output_dim*2, latent_dim) |> device
-    li_logσ²_θ = Dense(rnn_output_dim*2, latent_dim) |> device
+    li_μ_θ = Dense(rnn_output_dim*2, latent_dim, init = init) |> device
+    li_logσ²_θ = Dense(rnn_output_dim*2, latent_dim, init = init) |> device
 
     latent_in = (li_μ_z₀, li_logσ²_z₀, li_μ_θ, li_logσ²_θ)
 
@@ -152,20 +172,20 @@ function default_layers(model_type::GOKU, input_dim, diffeq; device=cpu,
     ######################
 
     # after sampling in the latent space but before the differential equation layer
-    lo_z₀ = Chain(Dense(latent_dim, latent_to_diffeq_dim, relu),
-                        Dense(latent_to_diffeq_dim, z_dim)) |> device
+    lo_z₀ = Chain(Dense(latent_dim, latent_to_diffeq_dim, relu, init = init),
+                        Dense(latent_to_diffeq_dim, z_dim, init = init)) |> device
 
-    lo_θ = Chain(Dense(latent_dim, latent_to_diffeq_dim, relu),
-                        Dense(latent_to_diffeq_dim, θ_dim, θ_activation)) |> device
+    lo_θ = Chain(Dense(latent_dim, latent_to_diffeq_dim, relu, init = init),
+                        Dense(latent_to_diffeq_dim, θ_dim, θ_activation, init = init)) |> device
 
     latent_out = (lo_z₀, lo_θ)
 
     # going back to the input space
     # Resnet
-    l1 = Dense(z_dim, hidden_dim_resnet, relu)
-    l2 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
-    l3 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu)
-    l4 = Dense(hidden_dim_resnet, input_dim, output_activation)
+    l1 = Dense(z_dim, hidden_dim_resnet, relu, init = init)
+    l2 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu, init = init)
+    l3 = Dense(hidden_dim_resnet, hidden_dim_resnet, relu, init = init)
+    l4 = Dense(hidden_dim_resnet, input_dim, output_activation, init = init)
     reconstructor = Chain(l1,
                             SkipConnection(l2, +),
                             SkipConnection(l3, +),
