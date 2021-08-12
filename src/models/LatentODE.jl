@@ -6,16 +6,6 @@
 
 struct LatentODE <: LatentDE end
 
-@doc raw"""
-    apply_feature_extractor(encoder::Encoder{GOKU}, x::Vector{Array})
-    apply_feature_extractor(encoder::Encoder{LatentODE}, x::Vector{Array})
-
-Applies the feature extractor layer contained in the `encoder` to the batch of input data x, usually reducing its dimensionality (i.e. extracting features).
-
-# Arguments
-`encoder`: Encoder structure containing all the encoder layers.\
-`x`: Input data. Each element of this vector is a matrix of size `input data dimension` x `batch size` and corresponds to a different time point.
-"""
 apply_feature_extractor(encoder::Encoder{LatentODE}, x) = encoder.feature_extractor.(x)
 
 @doc raw"""
@@ -42,16 +32,6 @@ function apply_pattern_extractor(encoder::Encoder{LatentODE}, fe_out)
     return pe_out
 end
 
-@doc raw"""
-    apply_latent_in(encoder::Encoder{GOKU}, pe_out)
-    apply_latent_in(encoder::Encoder{LatentODE}, pe_out)
-
-Applies the `encoder`'s `latent_in` layer to `pe_out`, returning the mean and log-variance of the latent variables to use for sampling.
-
-# Arguments
-`encoder`: Encoder structure containing all the encoder layers.\
-`pe_out`: Output of pattern extractor layer.
-"""
 function apply_latent_in(encoder::Encoder{LatentODE}, pe_out)
     li_μ_z₀, li_logσ²_z₀ = encoder.latent_in
 
@@ -97,23 +77,8 @@ function diffeq_layer(decoder::Decoder{LatentODE}, ẑ₀, t)
     return ẑ
 end
 
-@doc raw"""
-    apply_reconstructor(decoder::Decoder{GOKU}, ẑ)
-    apply_reconstructor(decoder::Decoder{LatentODE}, ẑ)
-
-Passes latent trajectories `ẑ` through the reconstructor layer contained in the `decoder`.
-
-# Arguments
-`decoder`: Decoder structure containing all the decoder layers.\
-`ẑ`: Latent trajectories, consists of matrices corresponding to different time frames and having size `latent data dimension` x `batch size`.
-"""
 apply_reconstructor(decoder::Decoder{LatentODE}, ẑ) = decoder.reconstructor.(ẑ)
 
-@doc raw"""
-    sample(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) where T <: Array
-
-Samples latent variables from the normal distribution with mean μ and variance exp(logσ²).
-"""
 function sample(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) where T <: Array
     z₀_μ = μ
     z₀_logσ² = logσ²
@@ -132,21 +97,6 @@ function sample(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) where T 
     return ẑ₀
 end
 
-@doc raw"""
-    default_layers(model_type, input_dim::Int, diffeq;
-        device = cpu,
-        hidden_dim_resnet = 200, rnn_input_dim = 32,
-        rnn_output_dim = 16, latent_dim = 16,
-        latent_to_diffeq_dim = 200, θ_activation = softplus,
-        output_activation = σ, init = Flux.kaiming_uniform(gain = 1/sqrt(3)))
-
-Generates default encoder and decoder layers that are to be fed into the LatentDiffEqModel.
-
-# Arguments
-`model_type`: GOKU() or LatentODE()\
-`input_dim`: Dimension of input\
-`diffeq`: Differential equations structure, containing fields `prob`, `solver` and `sensealg`, which correspond to [DifferentialEquations.jl](https://diffeq.sciml.ai/dev/)'s problem, solver and [sensitivity algorithm](https://diffeqflux.sciml.ai/dev/ControllingAdjoints/), respectively.
-"""
 function default_layers(model_type::LatentODE, input_dim, diffeq; device = cpu,
                             hidden_dim_resnet = 200, rnn_input_dim = 32,
                             rnn_output_dim = 32, latent_to_diffeq_dim = 200,

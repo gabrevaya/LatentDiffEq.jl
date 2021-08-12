@@ -5,6 +5,16 @@
 
 struct GOKU <: LatentDE end
 
+@doc raw"""
+    apply_feature_extractor(encoder::Encoder{GOKU}, x::Vector{Array})
+    apply_feature_extractor(encoder::Encoder{LatentODE}, x::Vector{Array})
+
+Applies the feature extractor layer contained in the `encoder` to the batch of input data x, usually reducing its dimensionality (i.e. extracting features).
+
+# Arguments
+`encoder`: Encoder structure containing all the encoder layers.\
+`x`: Input data. Each element of this vector is a matrix of size `input data dimension` x `batch size` and corresponds to a different time point.
+"""
 apply_feature_extractor(encoder::Encoder{GOKU}, x) = encoder.feature_extractor.(x)
 
 @doc raw"""
@@ -36,6 +46,16 @@ function apply_pattern_extractor(encoder::Encoder{GOKU}, fe_out)
     return pe_z₀_out, pe_θ_out
 end
 
+@doc raw"""
+    apply_latent_in(encoder::Encoder{GOKU}, pe_out)
+    apply_latent_in(encoder::Encoder{LatentODE}, pe_out)
+
+Applies the `encoder`'s `latent_in` layer to `pe_out`, returning the mean and log-variance of the latent variables to use for sampling.
+
+# Arguments
+`encoder`: Encoder structure containing all the encoder layers.\
+`pe_out`: Output of pattern extractor layer.
+"""
 function apply_latent_in(encoder::Encoder{GOKU}, pe_out)
     pe_z₀_out, pe_θ_out = pe_out
     li_μ_z₀, li_logσ²_z₀, li_μ_θ, li_logσ²_θ = encoder.latent_in
@@ -51,6 +71,7 @@ end
 
 @doc raw"""
     apply_latent_out(decoder::Decoder{GOKU}, l̃)
+
 Applies the `decoder`'s `latent_out` layer to `l̃`, returning a tuple with initial conditions and parameters for use in the differential equation layer.
 
 # Arguments
@@ -101,8 +122,23 @@ end
 # Identity by default
 transform_after_diffeq(x, diffeq) = x
 
+@doc raw"""
+    apply_reconstructor(decoder::Decoder{GOKU}, ẑ)
+    apply_reconstructor(decoder::Decoder{LatentODE}, ẑ)
+
+Passes latent trajectories `ẑ` through the reconstructor layer contained in the `decoder`.
+
+# Arguments
+`decoder`: Decoder structure containing all the decoder layers.\
+`ẑ`: Latent trajectories, consists of matrices corresponding to different time frames and having size `latent data dimension` x `batch size`.
+"""
 apply_reconstructor(decoder::Decoder{GOKU}, ẑ) = decoder.reconstructor.(ẑ)
 
+@doc raw"""
+    sample(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) where T <: Array
+
+Samples latent variables from the normal distribution with mean μ and variance exp(logσ²).
+"""
 function sample(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Array, Array}
     z₀_μ, θ_μ = μ
     z₀_logσ², θ_logσ² = logσ²
@@ -123,6 +159,30 @@ function sample(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tu
     return ẑ₀, θ̂
 end
 
+@doc raw"""
+    default_layers(model_type, input_dim::Int, diffeq;
+        device = cpu,
+        hidden_dim_resnet = 200, rnn_input_dim = 32,
+        rnn_output_dim = 16, latent_dim = 16,
+        latent_to_diffeq_dim = 200, θ_activation = softplus,
+        output_activation = σ, init = Flux.kaiming_uniform(gain = 1/sqrt(3)))
+
+Generates default encoder and decoder layers that are to be fed into the LatentDiffEqModel.
+
+# Arguments
+`model_type`: GOKU() or LatentODE()\
+`input_dim`: Dimension of input\
+`diffeq`: Differential equations structure, containing fields `prob`, `solver` and `sensealg`, which correspond to DifferentialEquations.jl's problem, solver and sensitivity algorithm, respectively.
+
+# Keyword Arguments
+`device`: Flux.jl's `cpu` or `gpu`.
+`hidden_dim_resnet`: Hidden dimension of the feature_extractor's resnet .
+`rnn_input_dim`: Input dimension of the pattern_extractor layers.
+`latent_dim`: Diemension of the latent variables.
+`latent_to_diffeq_dim`: Hidden dimension of the dense layers from latent_out.
+`θ_activation`: Activation function used in the last dense layer from latent_out corresponding to the parameters of the differential equation `θ`, which can be useful for imposing contrains.
+`output_activation`: Activation function used in the last layer of the reconstructor.
+"""
 function default_layers(model_type::GOKU, input_dim, diffeq; device=cpu,
                             hidden_dim_resnet = 200, rnn_input_dim = 32,
                             rnn_output_dim = 16, latent_dim = 16,
