@@ -6,16 +6,16 @@
 struct GOKU <: LatentDE end
 
 @doc raw"""
-    apply_feature_extractor(encoder::Encoder{GOKU}, x::Vector{Array})
-    apply_feature_extractor(encoder::Encoder{LatentODE}, x::Vector{Array})
+    apply_feature_extractor(encoder::Encoder{GOKU}, x)
+    apply_feature_extractor(encoder::Encoder{LatentODE}, x)
 
 Applies the feature extractor layer contained in the `encoder` to the batch of input data x, usually reducing its dimensionality (i.e. extracting features).
 
 # Arguments
 `encoder`: Encoder structure containing all the encoder layers.\
-`x`: Input data. Each element of this vector is a matrix of size `input data dimension` x `batch size` and corresponds to a different time point.
+`x`: Input data. When using the default architecture, `x` correspond to an array of size `pixels` x `batch size` x `time`.
 """
-apply_feature_extractor(encoder::Encoder{GOKU}, x) = encoder.feature_extractor.(x)
+apply_feature_extractor(encoder::Encoder{GOKU}, x) = encoder.feature_extractor(x)
 
 @doc raw"""
     apply_pattern_extractor(encoder::Encoder{GOKU}, fe_out)
@@ -29,6 +29,7 @@ Passes `fe_out` through the pattern_extractor layer contained in the `encoder`, 
 function apply_pattern_extractor(encoder::Encoder{GOKU}, fe_out)
     pe_z₀, pe_θ_forward, pe_θ_backward = encoder.pattern_extractor
 
+    fe_out = Flux.unstack(fe_out, 3)
     # reverse sequence
     fe_out_rev = reverse(fe_out)
 
@@ -115,7 +116,8 @@ function diffeq_layer(decoder::Decoder{GOKU}, l̂, t)
     
     # Transform the resulting output (mainly used for Kuramoto-like systems)
     ẑ = transform_after_diffeq(ẑ, decoder.diffeq)
-    ẑ = Flux.unstack(ẑ, 2)
+    ẑ = permutedims(ẑ, [1,3,2])
+
     return ẑ
 end
 
@@ -132,7 +134,7 @@ Passes latent trajectories `ẑ` through the reconstructor layer contained in th
 `decoder`: Decoder structure containing all the decoder layers.\
 `ẑ`: Latent trajectories, consists of matrices corresponding to different time frames and having size `latent data dimension` x `batch size`.
 """
-apply_reconstructor(decoder::Decoder{GOKU}, ẑ) = decoder.reconstructor.(ẑ)
+apply_reconstructor(decoder::Decoder{GOKU}, ẑ) = decoder.reconstructor(ẑ)
 
 @doc raw"""
     sample(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) where T <: Array
@@ -208,7 +210,7 @@ function default_layers(model_type::GOKU, input_dim, diffeq; device=cpu,
     # RNN
     pe_z₀ = Chain(RNN(rnn_input_dim, rnn_output_dim, relu, init = init),
                        RNN(rnn_output_dim, rnn_output_dim, relu, init = init)) |> device
-    
+
     # Bidirectional LSTM
     pe_θ_forward = Chain(LSTM(rnn_input_dim, rnn_output_dim, init = init),
                        LSTM(rnn_output_dim, rnn_output_dim, init = init)) |> device

@@ -6,7 +6,7 @@
 
 struct LatentODE <: LatentDE end
 
-apply_feature_extractor(encoder::Encoder{LatentODE}, x) = encoder.feature_extractor.(x)
+apply_feature_extractor(encoder::Encoder{LatentODE}, x) = encoder.feature_extractor(x)
 
 @doc raw"""
     apply_pattern_extractor(encoder::Encoder{LatentODE}, fe_out)
@@ -20,6 +20,7 @@ Passes `fe_out` through the pattern_extractor layer contained in the `encoder`.
 function apply_pattern_extractor(encoder::Encoder{LatentODE}, fe_out)
     pe_z₀ = encoder.pattern_extractor
 
+    fe_out = Flux.unstack(fe_out, 3)
     # reverse sequence
     fe_out_rev = reverse(fe_out)
 
@@ -72,12 +73,11 @@ function diffeq_layer(decoder::Decoder{LatentODE}, ẑ₀, t)
 
     # Transform the resulting output (mainly used for Kuramoto-like systems)
     ẑ = transform_after_diffeq(ẑ, decoder.diffeq)
-    ẑ = Flux.unstack(ẑ, 3)
 
     return ẑ
 end
 
-apply_reconstructor(decoder::Decoder{LatentODE}, ẑ) = decoder.reconstructor.(ẑ)
+apply_reconstructor(decoder::Decoder{LatentODE}, ẑ) = decoder.reconstructor(ẑ)
 
 function sample(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) where T <: Array
     z₀_μ = μ

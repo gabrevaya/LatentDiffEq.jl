@@ -93,11 +93,12 @@ function train(; kws...)
     train_data = permutedims(train_data, [3, 2, 1]) # input_dim, time_size, observations
     train_data = Float32.(train_data)
 
-    train_set, val_set = splitobs(train_data, 0.9)
+    train_set, val_set = splitobs(train_data, 0.9) # 28x28x400x450
 
     loader_train = DataLoader(Array(train_set), batchsize=batch_size, shuffle=true, partial=false)
-    loader_val = DataLoader(Array(val_set), batchsize=size(val_set, 3), shuffle=false, partial=false)
 
+    val_set = permutedims(val_set, [1,3,2])
+    t_val = range(0.f0, step=dt, length = size(val_set, 3))
     input_dim = size(train_set,1)
 
     ############################################################################
@@ -112,6 +113,7 @@ function train(; kws...)
     ############################################################################
     ## Define optimizer
     opt = ADAM(η)
+    # opt = ADAMW(η,(0.9,0.999), 0)
     # opt = AdaBelief(η)
     # opt = ADAMW(η,(0.9,0.999), decay)
 
@@ -161,6 +163,9 @@ function train(; kws...)
         progress = Progress(length(loader_train))
         for x in loader_train
 
+            # Permute dimesions for having (pixels, batch_size, time)
+            x = PermutedDimsArray(x, [1,3,2])
+
             # Use only random sequences of length seq_len for the current minibatch
             x = time_loader(x, full_seq_len, seq_len)
             
@@ -174,19 +179,16 @@ function train(; kws...)
             Flux.Optimise.update!(opt, ps, grad)
 
             # Use validation set to get loss and visualisation
-            val_set = Flux.unstack(first(loader_val), 2)
-            t_val = range(0.f0, step=dt, length=length(val_set))
-            val_loss = loss_batch(model, val_set |> device, t_val, β, false)
+            val_loss = loss_batch(model, val_set |> device,  t_val, β, false)
 
             # progress meter
             next!(progress; showvalues=[(:loss, loss),(:val_loss, val_loss)])
         end
 
         if device != gpu
-            val_set = first(loader_val)
-            # visualize_val_image(model, val_set[:,1:vis_len,:] |> device, t_val, h, w, save_figure)
             visualize_val_image(model, val_set |> device, vis_len, dt, h, w, save_figure)
         end
+
         if val_loss < best_val_loss
             best_val_loss = deepcopy(val_loss)
             weights = Flux.params(model)
@@ -207,9 +209,9 @@ function loss_batch(model, x, t, β, variational)
     x̂, ẑ, l̂ = X̂
 
     # Compute reconstruction loss
-    reconstruction_loss = vector_mse(x, x̂)
+    reconstruction_loss = sum(mean((x .- x̂).^2, dims=(2,3)))
 
-    # Compute KL losses from parameter and initial value estimation
+    # Compute KL losses for parameters and initial values
     kl_loss = vector_kl(μ, logσ²)
 
     return reconstruction_loss + β * kl_loss
@@ -220,35 +222,40 @@ end
 ## Visualization function
 
 function visualize_val_image(model, val_set, vis_len, dt, h, w, save_figure)
-    j = rand(1:size(val_set,3))
-    idxs = rand_time(size(val_set,2), vis_len)
-    X_test = val_set[:, idxs, j]
     
-    frames_test = [Gray.(reshape(x,h,w)) for x in eachcol(X_test)]
-    X_test = reshape(X_test, Val(3))
-    x = Flux.unstack(X_test, 2)
+    # randomly pick a sample from val_set and a random time interval of length vis_len
+    j = rand(1:size(val_set, 2))
+    idxs = rand_time(size(val_set, 3), vis_len)
+    x = val_set[:, j:j, idxs]
+
+    # create the desired time range for the model diffeq solving
     t_val = range(0.f0, step=dt, length=vis_len)
 
+    # run model with current parameters on the picked sample
     X̂, μ, logσ² = model(x, t_val)
     x̂, ẑ, l̂ = X̂
     ẑ₀, θ̂ = l̂
+    θ̂ = θ̂[1]
 
-    ẑ = Flux.stack(ẑ, 2)
-
-    plt1 = plot(ẑ[1,:,1], legend = false)
+    plt1 = plot(ẑ[1,1,:], legend = false)
     ylabel!("Angle")
     xlabel!("time")
 
-    x̂ = Flux.stack(x̂, 2)
-    frames_pred = [Gray.(reshape(x,h,w)) for x in eachslice(x̂, dims=2)]
+    # downsample
+    x = @view x[:, :, 1:6:end]
+    x̂ = @view x̂[:, :, 1:6:end]    
 
-    frames_test = frames_test[1:6:end]
-    frames_pred = frames_pred[1:6:end]
+    # build frames vectors
+    to_image(x) = Gray{N0f8}.(reshape(x, h, w))
+    frames_val = [to_image(xₜ) for xₜ in eachslice(x, dims = 3)]
+    frames_pred = [to_image(x̂ₜ) for x̂ₜ in eachslice(x̂, dims = 3)]
 
-    plt2 = mosaicview(frames_test..., frames_pred..., nrow=2, rowmajor=true)
+    # plot a mosaic view of the frames
+    plt2 = mosaicview(frames_val..., frames_pred..., nrow=2, rowmajor=true)
     plt2 = plot(plt2, leg = false, ticks = nothing, border = :none)
     plt = plot(plt1, plt2, layout = @layout([a; b]))
     save_figure ? savefig(plt, "output/visualization/fig.pdf") : display(plt)
+    return nothing
 end
 
 train()
