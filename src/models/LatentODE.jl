@@ -25,7 +25,7 @@ function apply_pattern_extractor(encoder::Encoder{LatentODE}, fe_out)
     fe_out_rev = reverse(fe_out)
 
     # pass it through the recurrent layers
-    pe_out = map(pe_z₀, fe_out_rev)[end]
+    pe_out = [pe_z₀(x) for x in fe_out_rev][end]
 
     # reset hidden states
     Flux.reset!(pe_z₀)

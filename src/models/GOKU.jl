@@ -28,15 +28,15 @@ Passes `fe_out` through the pattern_extractor layer contained in the `encoder`, 
 """
 function apply_pattern_extractor(encoder::Encoder{GOKU}, fe_out)
     pe_z₀, pe_θ_forward, pe_θ_backward = encoder.pattern_extractor
-
     fe_out = Flux.unstack(fe_out, 3)
+    
     # reverse sequence
     fe_out_rev = reverse(fe_out)
 
     # pass it through the recurrent layers
-    pe_z₀_out = map(pe_z₀, fe_out_rev)[end]
-    pe_θ_out_f = map(pe_θ_forward, fe_out)[end]
-    pe_θ_out_b = map(pe_θ_backward, fe_out_rev)[end]
+    pe_z₀_out = [pe_z₀(x) for x in fe_out_rev][end]
+    pe_θ_out_f = [pe_θ_forward(x) for x in fe_out][end]
+    pe_θ_out_b = [pe_θ_backward(x) for x in fe_out_rev][end]
     pe_θ_out = vcat(pe_θ_out_f, pe_θ_out_b)
 
     # reset hidden states
@@ -103,7 +103,7 @@ function diffeq_layer(decoder::Decoder{GOKU}, l̂, t)
 
     # Function definition for ensemble problem
     prob_func(prob,i,repeat) = remake(prob, u0=ẑ₀[:,i], p = θ̂[:,i])
-    
+
     # Check if solve was successful, if not, return NaNs to avoid problems with dimensions matches
     output_func(sol, i) = sol.retcode == :Success ? (Array(sol), false) : (fill(NaN32,(size(ẑ₀, 1), length(t))), false)
 
@@ -113,7 +113,7 @@ function diffeq_layer(decoder::Decoder{GOKU}, l̂, t)
 
     ## Solve
     ẑ = solve(ens_prob, solver, EnsembleThreads(); sensealg = sensealg, trajectories = size(θ̂, 2), saveat = t, kwargs...)
-    
+
     # Transform the resulting output (mainly used for Kuramoto-like systems)
     ẑ = transform_after_diffeq(ẑ, decoder.diffeq)
     ẑ = permutedims(ẑ, [1,3,2])
