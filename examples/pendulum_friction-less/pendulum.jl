@@ -37,7 +37,7 @@ struct Pendulum{P,S,T,K}
         prob = ODEProblem(ODEFunc, u₀, tspan, p)
 
         solver = Tsit5()
-        sensalg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
+        sensalg = ForwardDiffSensitivity()
 
         P = typeof(prob)
         S = typeof(solver)
@@ -85,7 +85,8 @@ struct Pendulum_friction{P,S,T,K}
         prob = ODEProblem(ODEFunc, u₀, tspan, p)
 
         solver = Tsit5()
-        sensalg = ForwardDiffSensitivity()
+        # sensalg = ForwardDiffSensitivity()
+        sensalg = ForwardDiffSensitivity(autojacvec=EnzymeVJP())
 
         P = typeof(prob)
         S = typeof(solver)
@@ -138,9 +139,6 @@ struct SPendulum{P,S,T,K}
 
         solver = SOSRI()
         sensalg = ForwardDiffSensitivity()
-        # sensalg = InterpolatingAdjoint()
-        # sensalg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
-
 
         P = typeof(prob_sde)
         S = typeof(solver)
