@@ -17,6 +17,7 @@ using DiffEqSensitivity
 using Images
 using Plots
 import GR
+using CUDA
 
 include("pendulum.jl")
 include("create_data.jl")
@@ -38,7 +39,7 @@ include("create_data.jl")
     seq_len = 50                    # sequence length for training samples
     epochs = 1500                   # number of epochs for training
     seed = 333                      # random seed
-    cuda = false                    # GPU usage (not working well yet)
+    cuda = true                     # GPU usage (not working well yet)
     dt = 0.05                       # timestep for ode solve
     variational = true              # variational or deterministic training
 
@@ -55,7 +56,7 @@ include("create_data.jl")
 
     ## Visualization
     vis_len = 60                    # number of test frames to visualize after each epoch
-    save_figure = false             # true: save visualization figure in save_path folder
+    save_figure = true              # true: save visualization figure in save_path folder
                                     # false: display image instead of saving it    
 end
 
@@ -68,8 +69,13 @@ function train(; kws...)
     args = Args(; kws...)
     @unpack_Args args
 
-    device = cpu
-    @info "Training on CPU"
+    if cuda && has_cuda_gpu()
+        device = gpu
+        @info "Training on GPU"
+    else
+        device = cpu
+        @info "Training on CPU"
+    end
 
     ############################################################################
     ## Prepare training data

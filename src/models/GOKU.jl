@@ -112,8 +112,10 @@ function diffeq_layer(decoder::Decoder{GOKU}, l̂, t)
     ens_prob = EnsembleProblem(prob, prob_func = prob_func, output_func = output_func)
 
     ## Solve
-    ẑ = solve(ens_prob, solver, EnsembleThreads(); sensealg = sensealg, trajectories = size(θ̂, 2), saveat = t, kwargs...)
+    #ẑ = solve(ens_prob, solver, EnsembleThreads(); sensealg = sensealg, trajectories = size(θ̂, 2), saveat = t, kwargs...)
     
+    ẑ = solve(ens_prob, solver, EnsembleGPUArray(); sensealg = sensealg, trajectories = size(θ̂, 2), saveat = t, kwargs...)
+
     # Transform the resulting output (mainly used for Kuramoto-like systems)
     ẑ = transform_after_diffeq(ẑ, decoder.diffeq)
     ẑ = permutedims(ẑ, [1,3,2])

@@ -43,6 +43,23 @@ function vector_kl(μ::T, logσ²::T) where T <: Matrix
     return s
 end
 
+
+function vector_kl(μ::T, logσ²::T) where T <: Tuple{CuArray, CuArray}
+    P = eltype(μ[1])
+    s = zero(P)
+    # go through initial conditions and parameters
+    @inbounds for i in 1:2
+        s1 = zero(P)
+        @inbounds for k in eachindex(μ[i])
+            s1 += kl(μ[i][k], logσ²[i][k])
+        end
+        # divide per batch size
+        s1 /= size(μ[i], 2)
+        s += s1
+    end
+    return s
+end
+
 ## annealing factor scheduler
 # based on https://github.com/haofuml/cyclical_annealing
 function frange_cycle_linear(n_iter, start::T=0.0f0, stop::T=1.0f0,  n_cycle=4, ratio=0.5) where T
