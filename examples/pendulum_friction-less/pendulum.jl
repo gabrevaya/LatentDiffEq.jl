@@ -8,7 +8,7 @@ struct Pendulum{P,S,T,K}
     sensealg::T
     kwargs::K
 
-    function Pendulum(; kwargs...)
+    function Pendulum(; solver = Tsit5(), sensalg = ForwardDiffSensitivity(), kwargs...)
         # Parameters and initial conditions only
         # used to initialize the ODE problem
         u₀ = Float32[1.0, 1.0]
@@ -36,9 +36,6 @@ struct Pendulum{P,S,T,K}
         ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
         prob = ODEProblem(ODEFunc, u₀, tspan, p)
 
-        solver = Tsit5()
-        sensalg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
-
         P = typeof(prob)
         S = typeof(solver)
         T = typeof(sensalg)
@@ -58,7 +55,7 @@ struct Pendulum_friction{P,S,T,K}
     sensealg::T
     kwargs::K
 
-    function Pendulum_friction(; kwargs...)
+    function Pendulum_friction(; solver = Tsit5(), sensalg = ForwardDiffSensitivity(), kwargs...)
         # Default parameters and initial conditions
         u₀ = Float32[1.0, 1.0]
         p = Float32[1.]
@@ -84,9 +81,6 @@ struct Pendulum_friction{P,S,T,K}
         ODEFunc = ODEFunction(sys, tgrad=true, jac = true, sparse = false, simplify = false)
         prob = ODEProblem(ODEFunc, u₀, tspan, p)
 
-        solver = Tsit5()
-        sensalg = ForwardDiffSensitivity()
-
         P = typeof(prob)
         S = typeof(solver)
         T = typeof(sensalg)
@@ -106,7 +100,7 @@ struct SPendulum{P,S,T,K}
     sensealg::T
     kwargs::K
 
-    function SPendulum(; kwargs...)
+    function SPendulum(;solver = SOSRI(), sensalg = ForwardDiffSensitivity(), kwargs...)
         # Default parameters and initial conditions
         u₀ = Float32[1.0, 1.0]
         p = Float32[1.]
@@ -135,12 +129,6 @@ struct SPendulum{P,S,T,K}
         end
 
         prob_sde = SDEProblem(prob.f.f, σ, prob.u0, prob.tspan, prob.p, jac = prob.f.jac, tgrad = prob.f.tgrad)
-
-        solver = SOSRI()
-        sensalg = ForwardDiffSensitivity()
-        # sensalg = InterpolatingAdjoint()
-        # sensalg = BacksolveAdjoint(autojacvec=ReverseDiffVJP(true))
-
 
         P = typeof(prob_sde)
         S = typeof(solver)
