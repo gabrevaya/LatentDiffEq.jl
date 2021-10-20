@@ -73,6 +73,12 @@ git-tree-sha1 = "2c8329f16addffd09e6ca84c556e2185a4933c64"
 uuid = "052768ef-5323-5732-b1bb-66c8b64840ba"
 version = "3.5.0"
 
+[[CUDAKernels]]
+deps = ["Adapt", "CUDA", "Cassette", "KernelAbstractions", "SpecialFunctions", "StaticArrays"]
+git-tree-sha1 = "8015dde91ccb5c46a1c89e5612821c214988213c"
+uuid = "72cfdca4-0801-4ab0-bf6a-d52aa10adc57"
+version = "0.2.1"
+
 [[Cassette]]
 git-tree-sha1 = "6ce3cd755d4130d43bab24ea5181e77b89b51839"
 uuid = "7057c7e9-c182-5462-911a-8362d720325c"
@@ -200,6 +206,12 @@ deps = ["Adapt", "Cassette", "ConsoleProgressMonitor", "DataInterpolations", "Di
 git-tree-sha1 = "cda4feddd806afa6d1f908b94cde32539348a546"
 uuid = "aae7a2af-3d4f-5e19-a356-7da93b79d9d0"
 version = "1.43.0"
+
+[[DiffEqGPU]]
+deps = ["CUDA", "CUDAKernels", "ChainRulesCore", "DiffEqBase", "Distributed", "DocStringExtensions", "ForwardDiff", "KernelAbstractions", "LinearAlgebra", "RecursiveArrayTools", "SciMLBase", "ZygoteRules"]
+git-tree-sha1 = "516493af06475a7fb80a7505395c3bca590caa1b"
+uuid = "071ae1c0-96b5-11e9-1965-c90190d839ea"
+version = "1.15.0"
 
 [[DiffEqJump]]
 deps = ["ArrayInterface", "Compat", "DataStructures", "DiffEqBase", "FunctionWrappers", "LightGraphs", "LinearAlgebra", "PoissonRandom", "Random", "RandomNumbers", "RecursiveArrayTools", "Reexport", "StaticArrays", "TreeViews", "UnPack"]
@@ -454,6 +466,12 @@ deps = ["Base64", "Logging", "Media", "Profile"]
 git-tree-sha1 = "07cb43290a840908a771552911a6274bc6c072c7"
 uuid = "e5e0dc1b-0480-54bc-9374-aad01c23163d"
 version = "0.8.4"
+
+[[KernelAbstractions]]
+deps = ["Adapt", "Cassette", "InteractiveUtils", "MacroTools", "SpecialFunctions", "StaticArrays", "UUIDs"]
+git-tree-sha1 = "7244ffd3549bdfc422162602f27d23b467fa0884"
+uuid = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
+version = "0.6.3"
 
 [[KernelDensity]]
 deps = ["Distributions", "DocStringExtensions", "FFTW", "Interpolations", "StatsBase"]
