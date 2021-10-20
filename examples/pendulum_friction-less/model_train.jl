@@ -18,6 +18,7 @@ using Images
 using Plots
 import GR
 using CUDA
+CUDA.allowscalar(false)
 
 include("pendulum.jl")
 include("create_data.jl")
@@ -39,13 +40,13 @@ include("create_data.jl")
     seq_len = 50                    # sequence length for training samples
     epochs = 1500                   # number of epochs for training
     seed = 333                      # random seed
-    cuda = true                     # GPU usage (not working well yet)
+    cuda = true                    # GPU usage (not working well yet)
     dt = 0.05                       # timestep for ode solve
     variational = true              # variational or deterministic training
 
     ## Annealing schedule
-    start_β = 0f0                   # start value
-    end_β = 1f0                     # end value
+    start_β = 0.00001f0                   # start value
+    end_β = 0.00001f0                     # end value
     n_cycle = 4                     # number of annealing cycles
     ratio = 0.9                     # proportion used to increase β (and 1-ratio used to fix β)
 
@@ -132,9 +133,9 @@ function train(; kws...)
 
     ############################################################################
     ## Define optimizer
-    # opt = ADAM(η)
+    opt = ADAM(η)
     # opt = AdaBelief(η)
-    opt = ADAMW(η, (0.9,0.999), decay)
+    #opt = ADAMW(η, (0.9,0.999), decay)
 
     ############################################################################
     ## Various definitions
@@ -187,7 +188,7 @@ function train(; kws...)
 
             # Use only random sequences of length seq_len for the current minibatch
             x = time_loader(x, full_seq_len, seq_len)
-
+            
             # Run the model with the current parameters and compute the loss
             loss, back = Flux.pullback(ps) do
                 loss_batch(model, x |> device, t, β, variational)
@@ -204,9 +205,7 @@ function train(; kws...)
             next!(progress; showvalues=[(:loss, loss),(:val_loss, val_loss)])
         end
 
-        if device != gpu
-            visualize_val_image(model, val_set |> device, val_set_latent, val_set_params, vis_len, dt, h, w, save_figure)
-        end
+        visualize_val_image(model, val_set |> device, val_set_latent, val_set_params, vis_len, dt, h, w, device, save_figure, epoch)
 
         if val_loss < best_val_loss
             best_val_loss = deepcopy(val_loss)
@@ -240,12 +239,12 @@ end
 ################################################################################
 ## Visualization function
 
-function visualize_val_image(model, val_set, val_set_latent, val_set_params, vis_len, dt, h, w, save_figure)
+function visualize_val_image(model, val_set, val_set_latent, val_set_params, vis_len, dt, h, w, device, save_figure, epoch)
     
     # randomly pick a sample from val_set and a random time interval of length vis_len
     j = rand(1:size(val_set, 2))
     idxs = rand_time(size(val_set, 3), vis_len)
-    x = val_set[:, j:j, idxs]
+    x = val_set[:, j:j, idxs] |> device
     true_latent = val_set_latent[:, idxs, j]
     true_params = val_set_params[j]
     
@@ -256,6 +255,11 @@ function visualize_val_image(model, val_set, val_set_latent, val_set_params, vis
     X̂, μ, logσ² = model(x, t_val)
     x̂, ẑ, l̂ = X̂
     ẑ₀, θ̂ = l̂
+
+    θ̂ = cpu(θ̂)
+    ẑ = cpu(ẑ)
+    x̂ = cpu(x̂)
+    x = cpu(x)
     θ̂ = θ̂[1]
 
     # plot actual and inferred angles
@@ -279,7 +283,7 @@ function visualize_val_image(model, val_set, val_set_latent, val_set_params, vis
     annotate!((208, -21, ("True Pendulum Length = $(round(true_params, digits = 2))", 9, :gray, :right)))
     annotate!((208, -11, ("Inferred Pendulum Length = $(round(θ̂, digits = 2))", 9, :gray, :right)))
     plt = plot(plt1, plt2, layout = @layout([a; b]))
-    save_figure ? savefig(plt, "output/visualization/fig.pdf") : display(plt)
+    save_figure ? savefig(plt, "output/visualization/fig_$epoch.pdf") : display(plt)
     return nothing
 end
 

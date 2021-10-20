@@ -95,7 +95,12 @@ end
 Solves the differential equations contained in the `diffeq` layer of the `decoder` using the initial conditions and parameters contained in `l̂`, and saving at times `t`.
 """
 function diffeq_layer(decoder::Decoder{GOKU}, l̂, t)
-    ẑ₀, θ̂ = l̂
+    ẑ₀_, θ̂_ = l̂
+
+    # make sure the diff eq  solving is done on cpu
+    ẑ₀ = cpu(ẑ₀_)
+    θ̂ = cpu(θ̂_)
+
     prob = decoder.diffeq.prob
     solver = decoder.diffeq.solver
     sensealg = decoder.diffeq.sensealg
@@ -112,16 +117,20 @@ function diffeq_layer(decoder::Decoder{GOKU}, l̂, t)
     ens_prob = EnsembleProblem(prob, prob_func = prob_func, output_func = output_func)
 
     ## Solve
-    #ẑ = solve(ens_prob, solver, EnsembleThreads(); sensealg = sensealg, trajectories = size(θ̂, 2), saveat = t, kwargs...)
-    
-    ẑ = solve(ens_prob, solver, EnsembleGPUArray(); sensealg = sensealg, trajectories = size(θ̂, 2), saveat = t, kwargs...)
+    ẑ = solve(ens_prob, solver, EnsembleThreads(); sensealg = sensealg, trajectories = size(θ̂, 2), saveat = t, kwargs...)
+   # ẑ = solve(ens_prob, solver, EnsembleGPUArray(); sensealg = sensealg, trajectories = size(θ̂, 2), saveat = t, kwargs...)
 
     # Transform the resulting output (mainly used for Kuramoto-like systems)
     ẑ = transform_after_diffeq(ẑ, decoder.diffeq)
     ẑ = permutedims(ẑ, [1,3,2])
 
+    # go back to gpu if it corresponds
+    ẑ = device(ẑ₀_, ẑ)
     return ẑ
 end
+
+device(x::Flux.CUDA.CuArray, y) = gpu(y)
+device(x::Array, y) = x
 
 # Identity by default
 transform_after_diffeq(x, diffeq) = x

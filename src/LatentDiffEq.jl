@@ -5,7 +5,6 @@ using DiffEqFlux
 using DiffEqSensitivity
 using Flux
 using Statistics
-using DiffEqGPU
 using CUDA
 
 ## Types definitions
