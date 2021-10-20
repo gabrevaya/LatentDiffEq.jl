@@ -130,7 +130,7 @@ function diffeq_layer(decoder::Decoder{GOKU}, l̂, t)
 end
 
 device(x::Flux.CUDA.CuArray, y) = gpu(y)
-device(x::Array, y) = x
+device(x::Array, y) = y
 
 # Identity by default
 transform_after_diffeq(x, diffeq) = x
