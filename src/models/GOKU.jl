@@ -114,8 +114,8 @@ function diffeq_layer(decoder::Decoder{GOKU}, l̂, t)
     ## Solve
     ẑ = solve(ens_prob, solver, EnsembleThreads(); sensealg = sensealg, trajectories = size(θ̂, 2), saveat = t, kwargs...)
 
-    # Transform the resulting output (mainly used for Kuramoto-like systems)
-    ẑ = transform_after_diffeq(ẑ, decoder.diffeq)
+    # Optionally transform the latent state variables
+    ẑ = transform_after_diffeq(Array(ẑ), decoder.diffeq)
     ẑ = permutedims(ẑ, [1,3,2])
 
     return ẑ
