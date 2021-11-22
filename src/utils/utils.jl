@@ -43,6 +43,11 @@ function vector_kl(μ::T, logσ²::T) where T <: Matrix
     return s
 end
 
+
+function vector_kl(μ::T, logσ²::T) where T <: Tuple{CuArray, CuArray}
+	return sum( [ mean(sum(kl.(μ[i], logσ²[i]), dims=1)) for i in 1:length(μ) ] )
+end
+
 ## annealing factor scheduler
 # based on https://github.com/haofuml/cyclical_annealing
 function frange_cycle_linear(n_iter, start::T=0.0f0, stop::T=1.0f0,  n_cycle=4, ratio=0.5) where T

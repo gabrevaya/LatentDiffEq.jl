@@ -5,6 +5,7 @@ using DiffEqFlux
 using DiffEqSensitivity
 using Flux
 using Statistics
+using CUDA
 
 ## Types definitions
 abstract type LatentDE end
