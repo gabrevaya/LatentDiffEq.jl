@@ -40,13 +40,13 @@ include("create_data.jl")
     seq_len = 50                    # sequence length for training samples
     epochs = 1500                   # number of epochs for training
     seed = 333                      # random seed
-    cuda = true                    # GPU usage (not working well yet)
+    cuda = true                     # GPU usage (not working well yet)
     dt = 0.05                       # timestep for ode solve
     variational = true              # variational or deterministic training
 
     ## Annealing schedule
-    start_β = 0.00001f0                   # start value
-    end_β = 0.00001f0                     # end value
+    start_β = 0f0                   # start value
+    end_β = 1f0                     # end value
     n_cycle = 4                     # number of annealing cycles
     ratio = 0.9                     # proportion used to increase β (and 1-ratio used to fix β)
 
@@ -133,9 +133,9 @@ function train(; kws...)
 
     ############################################################################
     ## Define optimizer
-    opt = ADAM(η)
+    #opt = ADAM(η)
     # opt = AdaBelief(η)
-    #opt = ADAMW(η, (0.9,0.999), decay)
+    opt = ADAMW(η, (0.9,0.999), decay)
 
     ############################################################################
     ## Various definitions
@@ -160,7 +160,9 @@ function train(; kws...)
 
     ## Visualization options
     if save_figure
-        mkpath("$root_dir/output/visualization")
+        vis_dir = "$root_dir/output/visualization"
+        mkpath(vis_dir)
+        @info "Visualizations at $vis_dir"
         GR.inline("pdf")
     end
 
@@ -202,7 +204,7 @@ function train(; kws...)
             val_loss = loss_batch(model, val_set |> device, t_val, β, false)
 
             # Progress meter
-            next!(progress; showvalues=[(:loss, loss),(:val_loss, val_loss)])
+            next!(progress; showvalues=[(:loss, loss), (:val_loss, val_loss)])
         end
 
         visualize_val_image(model, val_set |> device, val_set_latent, val_set_params, vis_len, dt, h, w, device, save_figure, epoch)
