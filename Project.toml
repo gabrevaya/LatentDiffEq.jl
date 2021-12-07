@@ -1,7 +1,7 @@
 name = "LatentDiffEq"
 uuid = "5e00f16f-4024-4869-80ca-bd64fdfff9b1"
 authors = ["Germán Abrevaya <gabrevaya@df.uba.ar> and contributors"]
-version = "0.2.6"
+version = "0.2.7"
 
 [deps]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
@@ -12,7 +12,7 @@ OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
-julia = "1.6"
+julia = "1.7, 1.6"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
