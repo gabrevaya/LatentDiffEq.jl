@@ -12,6 +12,7 @@ OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
+OrdinaryDiffEq = "6"
 julia = "1.7, 1.6"
 
 [extras]
