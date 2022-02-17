@@ -1030,7 +1030,9 @@ version = "1.7.1"
 
 [[deps.LatentDiffEq]]
 deps = ["CUDA", "DiffEqFlux", "DiffEqSensitivity", "Flux", "OrdinaryDiffEq", "Statistics"]
-path = "/home/mila/a/abrevayg/LatentDiffEq"
+git-tree-sha1 = "c35c10a05c272f90f4402efd3011bd856ebf4977"
+repo-rev = "master"
+repo-url = "https://github.com/gabrevaya/LatentDiffEq.jl.git"
 uuid = "5e00f16f-4024-4869-80ca-bd64fdfff9b1"
 version = "0.2.9"
 
