@@ -27,7 +27,7 @@ include("create_data.jl")
 ## Arguments for the train function
 @with_kw mutable struct Args
     ## Global model
-    model_type = GOKU()
+    model_type = GOKU_basic()
 
     ## Latent Differential Equations
     diffeq = Pendulum()
@@ -168,7 +168,7 @@ function train(; kws...)
 
     ############################################################################
     ## Main train loop
-    @info "Start Training of $(typeof(model_type))-net, total $epochs epochs"
+    @info "Start Training of $(typeof(model_type)), total $epochs epochs"
     for epoch = 1:epochs
 
         # Set annealing factor

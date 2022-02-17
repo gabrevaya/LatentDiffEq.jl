@@ -14,7 +14,7 @@ abstract type LatentDE end
 include("./models/LatentDiffEqModel.jl")
 include("./models/GOKU.jl")
 include("./models/LatentODE.jl")
-export LatentDiffEqModel, GOKU, LatentODE
+export LatentDiffEqModel, GOKU, GOKU_basic, LatentODE
 export default_layers
 
 include("./utils/utils.jl")

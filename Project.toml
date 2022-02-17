@@ -1,7 +1,7 @@
 name = "LatentDiffEq"
 uuid = "5e00f16f-4024-4869-80ca-bd64fdfff9b1"
 authors = ["Germán Abrevaya <gabrevaya@df.uba.ar> and contributors"]
-version = "0.2.8"
+version = "0.2.9"
 
 [deps]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"

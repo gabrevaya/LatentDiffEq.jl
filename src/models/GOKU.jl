@@ -3,7 +3,8 @@
 # Based on
 # https://arxiv.org/abs/2003.10775
 
-struct GOKU <: LatentDE end
+abstract type GOKU <: LatentDE end
+struct GOKU_basic <: GOKU end
 
 @doc raw"""
     apply_feature_extractor(encoder::Encoder{GOKU}, x)
@@ -15,7 +16,7 @@ Applies the feature extractor layer contained in the `encoder` to the batch of i
 `encoder`: Encoder structure containing all the encoder layers.\
 `x`: Input data. When using the default architecture, `x` correspond to an array of size `pixels` x `batch size` x `time`.
 """
-apply_feature_extractor(encoder::Encoder{GOKU}, x) = encoder.feature_extractor(x)
+apply_feature_extractor(encoder::Encoder{T}, x) where {T<:GOKU} = encoder.feature_extractor(x)
 
 @doc raw"""
     apply_pattern_extractor(encoder::Encoder{GOKU}, fe_out)
@@ -26,7 +27,7 @@ Passes `fe_out` through the pattern_extractor layer contained in the `encoder`, 
 `encoder`: Encoder structure containing all the encoder layers.\
 `fe_out`: Output of feature extractor layer.
 """
-function apply_pattern_extractor(encoder::Encoder{GOKU}, fe_out)
+function apply_pattern_extractor(encoder::Encoder{T}, fe_out) where {T<:GOKU}
     pe_z₀, pe_θ_forward, pe_θ_backward = encoder.pattern_extractor
     fe_out = Flux.unstack(fe_out, 3)
     
@@ -57,7 +58,7 @@ Applies the `encoder`'s `latent_in` layer to `pe_out`, returning the mean and lo
 `encoder`: Encoder structure containing all the encoder layers.\
 `pe_out`: Output of pattern extractor layer.
 """
-function apply_latent_in(encoder::Encoder{GOKU}, pe_out)
+function apply_latent_in(encoder::Encoder{T}, pe_out) where {T<:GOKU}
     pe_z₀_out, pe_θ_out = pe_out
     li_μ_z₀, li_logσ²_z₀, li_μ_θ, li_logσ²_θ = encoder.latent_in
 
@@ -79,7 +80,7 @@ Applies the `decoder`'s `latent_out` layer to `l̃`, returning a tuple with init
 `decoder`: Decoder structure containing all the decoder layers.\
 `l̃`: Tuple containing sampled abstract representations of the initial conditions and parameters, respectively.
 """
-function apply_latent_out(decoder::Decoder{GOKU}, l̃)
+function apply_latent_out(decoder::Decoder{T}, l̃) where {T<:GOKU}
     z̃₀, θ̃ = l̃
     lo_z₀, lo_θ = decoder.latent_out
 
@@ -94,7 +95,7 @@ end
 
 Solves the differential equations contained in the `diffeq` layer of the `decoder` using the initial conditions and parameters contained in `l̂`, and saving at times `t`.
 """
-function diffeq_layer(decoder::Decoder{GOKU}, l̂, t)
+function diffeq_layer(decoder::Decoder{T}, l̂, t) where {T<:GOKU}
     ẑ₀_, θ̂_ = l̂
 
     # make sure the diff eq  solving is done on cpu
@@ -144,14 +145,14 @@ Passes latent trajectories `ẑ` through the reconstructor layer contained in th
 `decoder`: Decoder structure containing all the decoder layers.\
 `ẑ`: Latent trajectories, consists of matrices corresponding to different time frames and having size `latent data dimension` x `batch size`.
 """
-apply_reconstructor(decoder::Decoder{GOKU}, ẑ) = decoder.reconstructor(ẑ)
+apply_reconstructor(decoder::Decoder{T}, ẑ) where {T<:GOKU} = decoder.reconstructor(ẑ)
 
 @doc raw"""
     sample(μ::T, logσ²::T, model::LatentDiffEqModel{LatentODE}) where T <: Array
 
 Samples latent variables from the normal distribution with mean μ and variance exp(logσ²).
 """
-function sample(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Array, Array}
+function sample(μ::P, logσ²::P, model::LatentDiffEqModel{T}) where {P<:Tuple{Array, Array}, T<:GOKU}
     z₀_μ, θ_μ = μ
     z₀_logσ², θ_logσ² = logσ²
 
@@ -161,7 +162,7 @@ function sample(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tu
     return ẑ₀, θ̂
 end
 
-function sample(μ::T, logσ²::T, model::LatentDiffEqModel{GOKU}) where T <: Tuple{Flux.CUDA.CuArray, Flux.CUDA.CuArray}
+function sample(μ::P, logσ²::P, model::LatentDiffEqModel{T}) where {P<:Tuple{Flux.CUDA.CuArray, Flux.CUDA.CuArray}, T<:GOKU}
     z₀_μ, θ_μ = μ
     z₀_logσ², θ_logσ² = logσ²
 
@@ -195,7 +196,7 @@ Generates default encoder and decoder layers that are to be fed into the LatentD
 `θ_activation`: Activation function used in the last dense layer from latent_out corresponding to the parameters of the differential equation `θ`, which can be useful for imposing contrains.
 `output_activation`: Activation function used in the last layer of the reconstructor.
 """
-function default_layers(model_type::GOKU, input_dim, diffeq; device=cpu,
+function default_layers(model_type::GOKU_basic, input_dim, diffeq; device=cpu,
                             hidden_dim_resnet = 200, rnn_input_dim = 32,
                             rnn_output_dim = 16, latent_dim = 16,
                             latent_to_diffeq_dim = 200, θ_activation = softplus,
