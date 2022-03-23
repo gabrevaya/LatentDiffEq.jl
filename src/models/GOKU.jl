@@ -200,7 +200,7 @@ function default_layers(model_type::GOKU_basic, input_dim, diffeq; device=cpu,
                             hidden_dim_resnet = 200, rnn_input_dim = 32,
                             rnn_output_dim = 16, latent_dim_z₀ = 16, latent_dim_θ = 16,
                             latent_to_diffeq_dim = 200, general_activation = relu,
-                            z₀_activation = x->x, θ_activation = softplus,
+                            z₀_activation = identity, θ_activation = softplus,
                             output_activation = σ, init = Flux.kaiming_uniform(gain = 1/sqrt(3)),
                             verbose = false)
 
