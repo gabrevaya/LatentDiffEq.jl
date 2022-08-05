@@ -2,7 +2,7 @@ module LatentDiffEq
 
 using OrdinaryDiffEq
 using DiffEqFlux
-using DiffEqSensitivity
+using SciMLSensitivity
 using Flux
 using Statistics
 using CUDA
